@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1029311164785",
+    "project_id": "isop-rn",
+    "storage_bucket": "isop-rn.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1029311164785:android:821712fbd122a64bdc86d0",
+        "android_client_info": {
+          "package_name": "com.vi.isop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdnoupHCeNFs8FmhdB2YB_g8YDOuIHOk4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

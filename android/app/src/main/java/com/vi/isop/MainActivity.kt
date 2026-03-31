@@ -1,4 +1,4 @@
-package com.isop_rn
+package com.vi.isop
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

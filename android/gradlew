@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Add Node.js and Homebrew paths for React Native autolinking
+export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin
+
 #
 # Copyright © 2015 the original authors.
 #

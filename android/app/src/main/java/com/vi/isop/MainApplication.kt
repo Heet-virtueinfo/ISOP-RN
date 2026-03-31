@@ -1,4 +1,4 @@
-package com.isop_rn
+package com.vi.isop
 
 import android.app.Application
 import com.facebook.react.PackageList
