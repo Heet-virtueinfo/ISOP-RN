@@ -11,7 +11,8 @@ prepare_react_native_project!
 $RNFirebaseAsStaticFramework = true
 
 target 'ISOP_RN' do
-  pod 'GoogleUtilities', :modular_headers => true
+  use_frameworks! :linkage => :static
+  
   config = use_native_modules!
 
   use_react_native!(
@@ -21,6 +22,12 @@ target 'ISOP_RN' do
   )
 
   post_install do |installer|
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
+
     react_native_post_install(
       installer,
       config[:reactNativePath],
