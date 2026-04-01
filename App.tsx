@@ -1,14 +1,18 @@
-import { StyleSheet, Text, View } from 'react-native';
 import React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AppNavigator from './src/navigation/AppNavigator';
+import AppToast from './src/components/AppToast';
+import { AuthProvider } from './src/contexts/AuthContext';
 
 const App = () => {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text style={{ fontSize: 20, fontWeight: 'bold' }}>App</Text>
-    </View>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
+      <AppToast />
+    </SafeAreaProvider>
   );
 };
 
 export default App;
-
-const styles = StyleSheet.create({});
