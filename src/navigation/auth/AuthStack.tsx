@@ -1,10 +1,11 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import HomeScreen from '../screens/home/HomeScreen';
+import LoginScreen from '../../screens/auth/LoginScreen';
+import RegisterScreen from '../../screens/auth/RegisterScreen';
 
 const Stack = createStackNavigator();
 
-const UserStack = () => {
+const AuthStack = () => {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -12,9 +13,10 @@ const UserStack = () => {
         cardStyle: { backgroundColor: 'white' },
       }}
     >
-      <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
   );
 };
 
-export default UserStack;
+export default AuthStack;

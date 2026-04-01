@@ -1,22 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
-import { getEvents } from '../../services/eventService';
+import { Shield, Activity, TrendingUp, LayoutGrid } from 'lucide-react-native';
+import { colors, spacing, typography } from '../../theme';
+import { getEvents, deleteEvent } from '../../services/eventService';
 import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
+import DeleteEventModal from '../../components/modals/DeleteEventModal';
+import Toast from 'react-native-toast-message';
+
+const BentoStat = ({ label, value, icon: Icon, color, sublabel }: any) => (
+  <View style={styles.bentoStat}>
+    <View style={[styles.bentoIconBox, { backgroundColor: color + '15' }]}>
+      <Icon size={20} color={color} />
+    </View>
+    <View style={styles.bentoContent}>
+      <Text style={styles.bentoValue}>{value}</Text>
+      <Text style={styles.bentoLabel}>{label}</Text>
+      {sublabel && <Text style={styles.bentoSublabel}>{sublabel}</Text>}
+    </View>
+  </View>
+);
 
 const AdminDashboard = () => {
   const navigation = useNavigation<any>();
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = getEvents((eventsList) => {
+    const unsubscribe = getEvents(eventsList => {
       setEvents(eventsList);
       setLoading(false);
     });
@@ -28,51 +44,141 @@ const AdminDashboard = () => {
     navigation.navigate('EditEvent', { eventId });
   };
 
+  const handleDeletePress = (event: AppEvent) => {
+    setSelectedEvent(event);
+    setDeleteModalVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedEvent) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteEvent(selectedEvent.id);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Deleted Successfully',
+        text2: `"${selectedEvent.title}" has been removed.`,
+      });
+
+      setDeleteModalVisible(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete event. Please try again.',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const renderEmptyList = () => {
     if (loading) return null;
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>No Events Found</Text>
-        <Text style={styles.emptyText}>Create your first event to get started.</Text>
+        <Text style={styles.emptyText}>
+          Create your first event to get started.
+        </Text>
       </View>
     );
   };
 
+  const totalEnrollments = events.reduce(
+    (sum, ev) => sum + (ev.enrolledCount || 0),
+    0,
+  );
+
+  const activeEvents = events.filter(ev => {
+    const hours =
+      (new Date(ev.date).getTime() - new Date().getTime()) / (1000 * 60 * 60);
+    return hours >= 0;
+  }).length;
+
   return (
     <View style={styles.container}>
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{events.length}</Text>
-          <Text style={styles.statLabel}>Total Events</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Strategic Bento Overview */}
+        <View style={styles.sectionHeader}>
+          <LayoutGrid size={14} color={colors.brand.primary} />
+          <Text style={styles.sectionTitle}>COMMAND CENTER</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
-            {events.reduce((sum, ev) => sum + (ev.enrolledCount || 0), 0)}
-          </Text>
-          <Text style={styles.statLabel}>Total Enrollments</Text>
-        </View>
-      </View>
 
-      {loading ? (
-        <CustomLoader message="Loading Events..." overlay={false} />
-      ) : (
-        <FlatList
-          data={events}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <EventCard 
-              event={item} 
-              onPress={() => navigateToEdit(item.id)}
-              onEdit={() => navigateToEdit(item.id)}
-              onDelete={() => navigateToEdit(item.id)} // Delete handled inside Edit screen
-              isAdminView
+        <View style={styles.bentoGrid}>
+          {/* Main Module */}
+          <View style={[styles.bentoModule, styles.bentoModuleMain]}>
+            <BentoStat
+              label="TOTAL EVENTS"
+              value={events.length}
+              icon={Shield}
+              color={colors.brand.primary}
+              sublabel="Ecosystem Capacity"
             />
-          )}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmptyList}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+          </View>
+
+          {/* Side Modules */}
+          <View style={styles.bentoModuleSide}>
+            <View style={[styles.bentoModule, styles.bentoSubModule]}>
+              <BentoStat
+                label="ACTIVE PULSE"
+                value={activeEvents}
+                icon={Activity}
+                color={colors.status.success}
+              />
+            </View>
+            <View style={[styles.bentoModule, styles.bentoSubModule]}>
+              <BentoStat
+                label="TOTAL IMPACT"
+                value={totalEnrollments}
+                icon={TrendingUp}
+                color={colors.brand.secondary}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.inventoryHeader}>
+          <View style={styles.inventoryTitleRow}>
+            <Text style={styles.inventoryTitle}>Event Inventory</Text>
+            <View style={styles.badgeCount}>
+              <Text style={styles.badgeText}>{events.length}</Text>
+            </View>
+          </View>
+        </View>
+
+        {loading ? (
+          <CustomLoader message="Syncing Inventory..." overlay={false} />
+        ) : (
+          <View style={styles.eventList}>
+            {events.length === 0
+              ? renderEmptyList()
+              : events.map(item => (
+                  <EventCard
+                    key={item.id}
+                    event={item}
+                    onEdit={() => navigateToEdit(item.id)}
+                    onDelete={() => handleDeletePress(item)}
+                    isAdminView
+                  />
+                ))}
+          </View>
+        )}
+      </ScrollView>
+
+      <DeleteEventModal
+        visible={deleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        onConfirm={handleConfirmDelete}
+        event={selectedEvent}
+        loading={isDeleting}
+      />
+      {isDeleting && <CustomLoader overlay message="Purging Event..." />}
     </View>
   );
 };
@@ -82,56 +188,164 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.layout.background,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
+  scrollContent: {
+    padding: spacing.xl,
     paddingTop: spacing.lg,
-    marginBottom: spacing.md,
-    gap: spacing.md,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.layout.surface,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.ui.inputBorder,
-  },
-  statValue: {
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.bold,
-    color: colors.brand.primary,
-  },
-  statLabel: {
-    fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.xs,
-    color: colors.text.secondary,
-    textTransform: 'uppercase',
-    marginTop: spacing.xs,
-  },
-  listContent: {
-    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
   },
-  emptyContainer: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.brand.primary,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  bentoGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    height: 180,
+    marginBottom: spacing.xxl,
+  },
+  bentoModule: {
+    backgroundColor: colors.layout.surface,
+    borderRadius: 24,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(241, 245, 249, 0.8)',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.brand.primary,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  bentoModuleMain: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  bentoModuleSide: {
+    flex: 1,
+    gap: spacing.md,
+  },
+  bentoSubModule: {
     flex: 1,
     justifyContent: 'center',
+    padding: spacing.sm,
+  },
+  bentoStat: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 100,
+    gap: 12,
+  },
+  bentoIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bentoContent: {
+    flex: 1,
+  },
+  bentoValue: {
+    fontFamily: typography.fontFamily,
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text.primary,
+  },
+  bentoLabel: {
+    fontFamily: typography.fontFamily,
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bentoSublabel: {
+    fontFamily: typography.fontFamily,
+    fontSize: 8,
+    fontWeight: '500',
+    color: colors.brand.primary,
+    marginTop: 2,
+  },
+  inventoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  inventoryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  inventoryTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text.primary,
+  },
+  badgeCount: {
+    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.brand.primary,
+  },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(79, 70, 229, 0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  filterBtnText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.brand.primary,
+  },
+  eventList: {
+    gap: spacing.md,
+  },
+  emptyContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    backgroundColor: colors.layout.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(241, 245, 249, 1)',
+    borderStyle: 'dashed',
   },
   emptyTitle: {
     fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   emptyText: {
     fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.sm,
-    color: colors.text.secondary,
+    fontSize: 12,
+    color: colors.text.tertiary,
   },
 });
 

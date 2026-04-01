@@ -8,6 +8,7 @@ import {
   TextInputProps,
   ViewStyle,
   StyleProp,
+  Platform,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
@@ -60,14 +61,29 @@ const InputField: React.FC<InputFieldProps> = ({
       {!!label && (
         <Text style={[styles.label, error && styles.errorLabel]}>{label}</Text>
       )}
-      <View style={[styles.inputWrapper, { borderColor }]}>
+      <View
+        style={[
+          styles.inputWrapper,
+          { borderColor },
+          props.multiline && styles.multilineWrapper,
+        ]}
+      >
         {LeftIcon && (
-          <View style={styles.iconContainer}>
+          <View
+            style={[
+              styles.iconContainer,
+              props.multiline && styles.multilineIcon,
+            ]}
+          >
             <LeftIcon size={20} color={iconColor} />
           </View>
         )}
         <TextInput
-          style={[styles.input, style]}
+          style={[
+            styles.input,
+            props.multiline && styles.multilineInput,
+            style,
+          ]}
           placeholderTextColor={colors.text.tertiary}
           secureTextEntry={isPassword ? !showPassword : secureTextEntry}
           onFocus={handleFocus}
@@ -113,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ui.inputBackground,
     borderWidth: 1.5,
     borderRadius: 12,
-    height: 56,
+    minHeight: 56, // Changed from height to minHeight to support growth
     paddingHorizontal: spacing.sm,
     // Shadow for iOS
     shadowColor: colors.text.primary,
@@ -123,8 +139,15 @@ const styles = StyleSheet.create({
     // Elevation for Android
     elevation: 2,
   },
+  multilineWrapper: {
+    alignItems: 'flex-start',
+    paddingVertical: spacing.sm,
+  },
   iconContainer: {
     paddingHorizontal: spacing.xs,
+  },
+  multilineIcon: {
+    marginTop: 2, // Slight offset to align with first line of text
   },
   input: {
     flex: 1,
@@ -132,6 +155,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.md,
     color: colors.text.primary,
+    textAlignVertical: 'top', // For Android multiline
+  },
+  multilineInput: {
+    height: undefined, // Let height be determined by content/minHeight
+    paddingTop: Platform.OS === 'ios' ? 0 : spacing.xxs, 
+    minHeight: 80,
   },
   errorText: {
     fontFamily: typography.fontFamily,

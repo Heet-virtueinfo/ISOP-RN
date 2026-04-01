@@ -1,58 +1,27 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
-import { TouchableOpacity, Platform } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { Calendar, Users, Settings, PlusCircle } from 'lucide-react-native';
-import AdminDashboard from '../screens/admin/AdminDashboard';
-import EditEventScreen from '../screens/admin/EditEventScreen';
-import MembersScreen from '../screens/admin/MembersScreen';
-import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
-import CreateEventScreen from '../screens/admin/CreateEventScreen';
-import { colors, typography, spacing } from '../theme';
-import AdminHeader from '../components/AdminHeader';
+import { colors, typography } from '../../theme';
+import EventsStack from './stacks/EventsStack';
+import AddEventStack from './stacks/AddEventStack';
+import MembersStack from './stacks/MembersStack';
+import SettingsStack from './stacks/SettingsStack';
 
 export type AdminTabsParamList = {
-  EventsStack: undefined;
-  AddEvent: undefined;
-  Members: undefined;
-  Settings: undefined;
+  EventsTab: undefined;
+  AddEventTab: undefined;
+  MembersTab: undefined;
+  SettingsTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<AdminTabsParamList>();
-const Stack = createStackNavigator();
-
-const EventsStack = () => {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: true,
-        header: ({ route }) => (
-          <AdminHeader title={route.name === 'AdminDashboard' ? 'Manage Events' : 'Edit Event'} />
-        ),
-      }}
-    >
-      <Stack.Screen 
-        name="AdminDashboard" 
-        component={AdminDashboard} 
-      />
-      <Stack.Screen 
-        name="EditEvent" 
-        component={EditEventScreen} 
-      />
-    </Stack.Navigator>
-  );
-};
 
 const AdminTabs = () => {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: true,
-        header: () => {
-          let title: string = route.name;
-          if (route.name === 'AddEvent') title = 'Create Event';
-          return <AdminHeader title={title} />;
-        },
+      screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: colors.brand.primary,
         tabBarInactiveTintColor: colors.text.tertiary,
         tabBarStyle: {
@@ -73,13 +42,12 @@ const AdminTabs = () => {
         tabBarButton: (props: any) => (
           <TouchableOpacity {...props} activeOpacity={0.7} />
         ),
-      })}
+      }}
     >
       <Tab.Screen
-        name="EventsStack"
+        name="EventsTab"
         component={EventsStack}
         options={{
-          headerShown: false, // The stack within this tab handles its own header
           tabBarLabel: 'Events',
           tabBarIcon: ({ color, size }) => (
             <Calendar color={color} size={size} />
@@ -87,8 +55,8 @@ const AdminTabs = () => {
         }}
       />
       <Tab.Screen
-        name="AddEvent"
-        component={CreateEventScreen}
+        name="AddEventTab"
+        component={AddEventStack}
         options={{
           tabBarLabel: 'Add',
           tabBarIcon: ({ color, size }) => (
@@ -97,16 +65,18 @@ const AdminTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Members"
-        component={MembersScreen}
+        name="MembersTab"
+        component={MembersStack}
         options={{
+          tabBarLabel: 'Members',
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
       <Tab.Screen
-        name="Settings"
-        component={AdminSettingsScreen}
+        name="SettingsTab"
+        component={SettingsStack}
         options={{
+          tabBarLabel: 'Settings',
           tabBarIcon: ({ color, size }) => (
             <Settings color={color} size={size} />
           ),

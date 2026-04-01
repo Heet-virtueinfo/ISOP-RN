@@ -82,7 +82,7 @@ const AdminSettingsScreen = () => {
               {userProfile?.displayName || 'Administrator'}
             </Text>
             <Text style={styles.profileEmail}>
-              {userProfile?.email || 'admin@isop.org'}
+              {userProfile?.email || 'admin@isop.com'}
             </Text>
             <View style={styles.roleBadge}>
               <Shield size={12} color={colors.text.inverse} />
@@ -95,56 +95,62 @@ const AdminSettingsScreen = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>PREFERENCES</Text>
         <View style={styles.settingsCard}>
-          <SettingsRow
-            icon={SettingsIcon}
-            label="General Settings"
-            iconBg={colors.palette.indigo.bg}
-            iconColor={colors.palette.indigo.accent}
-            onPress={() => {}}
-          />
-          <View style={styles.divider} />
-          <SettingsRow
-            icon={Bell}
-            label="Notification Alerts"
-            iconBg={colors.palette.amber.bg}
-            iconColor={colors.palette.amber.accent}
-            onPress={() => {}}
-          />
+          <View style={styles.cardInner}>
+            <SettingsRow
+              icon={SettingsIcon}
+              label="General Settings"
+              iconBg={colors.palette.indigo.bg}
+              iconColor={colors.palette.indigo.accent}
+              onPress={() => {}}
+            />
+            <View style={styles.divider} />
+            <SettingsRow
+              icon={Bell}
+              label="Notification Alerts"
+              iconBg={colors.palette.amber.bg}
+              iconColor={colors.palette.amber.accent}
+              onPress={() => {}}
+            />
+          </View>
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>SUPPORT & ABOUT</Text>
         <View style={styles.settingsCard}>
-          <SettingsRow
-            icon={Info}
-            label="About ISoP"
-            iconBg={colors.palette.emerald.bg}
-            iconColor={colors.palette.emerald.accent}
-            onPress={() => {}}
-          />
-          <View style={styles.divider} />
-          <SettingsRow
-            icon={ExternalLink}
-            label="Help & Documentation"
-            iconBg={colors.palette.purple.bg}
-            iconColor={colors.palette.purple.accent}
-            onPress={() => {}}
-          />
+          <View style={styles.cardInner}>
+            <SettingsRow
+              icon={Info}
+              label="About ISoP"
+              iconBg={colors.palette.emerald.bg}
+              iconColor={colors.palette.emerald.accent}
+              onPress={() => {}}
+            />
+            <View style={styles.divider} />
+            <SettingsRow
+              icon={ExternalLink}
+              label="Help & Documentation"
+              iconBg={colors.palette.purple.bg}
+              iconColor={colors.palette.purple.accent}
+              onPress={() => {}}
+            />
+          </View>
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ACCOUNT ACTIONS</Text>
         <View style={styles.settingsCard}>
-          <SettingsRow
-            icon={LogOut}
-            label="Log Out"
-            iconBg={colors.palette.rose.bg}
-            iconColor={colors.palette.rose.accent}
-            showChevron={false}
-            onPress={handleLogout}
-          />
+          <View style={styles.cardInner}>
+            <SettingsRow
+              icon={LogOut}
+              label="Log Out"
+              iconBg={colors.palette.rose.bg}
+              iconColor={colors.palette.rose.accent}
+              showChevron={false}
+              onPress={handleLogout}
+            />
+          </View>
         </View>
       </View>
 
@@ -204,13 +210,12 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     marginBottom: spacing.xl,
     position: 'relative',
-    overflow: 'hidden',
     shadowColor: colors.brand.primary,
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
     elevation: 8,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.ui.inputBorderLight,
   },
   watermark: {
@@ -318,9 +323,17 @@ const styles = StyleSheet.create({
   },
   settingsCard: {
     backgroundColor: colors.layout.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.ui.inputBorder,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.ui.inputBorderLight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardInner: {
+    borderRadius: 18.5, // Slightly smaller than outer to fit inside border
     overflow: 'hidden',
   },
   row: {

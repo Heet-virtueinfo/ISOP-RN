@@ -313,15 +313,15 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: colors.brand.primary,
         shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.04,
+        shadowOpacity: 0.1,
         shadowRadius: 20,
       },
       android: {
         elevation: 6,
       },
     }),
-    borderWidth: 1,
-    borderColor: 'rgba(241, 245, 249, 0.8)',
+    borderWidth: 1.5,
+    borderColor: colors.ui.inputBorderLight,
   },
   floatingBadge: {
     position: 'absolute',
