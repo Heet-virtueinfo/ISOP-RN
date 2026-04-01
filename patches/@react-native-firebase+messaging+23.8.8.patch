@@ -1,0 +1,24 @@
+diff --git a/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessaging+AppDelegate.h b/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessaging+AppDelegate.h
+index 708ff24..7f88c3e 100644
+--- a/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessaging+AppDelegate.h
++++ b/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessaging+AppDelegate.h
+@@ -17,6 +17,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ #import <React/RCTBridgeModule.h>
++#import <RNFBApp/RNFBAppModule.h>
+ #import <UIKit/UIKit.h>
+ 
+ NS_ASSUME_NONNULL_BEGIN
+diff --git a/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessagingModule.h b/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessagingModule.h
+index 0a1c716..74b789a 100644
+--- a/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessagingModule.h
++++ b/node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessagingModule.h
+@@ -17,6 +17,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ #import <React/RCTBridgeModule.h>
++#import <RNFBApp/RNFBAppModule.h>
+ 
+ @interface RNFBMessagingModule : NSObject <RCTBridgeModule>
+ + (NSDictionary *_Nonnull)addCustomPropsToUserProps:(NSDictionary *_Nullable)userProps
