@@ -22,9 +22,22 @@ target 'ISOP_RN' do
   )
 
   post_install do |installer|
+    # Targets that use React macros (RCT_EXPORT_MODULE, RCT_EXTERN, etc.) must not be
+    # compiled as modules, because Xcode 26's strict module boundary enforcement prevents
+    # macro definitions from crossing framework module boundaries. Setting DEFINES_MODULE=NO
+    # ensures these pods compile as plain static libraries without module maps.
+    rnfb_targets = ['RNFBMessaging', 'RNFBApp', 'RNFBFirestore', 'RNFBAuth', 'RNFBStorage',
+                    'RNFBDatabase', 'RNFBFunctions', 'RNFBCrashlytics', 'RNFBAnalytics',
+                    'RNFBDynamicLinks', 'RNFBInAppMessaging', 'RNFBPerformance', 'RNFBRemoteConfig']
+
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+        if rnfb_targets.include?(target.name)
+          # Disable module compilation for RNFB pods so React macros are visible
+          config.build_settings['DEFINES_MODULE'] = 'NO'
+        end
       end
     end
 
