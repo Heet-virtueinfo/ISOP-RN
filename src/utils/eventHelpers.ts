@@ -1,13 +1,13 @@
 import { AppEvent, EventType } from '../types';
 
 export const getEventPlaceholder = (type: EventType) => {
-  const EVENT_IMAGES: Record<EventType, string> = {
-    conference: 'https://placehold.co/800x400/1E3A8A/FFF?text=Conference',
-    webinar: 'https://placehold.co/800x400/0EA5E9/FFF?text=Webinar',
-    training: 'https://placehold.co/800x400/10B981/FFF?text=Training',
-    meeting: 'https://placehold.co/800x400/14B8A6/FFF?text=Meeting',
-  };
-  return { uri: EVENT_IMAGES[type] || 'https://placehold.co/800x400/1E3A8A/FFF?text=Event' };
+  switch (type) {
+    case 'conference': return require('../assets/images/event_conference.png');
+    case 'webinar': return require('../assets/images/event_webinar.png');
+    case 'training': return require('../assets/images/event_training.png');
+    case 'meeting': return require('../assets/images/event_meeting.png');
+    default: return require('../assets/images/event_default.png');
+  }
 };
 
 export const getEventImage = (event: AppEvent) => {

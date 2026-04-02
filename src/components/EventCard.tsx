@@ -80,23 +80,23 @@ const EventCard: React.FC<EventCardProps> = ({
       <View style={styles.imageHeader}>
         <Image source={imageSource} style={styles.image} resizeMode="cover" />
 
-        {/* Floating Semantic Chip */}
-        <View style={[styles.statusChip, { backgroundColor: status.bg }]}>
-          <View style={[styles.statusDot, { backgroundColor: status.color }]} />
-          <Text style={[styles.statusChipText, { color: status.color }]}>
-            {status.label}
-          </Text>
-        </View>
-
         <View style={[styles.typeBadge, { backgroundColor: typeColor }]}>
           <Text style={styles.typeText}>{typeLabel}</Text>
         </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={1}>
-          {event.title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>
+            {event.title}
+          </Text>
+          <View style={[styles.statusChip, { backgroundColor: status.bg }]}>
+            <View style={[styles.statusDot, { backgroundColor: status.color }]} />
+            <Text style={[styles.statusChipText, { color: status.color }]}>
+              {status.label}
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
@@ -205,15 +205,11 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   statusChip: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 100,
-    zIndex: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   statusDot: {
     width: 6,
@@ -246,12 +242,19 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
   title: {
     fontFamily: typography.fontFamily,
     fontSize: 16,
     fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: 8,
+    flex: 1,
   },
   metaGrid: {
     flexDirection: 'row',

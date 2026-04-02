@@ -6,7 +6,7 @@ export interface UserProfile {
   displayName: string;
   role: UserRole;
   phoneNumber?: string;
-  profileImage?: string;
+  profileImage?: string | null;
   createdAt: any; // Firestore Timestamp
   updatedAt: any; // Firestore Timestamp
 }
@@ -27,4 +27,49 @@ export interface AppEvent {
   createdBy: string; // Admin UID
   createdAt: any;
   updatedAt: any;
+}
+export interface Enrollment {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: any;
+  uid: string;
+  displayName: string;
+  email: string;
+  profileImage?: string | null;
+  enrolledAt: any;
+}
+
+export type ChatRequestStatus = 'pending' | 'accepted' | 'declined';
+
+export interface ChatRequest {
+  id: string;
+  fromUid: string;
+  fromName: string;
+  fromImage?: string | null;
+  toUid: string;
+  toName: string;
+  eventId: string;
+  eventTitle: string;
+  status: ChatRequestStatus;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface Chat {
+  id: string;
+  participants: string[];
+  participantNames: Record<string, string>;
+  participantImages: Record<string, string | null | undefined>;
+  lastMessage?: string;
+  lastMessageAt?: any;
+  createdAt: any;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  text: string;
+  createdAt: any;
+  read: boolean;
 }
