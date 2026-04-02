@@ -3,6 +3,8 @@ import { firebaseFirestore } from '../config/firebase';
 import { AppEvent } from '../types';
 import { COLLECTIONS } from '../constants/collections';
 
+import { uploadImageToCloudinary } from './uploadService';
+
 // CREATE EVENT
 export const createEvent = async (
   data: Omit<
@@ -11,10 +13,22 @@ export const createEvent = async (
   > & { createdBy: string },
 ) => {
   try {
+    // 1. Upload Images to Cloudinary if they are local paths
+    const uploadedImages = await Promise.all(
+      (data.images || []).map(async (img) => {
+        if (img.startsWith('http')) return img; // Already a URL
+        return await uploadImageToCloudinary(img, 'ISOP/event');
+      })
+    );
+
+    // Filter out any failed uploads
+    const finalImages = uploadedImages.filter((img): img is string => img !== null);
+
     const eventRef = firebaseFirestore.collection(COLLECTIONS.EVENTS).doc();
     const newEvent: AppEvent = {
       id: eventRef.id,
       ...data,
+      images: finalImages,
       enrolledCount: 0,
       createdAt: firestore.Timestamp.now(),
       updatedAt: firestore.Timestamp.now(),
@@ -93,11 +107,24 @@ export const getEventById = async (id: string): Promise<AppEvent | null> => {
 // UPDATE EVENT
 export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
   try {
+    let finalUpdates = { ...updates };
+
+    // Support image updates with upload
+    if (updates.images) {
+      const uploadedImages = await Promise.all(
+        updates.images.map(async (img) => {
+          if (img.startsWith('http')) return img;
+          return await uploadImageToCloudinary(img, 'ISOP/event');
+        })
+      );
+      finalUpdates.images = uploadedImages.filter((img): img is string => img !== null);
+    }
+
     await firebaseFirestore
       .collection(COLLECTIONS.EVENTS)
       .doc(id)
       .update({
-        ...updates,
+        ...finalUpdates,
         updatedAt: firestore.Timestamp.now(),
       });
     return { success: true };
