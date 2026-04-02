@@ -3,6 +3,8 @@ import { firebaseAuth, firebaseFirestore, ADMIN_UID } from '../config/firebase';
 import { UserProfile, UserRole } from '../types';
 import { COLLECTIONS } from '../constants/collections';
 
+import { uploadImageToCloudinary } from './uploadService';
+
 export const checkIsAdmin = (uid: string): boolean => {
   return uid === ADMIN_UID;
 };
@@ -16,7 +18,13 @@ export const registerUser = async (data: {
   profileImage?: string | null;
 }) => {
   try {
-    // 1. Create Auth Account
+    // 1. Upload Image if present
+    let uploadedImageUrl = null;
+    if (data.profileImage) {
+      uploadedImageUrl = await uploadImageToCloudinary(data.profileImage, 'ISOP/Profile');
+    }
+
+    // 2. Create Auth Account
     const userCredential = await firebaseAuth.createUserWithEmailAndPassword(
       data.email,
       data.password,
@@ -25,7 +33,7 @@ export const registerUser = async (data: {
     const uid = userCredential.user.uid;
     const role: UserRole = checkIsAdmin(uid) ? 'admin' : 'user';
 
-    // 2. Create Firestore Profile
+    // 3. Create Firestore Profile
     const profile: UserProfile = {
       uid,
       email: data.email,
@@ -36,8 +44,8 @@ export const registerUser = async (data: {
       ...(data.mobile && {
         phoneNumber: `${data.countryCode}${data.mobile}`,
       }),
-      ...(data.profileImage && {
-        profileImage: data.profileImage,
+      ...(uploadedImageUrl && {
+        profileImage: uploadedImageUrl,
       }),
     };
 
