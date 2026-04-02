@@ -25,6 +25,7 @@ interface EventCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   isAdminView?: boolean;
+  isEnrolled?: boolean;
 }
 
 const getEventStatus = (eventDate: Date) => {
@@ -57,6 +58,7 @@ const EventCard: React.FC<EventCardProps> = ({
   onEdit,
   onDelete,
   isAdminView = false,
+  isEnrolled = false,
 }) => {
   const isActive = isEventActive(event);
   const isFull = isEventFull(event);
@@ -83,6 +85,11 @@ const EventCard: React.FC<EventCardProps> = ({
         <View style={[styles.typeBadge, { backgroundColor: typeColor }]}>
           <Text style={styles.typeText}>{typeLabel}</Text>
         </View>
+        {isEnrolled && (
+          <View style={styles.enrolledBadge}>
+            <Text style={styles.enrolledText}>ENROLLED</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -238,6 +245,33 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  enrolledBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  enrolledText: {
+    color: 'white',
+    fontFamily: typography.fontFamily,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   content: {
     padding: spacing.md,

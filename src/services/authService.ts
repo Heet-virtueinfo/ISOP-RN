@@ -21,7 +21,10 @@ export const registerUser = async (data: {
     // 1. Upload Image if present
     let uploadedImageUrl = null;
     if (data.profileImage) {
-      uploadedImageUrl = await uploadImageToCloudinary(data.profileImage, 'ISOP/Profile');
+      uploadedImageUrl = await uploadImageToCloudinary(
+        data.profileImage,
+        'ISOP/Profile',
+      );
     }
 
     // 2. Create Auth Account

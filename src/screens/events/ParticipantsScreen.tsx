@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Users, MessageCircle } from 'lucide-react-native';
-import { colors, spacing, typography, radius } from '../../theme';
+import { ChevronLeft, Users } from 'lucide-react-native';
+import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { listenToEvent } from '../../services/eventService';
 import { getEventParticipants } from '../../services/enrollmentService';
 import { Enrollment } from '../../types';
 import ParticipantCard from '../../components/ParticipantCard';
@@ -13,26 +20,38 @@ const ParticipantsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { userProfile } = useAuth();
-  const { eventId, eventTitle } = route.params;
+  const { eventId, eventTitle: initialTitle } = route.params;
 
   const [participants, setParticipants] = useState<Enrollment[]>([]);
+  const [eventTitle, setEventTitle] = useState(initialTitle || 'Event');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!eventId) return;
 
-    const unsubscribe = getEventParticipants(eventId, (data) => {
+    const unsubscribeParticipants = getEventParticipants(eventId, data => {
       setParticipants(data);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const unsubscribeEvent = listenToEvent(eventId, eventData => {
+      if (eventData) setEventTitle(eventData.title);
+    });
+
+    return () => {
+      unsubscribeParticipants();
+      unsubscribeEvent();
+    };
   }, [eventId]);
 
-  const handleChatPress = (chatId: string) => {
-    navigation.navigate('ChatsTab', { 
-      screen: 'Chat', 
-      params: { chatId } 
+  const handleChatPress = (
+    chatId: string,
+    otherUserName: string,
+    otherUserImage: string | null,
+  ) => {
+    navigation.navigate('ChatsTab', {
+      screen: 'Chat',
+      params: { chatId, otherUserName, otherUserImage },
     });
   };
 
@@ -42,7 +61,9 @@ const ParticipantsScreen = () => {
       <View style={styles.emptyContainer}>
         <Users size={48} color={colors.text.tertiary} />
         <Text style={styles.emptyTitle}>No Other Participants</Text>
-        <Text style={styles.emptyText}>You're the first one here! More people will join soon.</Text>
+        <Text style={styles.emptyText}>
+          You're the first one here! More people will join soon.
+        </Text>
       </View>
     );
   };
@@ -51,15 +72,17 @@ const ParticipantsScreen = () => {
     <View style={styles.container}>
       {/* Custom Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backBtn} 
+        <TouchableOpacity
+          style={styles.backBtn}
           onPress={() => navigation.goBack()}
         >
           <ChevronLeft size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Participants</Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>{eventTitle}</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {eventTitle}
+          </Text>
         </View>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{participants.length}</Text>
@@ -67,15 +90,19 @@ const ParticipantsScreen = () => {
       </View>
 
       {loading ? (
-        <CustomLoader message="Checking the Guest List..." overlay={false} style={{ flex: 1 }} />
+        <CustomLoader
+          message="Checking the Guest List..."
+          overlay={false}
+          style={{ flex: 1 }}
+        />
       ) : (
         <FlatList
           data={participants}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <ParticipantCard 
-              participant={item} 
-              currentUser={userProfile!} 
+            <ParticipantCard
+              participant={item}
+              currentUser={userProfile!}
               eventTitle={eventTitle}
               onChatPress={handleChatPress}
             />

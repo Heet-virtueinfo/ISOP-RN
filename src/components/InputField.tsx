@@ -16,11 +16,12 @@ import { spacing } from '../theme/spacing';
 import { Eye, EyeOff, LucideIcon } from 'lucide-react-native';
 
 interface InputFieldProps extends TextInputProps {
-  label: string;
+  label?: string;
   error?: string;
   leftIcon?: LucideIcon;
   isPassword?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
+  wrapperStyle?: StyleProp<ViewStyle>;
 }
 
 const InputField: React.FC<InputFieldProps> = ({
@@ -33,6 +34,7 @@ const InputField: React.FC<InputFieldProps> = ({
   onBlur,
   style,
   containerStyle,
+  wrapperStyle,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -64,8 +66,12 @@ const InputField: React.FC<InputFieldProps> = ({
       <View
         style={[
           styles.inputWrapper,
-          { borderColor },
+          {
+            borderColor,
+            backgroundColor: props.editable === false ? colors.ui.disabledSurface : colors.ui.inputBackground,
+          },
           props.multiline && styles.multilineWrapper,
+          wrapperStyle,
         ]}
       >
         {LeftIcon && (
@@ -82,6 +88,8 @@ const InputField: React.FC<InputFieldProps> = ({
           style={[
             styles.input,
             props.multiline && styles.multilineInput,
+            props.editable === false && { color: colors.text.tertiary },
+            { backgroundColor: 'transparent' }, // Fix for Android default backgrounds
             style,
           ]}
           placeholderTextColor={colors.text.tertiary}
@@ -155,12 +163,13 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: typography.sizes.md,
     color: colors.text.primary,
-    textAlignVertical: 'top', // For Android multiline
+    paddingVertical: Platform.OS === 'ios' ? 0 : 4, // Prevent Android text cutoff
   },
   multilineInput: {
     height: undefined, // Let height be determined by content/minHeight
-    paddingTop: Platform.OS === 'ios' ? 0 : spacing.xxs, 
+    paddingTop: Platform.OS === 'ios' ? 0 : spacing.xxs,
     minHeight: 80,
+    textAlignVertical: 'top',
   },
   errorText: {
     fontFamily: typography.fontFamily,

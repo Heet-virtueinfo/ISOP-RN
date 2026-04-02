@@ -1,84 +1,68 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  Platform,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { MessageCircle, BellRing, ChevronRight, MessageSquareOff } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { getMyChats, getIncomingRequests } from '../../services/chatService';
-import { Chat, ChatRequest } from '../../types';
+import { Chat } from '../../types';
 import CustomLoader from '../../components/CustomLoader';
-import AdminHeader from '../../components/AdminHeader';
+import UserHeader from '../../components/UserHeader';
+import { getMyChats } from '../../services/chatService';
+import { MessageSquareOff } from 'lucide-react-native';
 
 const ChatInboxScreen = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
-  const [incomingRequests, setIncomingRequests] = useState<ChatRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribeChats = getMyChats(user.uid, (data) => {
+    const unsubscribeChats = getMyChats(user.uid, data => {
       setChats(data);
       setLoading(false);
     });
 
-    const unsubscribeRequests = getIncomingRequests(user.uid, (data) => {
-      setIncomingRequests(data);
-    });
-
     return () => {
       unsubscribeChats();
-      unsubscribeRequests();
     };
   }, [user]);
-
-  const renderRequestBanner = () => {
-    if (incomingRequests.length === 0) return null;
-
-    return (
-      <TouchableOpacity 
-        style={styles.requestBanner}
-        onPress={() => navigation.navigate('ChatRequests')}
-      >
-        <View style={styles.bannerIcon}>
-           <BellRing size={20} color="white" />
-        </View>
-        <View style={styles.bannerContent}>
-          <Text style={styles.bannerTitle}>{incomingRequests.length} New Chat Request{incomingRequests.length > 1 ? 's' : ''}</Text>
-          <Text style={styles.bannerSubtitle}>Open to see who wants to connect with you.</Text>
-        </View>
-        <ChevronRight size={18} color={colors.brand.primary} />
-      </TouchableOpacity>
-    );
-  };
 
   const getOtherParticipant = (chat: Chat) => {
     const otherId = chat.participants.find(id => id !== user?.uid);
     return {
       name: chat.participantNames[otherId!] || 'Unknown',
-      image: chat.participantImages[otherId!]
+      image: chat.participantImages[otherId!],
     };
   };
 
   const renderChatItem = ({ item }: { item: Chat }) => {
     const other = getOtherParticipant(item);
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.chatItem}
-        onPress={() => navigation.navigate('Chat', { 
-            chatId: item.id, 
+        onPress={() =>
+          navigation.navigate('Chat', {
+            chatId: item.id,
             otherUserName: other.name,
-            otherUserImage: other.image 
-        })}
+            otherUserImage: other.image,
+          })
+        }
       >
         <View style={styles.avatarContainer}>
           {other.image ? (
             <Image source={{ uri: other.image }} style={styles.avatar} />
           ) : (
-            <View style={styles.initialsAvatar}>
-              <Text style={styles.initialsText}>{other.name[0]}</Text>
+            <View style={styles.initialsAvatarSmall}>
+              <Text style={styles.initialsTextSmall}>{other.name[0]}</Text>
             </View>
           )}
         </View>
@@ -86,7 +70,9 @@ const ChatInboxScreen = () => {
           <View style={styles.chatHeader}>
             <Text style={styles.chatName}>{other.name}</Text>
             <Text style={styles.chatTime}>
-              {item.lastMessageAt ? new Date(item.lastMessageAt?.toDate()).toLocaleDateString() : ''}
+              {item.lastMessageAt
+                ? new Date(item.lastMessageAt?.toDate()).toLocaleDateString()
+                : ''}
             </Text>
           </View>
           <Text style={styles.lastMessage} numberOfLines={1}>
@@ -105,29 +91,32 @@ const ChatInboxScreen = () => {
           <MessageSquareOff size={40} color={colors.text.tertiary} />
         </View>
         <Text style={styles.emptyTitle}>No Messages Yet</Text>
-        <Text style={styles.emptyText}>Send chat requests to other participants to start networking.</Text>
+        <Text style={styles.emptyText}>
+          Networking with event participants to start chatting.
+        </Text>
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <AdminHeader title="Networking" />
-      
+      <UserHeader title="Chats" />
+
       {loading ? (
-        <CustomLoader message="Connecting to Global Inbox..." overlay={false} style={{ flex: 1 }} />
+        <CustomLoader
+          message="Syncing Conversations..."
+          overlay={false}
+          style={{ flex: 1 }}
+        />
       ) : (
-        <View style={{ flex: 1 }}>
-          {renderRequestBanner()}
-          <FlatList
-            data={chats}
-            keyExtractor={(item) => item.id}
-            renderItem={renderChatItem}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={renderEmpty}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
+        <FlatList
+          data={chats}
+          keyExtractor={item => item.id}
+          renderItem={renderChatItem}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={renderEmpty}
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </View>
   );
@@ -139,70 +128,126 @@ const styles = StyleSheet.create({
     backgroundColor: colors.layout.background,
   },
   listContent: {
+    padding: spacing.md,
     paddingBottom: spacing.xxl,
   },
-  requestBanner: {
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.layout.surface,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ui.inputBorderLight,
+  },
+  tab: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.md,
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(79, 70, 229, 0.05)',
-    margin: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(79, 70, 229, 0.1)',
   },
-  bannerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: colors.brand.primary,
+  },
+  tabText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text.tertiary,
+  },
+  activeTabText: {
+    color: colors.brand.primary,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: colors.brand.primary,
+    marginLeft: 6,
+  },
+  countBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginLeft: 6,
+    paddingHorizontal: 4,
   },
-  bannerContent: {
-    flex: 1,
+  countText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: 'white',
   },
-  bannerTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.brand.primary,
-    fontFamily: typography.fontFamily,
+  subTabs: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    gap: 8,
   },
-  bannerSubtitle: {
-    fontSize: 11,
+  subTab: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 100,
+    backgroundColor: colors.palette.slate.bg,
+    borderWidth: 1,
+    borderColor: colors.ui.inputBorderLight,
+  },
+  activeSubTab: {
+    backgroundColor: colors.brand.primary,
+    borderColor: colors.brand.primary,
+  },
+  subTabText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: colors.text.tertiary,
-    fontFamily: typography.fontFamily,
-    marginTop: 2,
+  },
+  activeSubTabText: {
+    color: 'white',
   },
   chatItem: {
     flexDirection: 'row',
     padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.layout.divider,
+    backgroundColor: colors.layout.surface,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.ui.inputBorderLight,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   avatarContainer: {
     marginRight: 12,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
-  initialsAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.layout.surface,
+  initialsAvatarSmall: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.palette.indigo.bg,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.layout.divider,
+    borderColor: 'rgba(79, 70, 229, 0.1)',
   },
-  initialsText: {
-    fontSize: 20,
+  initialsTextSmall: {
+    fontSize: 18,
     fontWeight: '700',
-    color: colors.brand.primary,
+    color: colors.palette.indigo.accent,
   },
   chatContent: {
     flex: 1,
@@ -230,22 +275,97 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
     fontFamily: typography.fontFamily,
   },
+  requestItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.layout.surface,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.ui.inputBorderLight,
+  },
+  requestInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.palette.indigo.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarInitial: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.palette.indigo.accent,
+  },
+  requestContent: {
+    flex: 1,
+  },
+  requestName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  requestEvent: {
+    fontSize: 12,
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  declineBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  acceptBtn: {
+    backgroundColor: colors.status.success,
+  },
+  sentStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: colors.palette.slate.bg,
+    borderWidth: 1,
+    borderColor: colors.ui.inputBorderLight,
+  },
+  sentStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.text.tertiary,
+  },
   emptyContainer: {
-    marginTop: 100,
+    marginTop: 80,
     alignItems: 'center',
     padding: spacing.xl,
   },
   emptyIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.layout.surface,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.palette.slate.bg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.ui.inputBorderLight,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: colors.text.primary,
     fontFamily: typography.fontFamily,
@@ -256,7 +376,7 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
     textAlign: 'center',
     lineHeight: 20,
-    paddingHorizontal: 40,
+    paddingHorizontal: 30,
   },
 });
 

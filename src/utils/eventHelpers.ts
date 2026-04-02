@@ -2,11 +2,16 @@ import { AppEvent, EventType } from '../types';
 
 export const getEventPlaceholder = (type: EventType) => {
   switch (type) {
-    case 'conference': return require('../assets/images/event_conference.png');
-    case 'webinar': return require('../assets/images/event_webinar.png');
-    case 'training': return require('../assets/images/event_training.png');
-    case 'meeting': return require('../assets/images/event_meeting.png');
-    default: return require('../assets/images/event_default.png');
+    case 'conference':
+      return require('../assets/images/event_conference.png');
+    case 'webinar':
+      return require('../assets/images/event_webinar.png');
+    case 'training':
+      return require('../assets/images/event_training.png');
+    case 'meeting':
+      return require('../assets/images/event_meeting.png');
+    default:
+      return require('../assets/images/event_default.png');
   }
 };
 
@@ -33,19 +38,22 @@ export const formatEventDateRange = (start: any, end?: any) => {
   if (!start) return '';
   const startDateStr = formatEventDate(start);
   if (!end) return startDateStr;
-  
+
   const startDateObj = start.toDate ? start.toDate() : new Date(start);
   const endDateObj = end.toDate ? end.toDate() : new Date(end);
-  
+
   // Same day check
   if (
     startDateObj.getDate() === endDateObj.getDate() &&
     startDateObj.getMonth() === endDateObj.getMonth() &&
     startDateObj.getFullYear() === endDateObj.getFullYear()
   ) {
-    return `${startDateStr} - ${endDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    return `${startDateStr} - ${endDateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    })}`;
   }
-  
+
   return `${startDateStr} - ${formatEventDate(end)}`;
 };
 
@@ -71,13 +79,18 @@ export const getEventTypeColor = (type: EventType, themeColors: any) => {
 
 export const isEventActive = (event: AppEvent) => {
   const now = new Date();
-  const targetDate = event.endDate 
-    ? (event.endDate.toDate ? event.endDate.toDate() : new Date(event.endDate)) 
-    : (event.date.toDate ? event.date.toDate() : new Date(event.date));
+  const targetDate = event.endDate
+    ? event.endDate.toDate
+      ? event.endDate.toDate()
+      : new Date(event.endDate)
+    : event.date.toDate
+    ? event.date.toDate()
+    : new Date(event.date);
   return targetDate > now;
 };
 
 export const isEventFull = (event: AppEvent) => {
-  if (event.maxCapacity === undefined || event.maxCapacity === null) return false;
+  if (event.maxCapacity === undefined || event.maxCapacity === null)
+    return false;
   return event.enrolledCount >= event.maxCapacity;
 };

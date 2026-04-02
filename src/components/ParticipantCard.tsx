@@ -10,7 +10,7 @@ interface ParticipantCardProps {
   participant: Enrollment;
   currentUser: UserProfile;
   eventTitle: string;
-  onChatPress: (chatId: string) => void;
+  onChatPress: (chatId: string, name: string, image: string | null) => void;
 }
 
 const ParticipantCard = ({
@@ -109,7 +109,7 @@ const ParticipantCard = ({
       return (
         <TouchableOpacity
           style={[styles.actionBtn, styles.chatBtn]}
-          onPress={() => onChatPress(request.id)}
+          onPress={() => onChatPress(request.id, participant.displayName, participant.profileImage || null)}
         >
           <UserCheck size={14} color="white" />
           <Text style={[styles.actionBtnText, styles.chatBtnText]}>Chat</Text>

@@ -7,8 +7,8 @@ export interface UserProfile {
   role: UserRole;
   phoneNumber?: string;
   profileImage?: string | null;
-  createdAt: any; // Firestore Timestamp
-  updatedAt: any; // Firestore Timestamp
+  createdAt: any;
+  updatedAt: any;
 }
 
 export type EventType = 'conference' | 'webinar' | 'training' | 'meeting';
@@ -17,8 +17,8 @@ export interface AppEvent {
   id: string;
   title: string;
   description: string;
-  date: any; // Firestore Timestamp
-  endDate?: any; // Firestore Timestamp
+  date: any;
+  endDate?: any;
   location: string;
   type: EventType;
   images: string[];

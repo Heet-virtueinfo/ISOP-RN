@@ -19,6 +19,7 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  leftIcon?: any;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -29,6 +30,7 @@ const Button: React.FC<ButtonProps> = ({
   disabled,
   style,
   textStyle,
+  leftIcon: LeftIcon,
 }) => {
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
@@ -55,6 +57,10 @@ const Button: React.FC<ButtonProps> = ({
     textStyle,
   ];
 
+  const iconColor =
+    (textStyle as any)?.color ||
+    (isPrimary || isSecondary ? colors.text.inverse : colors.brand.primary);
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -69,7 +75,16 @@ const Button: React.FC<ButtonProps> = ({
           color={isPrimary ? colors.text.inverse : colors.brand.primary}
         />
       ) : (
-        <Text style={labelStyles}>{title}</Text>
+        <>
+          {LeftIcon && (
+            <LeftIcon
+              size={20}
+              color={iconColor}
+              style={{ marginRight: spacing.sm }}
+            />
+          )}
+          <Text style={labelStyles}>{title}</Text>
+        </>
       )}
     </TouchableOpacity>
   );
@@ -83,6 +98,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     paddingHorizontal: spacing.md,
+    flexDirection: 'row',
   },
   primaryContainer: {
     backgroundColor: colors.brand.primary,

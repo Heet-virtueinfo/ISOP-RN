@@ -1,16 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  Platform,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Calendar, MapPin, Users, ChevronLeft, Info, CheckCircle2 } from 'lucide-react-native';
+import {
+  Calendar,
+  MapPin,
+  Users,
+  ChevronLeft,
+  Info,
+  CheckCircle2,
+} from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { getEventById } from '../../services/eventService';
-import { enrollInEvent, unenrollFromEvent, checkEnrollment } from '../../services/enrollmentService';
+import { listenToEvent } from '../../services/eventService';
+import {
+  enrollInEvent,
+  unenrollFromEvent,
+  checkEnrollment,
+} from '../../services/enrollmentService';
 import { AppEvent, Enrollment } from '../../types';
 import { getEventImage } from '../../utils/eventHelpers';
 import CustomLoader from '../../components/CustomLoader';
 import Button from '../../components/Button';
 import Toast from 'react-native-toast-message';
+import EnrollConfirmModal from '../../components/modals/EnrollConfirmModal';
+import UnenrollConfirmModal from '../../components/modals/UnenrollConfirmModal';
 
 const EventDetailScreen = () => {
   const route = useRoute<any>();
@@ -22,85 +44,126 @@ const EventDetailScreen = () => {
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showUnenrollModal, setShowUnenrollModal] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, [eventId, userProfile]);
+    if (!eventId) return;
 
-  const loadData = async () => {
-    try {
-      const eventData = await getEventById(eventId);
-      setEvent(eventData);
+    // 1. Listen to event changes in real-time (title, description, enrolledCount)
+    const unsubscribeEvent = listenToEvent(eventId, data => {
+      setEvent(data);
+      setLoading(false);
+    });
 
-      if (userProfile && eventData) {
+    // 2. Check enrollment status one-time (or when userProfile changes)
+    const loadEnrollmentStatus = async () => {
+      if (userProfile) {
         const enrollmentData = await checkEnrollment(eventId, userProfile.uid);
         setEnrollment(enrollmentData);
       }
-    } catch (error) {
-      console.error('Load event detail error:', error);
-    } finally {
-      setLoading(false);
+    };
+    loadEnrollmentStatus();
+
+    return () => unsubscribeEvent();
+  }, [eventId, userProfile]);
+
+  const handleEnrollmentPress = () => {
+    if (!event || !userProfile) return;
+
+    if (!enrollment && event.maxCapacity && event.enrolledCount >= event.maxCapacity) {
+      Toast.show({
+        type: 'error',
+        text1: 'Event is Full',
+        text2: 'Sorry, no more spots available.',
+      });
+      return;
+    }
+    
+    if (enrollment) {
+      setShowUnenrollModal(true);
+    } else {
+      setShowConfirmModal(true);
     }
   };
 
-  const handleEnrollment = async () => {
+  const confirmEnroll = async () => {
     if (!event || !userProfile) return;
-    
     setActionLoading(true);
     try {
-      if (enrollment) {
-        // Unenroll
-        await unenrollFromEvent(enrollment.id, event.id);
-        setEnrollment(null);
-        Toast.show({ type: 'success', text1: 'Unenrolled Successfully' });
-      } else {
-        // Check capacity
-        if (event.maxCapacity && event.enrolledCount >= event.maxCapacity) {
-          Toast.show({ type: 'error', text1: 'Event is Full', text2: 'Sorry, no more spots available.' });
-          return;
-        }
-
-        // Enroll
-        const result = await enrollInEvent(event, userProfile);
-        if (result.success && result.enrollment) {
-          setEnrollment(result.enrollment);
-          Toast.show({ type: 'success', text1: 'Enrolled Successfully!' });
-        }
+      const result = await enrollInEvent(event, userProfile);
+      if (result.success && result.enrollment) {
+        setEnrollment(result.enrollment);
+        Toast.show({ type: 'success', text1: 'Enrolled Successfully!' });
       }
-      // Refresh event to update count
-      const updatedEvent = await getEventById(eventId);
-      setEvent(updatedEvent);
+      setShowConfirmModal(false);
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Operation Failed' });
+      Toast.show({ type: 'error', text1: 'Enrollment Failed' });
     } finally {
       setActionLoading(false);
     }
   };
 
+  const confirmUnenroll = async () => {
+    if (!event || !userProfile || !enrollment) return;
+    setActionLoading(true);
+    try {
+      await unenrollFromEvent(enrollment.id, event.id);
+      setEnrollment(null);
+      Toast.show({ type: 'success', text1: 'Unenrolled Successfully' });
+      setShowUnenrollModal(false);
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Unenrollment Failed' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
-    const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    const date =
+      typeof timestamp.toDate === 'function'
+        ? timestamp.toDate()
+        : new Date(timestamp);
+    return date.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
-  if (loading) return <CustomLoader message="Gathering Event Intel..." overlay={false} style={{ flex: 1 }} />;
-  if (!event) return <View style={styles.center}><Text>Event not found.</Text></View>;
+  if (loading)
+    return (
+      <CustomLoader
+        message="Gathering Event Intel..."
+        overlay={false}
+        style={{ flex: 1 }}
+      />
+    );
+  if (!event)
+    return (
+      <View style={styles.center}>
+        <Text>Event not found.</Text>
+      </View>
+    );
 
   const isFull = event.maxCapacity && event.enrolledCount >= event.maxCapacity;
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Banner Area */}
         <View style={styles.bannerContainer}>
-          <Image 
-            source={getEventImage(event)} 
-            style={styles.banner} 
+          <Image
+            source={getEventImage(event)}
+            style={styles.banner}
             resizeMode="cover"
           />
-          <TouchableOpacity 
-            style={styles.backBtn} 
+          <TouchableOpacity
+            style={styles.backBtn}
             onPress={() => navigation.goBack()}
           >
             <ChevronLeft size={24} color={colors.text.primary} />
@@ -113,10 +176,15 @@ const EventDetailScreen = () => {
         {/* Content Area */}
         <View style={styles.infoArea}>
           <Text style={styles.title}>{event.title}</Text>
-          
+
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <View style={[styles.metaIcon, { backgroundColor: 'rgba(79, 70, 229, 0.1)' }]}>
+              <View
+                style={[
+                  styles.metaIcon,
+                  { backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+                ]}
+              >
                 <Calendar size={16} color={colors.brand.primary} />
               </View>
               <View>
@@ -126,7 +194,12 @@ const EventDetailScreen = () => {
             </View>
 
             <View style={styles.metaItem}>
-              <View style={[styles.metaIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+              <View
+                style={[
+                  styles.metaIcon,
+                  { backgroundColor: 'rgba(16, 185, 129, 0.1)' },
+                ]}
+              >
                 <MapPin size={16} color="#10B981" />
               </View>
               <View>
@@ -141,7 +214,8 @@ const EventDetailScreen = () => {
               <Users size={16} color={colors.text.tertiary} />
               <Text style={styles.statsText}>
                 <Text style={styles.enrolledCount}>{event.enrolledCount}</Text>
-                {event.maxCapacity ? ` / ${event.maxCapacity}` : ''} Enrolled Participants
+                {event.maxCapacity ? ` / ${event.maxCapacity}` : ''} Enrolled
+                Participants
               </Text>
             </View>
             {enrollment && (
@@ -163,8 +237,14 @@ const EventDetailScreen = () => {
           {/* Action Buttons */}
           <View style={styles.actions}>
             <Button
-              title={enrollment ? 'Unenroll From Event' : (isFull ? 'Sold Out' : 'Enroll Now')}
-              onPress={handleEnrollment}
+              title={
+                enrollment
+                  ? 'Unenroll From Event'
+                  : isFull
+                  ? 'Sold Out'
+                  : 'Enroll Now'
+              }
+              onPress={handleEnrollmentPress}
               loading={actionLoading}
               variant={enrollment ? 'outline' : 'primary'}
               disabled={!enrollment && !!isFull}
@@ -172,17 +252,44 @@ const EventDetailScreen = () => {
             />
 
             {enrollment && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.participantsBtn}
-                onPress={() => navigation.navigate('Participants', { eventId, eventTitle: event.title })}
+                onPress={() =>
+                  navigation.navigate('Participants', {
+                    eventId,
+                    eventTitle: event.title,
+                  })
+                }
               >
-                <Text style={styles.participantsBtnText}>View Other Participants</Text>
+                <Text style={styles.participantsBtnText}>
+                  View Other Participants
+                </Text>
                 <Users size={18} color={colors.brand.primary} />
               </TouchableOpacity>
             )}
           </View>
         </View>
       </ScrollView>
+
+      {event && (
+        <EnrollConfirmModal
+          visible={showConfirmModal}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirm={confirmEnroll}
+          eventName={event.title}
+          loading={actionLoading}
+        />
+      )}
+
+      {event && (
+        <UnenrollConfirmModal
+          visible={showUnenrollModal}
+          onClose={() => setShowUnenrollModal(false)}
+          onConfirm={confirmUnenroll}
+          eventName={event.title}
+          loading={actionLoading}
+        />
+      )}
     </View>
   );
 };
@@ -219,7 +326,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
       android: { elevation: 4 },
     }),
   },

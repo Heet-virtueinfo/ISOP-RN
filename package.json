@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.0",
+    "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-community/netinfo": "^12.0.1",
     "@react-native-firebase/analytics": "^23.8.8",
     "@react-native-firebase/app": "^23.8.8",
@@ -28,7 +29,6 @@
     "lucide-react-native": "^1.7.0",
     "react": "19.2.3",
     "react-native": "0.84.1",
-    "react-native-date-picker": "^5.0.13",
     "react-native-element-dropdown": "^2.12.4",
     "react-native-gesture-handler": "^2.30.1",
     "react-native-image-crop-picker": "^0.51.1",

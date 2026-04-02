@@ -10,6 +10,14 @@ import CustomLoader from '../../components/CustomLoader';
 import DeleteEventModal from '../../components/modals/DeleteEventModal';
 import Toast from 'react-native-toast-message';
 
+const getSafeTime = (timestamp: any) => {
+  if (!timestamp) return 0;
+  if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
+  if (typeof timestamp.toDate === 'function')
+    return timestamp.toDate().getTime();
+  return new Date(timestamp).getTime();
+};
+
 const BentoStat = ({ label, value, icon: Icon, color, sublabel }: any) => (
   <View style={styles.bentoStat}>
     <View style={[styles.bentoIconBox, { backgroundColor: color + '15' }]}>
@@ -32,12 +40,17 @@ const AdminDashboard = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = getEvents(eventsList => {
-      setEvents(eventsList);
-      setLoading(false);
-    });
+    let unsubscribe: () => void;
 
-    return () => unsubscribe();
+    const setupListener = () => {
+      unsubscribe = getEvents(eventsList => {
+        setEvents(eventsList);
+        setLoading(false);
+      });
+    };
+
+    setupListener();
+    return () => unsubscribe && unsubscribe();
   }, []);
 
   const navigateToEdit = (eventId: string) => {
@@ -87,16 +100,16 @@ const AdminDashboard = () => {
     );
   };
 
-  const totalEnrollments = events.reduce(
-    (sum, ev) => sum + (ev.enrolledCount || 0),
-    0,
-  );
+  const { totalEnrollments, activeEvents } = React.useMemo(() => {
+    const total = events.reduce((sum, ev) => sum + (ev.enrolledCount || 0), 0);
+    const active = events.filter(ev => {
+      const eventTime = getSafeTime(ev.date);
+      const now = Date.now();
+      return eventTime > now;
+    }).length;
 
-  const activeEvents = events.filter(ev => {
-    const hours =
-      (new Date(ev.date).getTime() - new Date().getTime()) / (1000 * 60 * 60);
-    return hours >= 0;
-  }).length;
+    return { totalEnrollments: total, activeEvents: active };
+  }, [events]);
 
   return (
     <View style={styles.container}>

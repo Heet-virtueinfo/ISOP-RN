@@ -1,14 +1,14 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Modal, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
   ActivityIndicator,
   TouchableWithoutFeedback,
   Dimensions,
-  Image
+  Image,
 } from 'react-native';
 import { AlertTriangle, Trash2, X, AlertCircle } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
@@ -54,8 +54,8 @@ const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
                 </View>
               </View>
 
-              <TouchableOpacity 
-                onPress={onClose} 
+              <TouchableOpacity
+                onPress={onClose}
                 disabled={loading}
                 style={styles.closeBtn}
               >
@@ -65,17 +65,27 @@ const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
               {/* Security Directive */}
               <View style={styles.directiveSection}>
                 <Text style={styles.directiveTitle}>SECURITY CHECK</Text>
-                <Text style={styles.mainTitle}>Permanently Purge{'\n'}This Event?</Text>
+                <Text style={styles.mainTitle}>
+                  Permanently Purge{'\n'}This Event?
+                </Text>
               </View>
 
               {/* Event Perspective Card */}
               <View style={styles.perspectiveCard}>
-                <Image source={imageSource} style={styles.previewImage} resizeMode="cover" />
+                <Image
+                  source={imageSource}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                />
                 <View style={styles.previewContent}>
                   <Text style={styles.previewLabel}>SELECTED TARGET</Text>
-                  <Text style={styles.previewTitle} numberOfLines={1}>{event.title}</Text>
+                  <Text style={styles.previewTitle} numberOfLines={1}>
+                    {event.title}
+                  </Text>
                   <View style={styles.enrolledBadge}>
-                    <Text style={styles.enrolledText}>{event.enrolledCount} ACTIVE ENROLLMENTS</Text>
+                    <Text style={styles.enrolledText}>
+                      {event.enrolledCount} ACTIVE ENROLLMENTS
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -84,7 +94,8 @@ const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
               <View style={styles.impactBox}>
                 <AlertCircle size={14} color={colors.status.error} />
                 <Text style={styles.impactText}>
-                  All associated student data and enrollments will be permanently purged from the ecosystem.
+                  All associated student data and enrollments will be
+                  permanently purged from the ecosystem.
                 </Text>
               </View>
 

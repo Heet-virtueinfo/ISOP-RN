@@ -77,6 +77,7 @@ export const getSentRequests = (
   return firebaseFirestore
     .collection(COLLECTIONS.CHAT_REQUESTS)
     .where('fromUid', '==', uid)
+    .where('status', '==', 'pending')
     .orderBy('createdAt', 'desc')
     .onSnapshot(
       snapshot => {
@@ -171,6 +172,66 @@ export const declineChatRequest = async (requestId: string) => {
     console.error('Decline Chat Request Error:', error);
     throw error;
   }
+};
+
+// GET ACCEPTED REQUESTS (Consolidated connections)
+export const getAcceptedRequests = (
+  uid: string,
+  callback: (requests: ChatRequest[]) => void,
+) => {
+  const sentAcceptedRef = firebaseFirestore
+    .collection(COLLECTIONS.CHAT_REQUESTS)
+    .where('fromUid', '==', uid)
+    .where('status', '==', 'accepted');
+
+  const receivedAcceptedRef = firebaseFirestore
+    .collection(COLLECTIONS.CHAT_REQUESTS)
+    .where('toUid', '==', uid)
+    .where('status', '==', 'accepted');
+
+  let sentData: ChatRequest[] = [];
+  let receivedData: ChatRequest[] = [];
+
+  const handleCombined = () => {
+    const combined = [...sentData, ...receivedData].sort((a, b) => {
+      const timeA = a.updatedAt
+        ? typeof a.updatedAt.toMillis === 'function'
+          ? a.updatedAt.toMillis()
+          : new Date(a.updatedAt as any).getTime()
+        : 0;
+      const timeB = b.updatedAt
+        ? typeof b.updatedAt.toMillis === 'function'
+          ? b.updatedAt.toMillis()
+          : new Date(b.updatedAt as any).getTime()
+        : 0;
+      return timeB - timeA;
+    });
+
+    // Unique by ID
+    const unique = Array.from(new Map(combined.map(r => [r.id, r])).values());
+    callback(unique);
+  };
+
+  const unsub1 = sentAcceptedRef.onSnapshot(
+    s => {
+      sentData = s.docs.map(doc => doc.data() as ChatRequest);
+      handleCombined();
+    },
+    err => console.error('Sent Accepted Listener Error:', err),
+  );
+
+  const unsub2 = receivedAcceptedRef.onSnapshot(
+    s => {
+      receivedData = s.docs.map(doc => doc.data() as ChatRequest);
+      handleCombined();
+    },
+    err => console.error('Received Accepted Listener Error:', err),
+  );
+
+  return () => {
+    unsub1();
+    unsub2();
+  };
 };
 
 // GET MY CHATS

@@ -3,10 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -22,28 +20,33 @@ import { getUserEnrollments } from '../../services/enrollmentService';
 import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
+import UserHeader from '../../components/UserHeader';
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
   const { userProfile } = useAuth();
   const [upcomingEvents, setUpcomingEvents] = useState<AppEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<AppEvent[]>([]);
+  const [enrollmentIds, setEnrollmentIds] = useState<string[]>([]);
+  const [totalEventsCount, setTotalEventsCount] = useState(0);
   const [enrollmentsCount, setEnrollmentsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userProfile) return;
 
-    // Fetch active events and take top 3
+    // Fetch active events
     const unsubscribeEvents = getActiveEvents(events => {
-      setUpcomingEvents(events.slice(0, 3));
-      setLoading(false);
+      setTotalEventsCount(events.length);
+      setAllEvents(events);
     });
 
-    // Fetch enrollment count
+    // Fetch enrollments to identify status
     const unsubscribeEnrollments = getUserEnrollments(
       userProfile.uid,
       enrollments => {
         setEnrollmentsCount(enrollments.length);
+        setEnrollmentIds(enrollments.map(e => e.eventId));
       },
     );
 
@@ -52,6 +55,20 @@ const HomeScreen = () => {
       unsubscribeEnrollments();
     };
   }, [userProfile]);
+
+  // Derived logic for upcoming events: Not enrolled first, then enrolled
+  useEffect(() => {
+    if (allEvents.length === 0) {
+      if (!loading) setLoading(false);
+      return;
+    }
+
+    const notEnrolled = allEvents.filter(e => !enrollmentIds.includes(e.id));
+    const enrolled = allEvents.filter(e => enrollmentIds.includes(e.id));
+    
+    setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
+    setLoading(false);
+  }, [allEvents, enrollmentIds]);
 
   const navigateToEvents = () => navigation.navigate('EventList');
   const navigateToMyEvents = () => navigation.navigate('MyEventsTab');
@@ -67,12 +84,13 @@ const HomeScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <UserHeader title="Home" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Personalized Header */}
+        {/* Simplified Greeting Section */}
         <View style={styles.header}>
           <View>
             <View style={styles.greetingRow}>
@@ -83,11 +101,6 @@ const HomeScreen = () => {
             </View>
             <Text style={styles.subtitle}>
               Welcome back to the ISoP community.
-            </Text>
-          </View>
-          <View style={styles.profileInitials}>
-            <Text style={styles.initialsText}>
-              {userProfile?.displayName?.[0] || 'U'}
             </Text>
           </View>
         </View>
@@ -117,7 +130,7 @@ const HomeScreen = () => {
             <Calendar size={20} color="#10B981" />
             <View>
               <Text style={[styles.statValue, { color: '#10B981' }]}>
-                {upcomingEvents.length}
+                {totalEventsCount}
               </Text>
               <Text style={styles.statLabel}>Active Events</Text>
             </View>
@@ -150,6 +163,7 @@ const HomeScreen = () => {
               <EventCard
                 key={event.id}
                 event={event}
+                isEnrolled={enrollmentIds.includes(event.id)}
                 onPress={() =>
                   navigation.navigate('EventDetail', { eventId: event.id })
                 }
@@ -158,7 +172,7 @@ const HomeScreen = () => {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

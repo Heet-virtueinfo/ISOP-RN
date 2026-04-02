@@ -51,28 +51,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    const unsubscribe = firebaseAuth.onAuthStateChanged(async firebaseUser => {
+    let profileUnsubscribe: (() => void) | null = null;
+
+    const authUnsubscribe = firebaseAuth.onAuthStateChanged(async firebaseUser => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        await fetchProfile(firebaseUser.uid);
+        // Stop any existing profile listener
+        if (profileUnsubscribe) profileUnsubscribe();
+
+        // Start a real-time listener for the user profile document
+        profileUnsubscribe = firebaseFirestore
+          .collection(COLLECTIONS.USERS)
+          .doc(firebaseUser.uid)
+          .onSnapshot(
+            async doc => {
+              if (doc.exists()) {
+                const data = doc.data() as UserProfile;
+                setUserProfile(data);
+                // Cache role for faster initial loads
+                await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
+              } else {
+                console.warn('No user profile found for UID:', firebaseUser.uid);
+                setUserProfile(null);
+              }
+              setLoading(false);
+            },
+            error => {
+              console.error('Real-time profile listener error:', error);
+              setLoading(false);
+            },
+          );
       } else {
+        // Cleanup on logout
+        if (profileUnsubscribe) {
+          profileUnsubscribe();
+          profileUnsubscribe = null;
+        }
         setUserProfile(null);
         await AsyncStorage.removeItem(STORAGE_KEY_ROLE);
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) profileUnsubscribe();
+    };
   }, []);
 
   const logout = async () => {
     try {
       setLoading(true);
       await firebaseAuth.signOut();
-      setUserProfile(null);
-      await AsyncStorage.removeItem(STORAGE_KEY_ROLE);
+      // Note: State cleanup is handled within the onAuthStateChanged effect above
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

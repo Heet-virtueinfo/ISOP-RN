@@ -6,10 +6,12 @@ import {
   Text,
   TouchableOpacity,
   Platform,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-import DatePicker from 'react-native-date-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   MapPin,
   AlignLeft,
@@ -91,6 +93,7 @@ const CreateEventScreen = () => {
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [openEndDatePicker, setOpenEndDatePicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -141,7 +144,18 @@ const CreateEventScreen = () => {
         text1: 'Event Created',
         text2: 'The event has been successfully published.',
       });
-      navigation.navigate('Events');
+      // Reset all fields
+      setTitle('');
+      setDescription('');
+      setLocation('');
+      setType('conference');
+      setImages([]);
+      setMaxCapacityStr('');
+      setDate(new Date());
+      setEndDate(null);
+      setErrors({});
+
+      navigation.navigate('EventsTab');
     } catch (error) {
       Toast.show({
         type: 'error',
@@ -235,28 +249,96 @@ const CreateEventScreen = () => {
             </View>
           </View>
 
-          <DatePicker
-            modal
-            open={openDatePicker}
-            date={date}
-            onConfirm={d => {
-              setOpenDatePicker(false);
-              setDate(d);
-            }}
-            onCancel={() => setOpenDatePicker(false)}
-          />
-
-          <DatePicker
-            modal
-            open={openEndDatePicker}
-            date={endDate || new Date()}
-            onConfirm={d => {
-              setOpenEndDatePicker(false);
-              setEndDate(d);
-              setErrors(prev => ({ ...prev, endDate: '' }));
-            }}
-            onCancel={() => setOpenEndDatePicker(false)}
-          />
+          {/* Modal Picker for iOS / Dialog for Android */}
+          {(openDatePicker || openEndDatePicker) && (
+            Platform.OS === 'ios' ? (
+              <Modal
+                transparent
+                animationType="slide"
+                visible={openDatePicker || openEndDatePicker}
+                onRequestClose={() => {
+                  setOpenDatePicker(false);
+                  setOpenEndDatePicker(false);
+                }}
+              >
+                <TouchableWithoutFeedback
+                  onPress={() => {
+                    setOpenDatePicker(false);
+                    setOpenEndDatePicker(false);
+                  }}
+                >
+                  <View style={styles.modalOverlay} />
+                </TouchableWithoutFeedback>
+                <View style={styles.modalContainer}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>
+                      {openDatePicker ? 'Start Time' : 'End Time'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setOpenDatePicker(false);
+                        setOpenEndDatePicker(false);
+                      }}
+                    >
+                      <Text style={styles.modalDoneBtn}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.pickerWrapper}>
+                    <DateTimePicker
+                      value={openDatePicker ? date : (endDate || new Date())}
+                      mode="datetime"
+                      display="spinner"
+                      minimumDate={new Date()}
+                      onChange={(event, selectedDate) => {
+                        if (selectedDate) {
+                          if (openDatePicker) setDate(selectedDate);
+                          else {
+                            setEndDate(selectedDate);
+                            setErrors(prev => ({ ...prev, endDate: '' }));
+                          }
+                        }
+                      }}
+                      textColor="black"
+                    />
+                  </View>
+                </View>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={openDatePicker ? date : (endDate || new Date())}
+                mode={pickerMode}
+                display="default"
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  if (event.type === 'dismissed') {
+                    setOpenDatePicker(false);
+                    setOpenEndDatePicker(false);
+                    setPickerMode('date');
+                    return;
+                  }
+                  
+                  if (selectedDate) {
+                    if (openDatePicker) {
+                      setDate(selectedDate);
+                      if (pickerMode === 'date') setPickerMode('time');
+                      else {
+                        setOpenDatePicker(false);
+                        setPickerMode('date');
+                      }
+                    } else {
+                      setEndDate(selectedDate);
+                      if (pickerMode === 'date') setPickerMode('time');
+                      else {
+                        setOpenEndDatePicker(false);
+                        setPickerMode('date');
+                        setErrors(prev => ({ ...prev, endDate: '' }));
+                      }
+                    }
+                  }
+                }}
+              />
+            )
+          )}
 
           <InputField
             label="Location / Link"
@@ -443,6 +525,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 15,
     elevation: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingBottom: 40,
+    backgroundColor: colors.layout.surface,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ui.dividerLight,
+  },
+  modalTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  modalDoneBtn: {
+    fontFamily: typography.fontFamily,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.brand.primary,
+  },
+  pickerWrapper: {
+    paddingTop: 10,
   },
 });
 

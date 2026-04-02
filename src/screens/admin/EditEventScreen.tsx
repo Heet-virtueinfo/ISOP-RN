@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-import DatePicker from 'react-native-date-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   MapPin,
   AlignLeft,
@@ -99,6 +101,7 @@ const EditEventScreen = () => {
   
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [openEndDatePicker, setOpenEndDatePicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -303,28 +306,96 @@ const EditEventScreen = () => {
             </View>
           </View>
 
-          <DatePicker
-            modal
-            open={openDatePicker}
-            date={date}
-            onConfirm={(d: Date) => {
-              setOpenDatePicker(false);
-              setDate(d);
-            }}
-            onCancel={() => setOpenDatePicker(false)}
-          />
-
-          <DatePicker
-            modal
-            open={openEndDatePicker}
-            date={endDate || new Date()}
-            onConfirm={(d: Date) => {
-              setOpenEndDatePicker(false);
-              setEndDate(d);
-              setErrors((prev: any) => ({ ...prev, endDate: '' }));
-            }}
-            onCancel={() => setOpenEndDatePicker(false)}
-          />
+          {/* Modal Picker for iOS / Dialog for Android */}
+          {(openDatePicker || openEndDatePicker) && (
+            Platform.OS === 'ios' ? (
+              <Modal
+                transparent
+                animationType="slide"
+                visible={openDatePicker || openEndDatePicker}
+                onRequestClose={() => {
+                  setOpenDatePicker(false);
+                  setOpenEndDatePicker(false);
+                }}
+              >
+                <TouchableWithoutFeedback
+                  onPress={() => {
+                    setOpenDatePicker(false);
+                    setOpenEndDatePicker(false);
+                  }}
+                >
+                  <View style={styles.modalOverlay} />
+                </TouchableWithoutFeedback>
+                <View style={styles.modalContainer}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>
+                      {openDatePicker ? 'Start Time' : 'End Time'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setOpenDatePicker(false);
+                        setOpenEndDatePicker(false);
+                      }}
+                    >
+                      <Text style={styles.modalDoneBtn}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.pickerWrapper}>
+                    <DateTimePicker
+                      value={openDatePicker ? date : (endDate || new Date())}
+                      mode="datetime"
+                      display="spinner"
+                      minimumDate={new Date()}
+                      onChange={(event, selectedDate) => {
+                        if (selectedDate) {
+                          if (openDatePicker) setDate(selectedDate);
+                          else {
+                            setEndDate(selectedDate);
+                            setErrors((prev: any) => ({ ...prev, endDate: '' }));
+                          }
+                        }
+                      }}
+                      textColor="black"
+                    />
+                  </View>
+                </View>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={openDatePicker ? date : (endDate || new Date())}
+                mode={pickerMode}
+                display="default"
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  if (event.type === 'dismissed') {
+                    setOpenDatePicker(false);
+                    setOpenEndDatePicker(false);
+                    setPickerMode('date');
+                    return;
+                  }
+                  
+                  if (selectedDate) {
+                    if (openDatePicker) {
+                      setDate(selectedDate);
+                      if (pickerMode === 'date') setPickerMode('time');
+                      else {
+                        setOpenDatePicker(false);
+                        setPickerMode('date');
+                      }
+                    } else {
+                      setEndDate(selectedDate);
+                      if (pickerMode === 'date') setPickerMode('time');
+                      else {
+                        setOpenEndDatePicker(false);
+                        setPickerMode('date');
+                        setErrors((prev: any) => ({ ...prev, endDate: '' }));
+                      }
+                    }
+                  }
+                }}
+              />
+            )
+          )}
 
           <InputField
             label="Location / Link"
@@ -528,6 +599,40 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     color: colors.status.error,
     fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingBottom: 40,
+    backgroundColor: colors.layout.surface,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ui.dividerLight,
+  },
+  modalTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  modalDoneBtn: {
+    fontFamily: typography.fontFamily,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.brand.primary,
+  },
+  pickerWrapper: {
+    paddingTop: 10,
   },
 });
 

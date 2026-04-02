@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInputProps } from 'react-native';
+import { View, Text, StyleSheet, TextInputProps, StyleProp, ViewStyle } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Phone } from 'lucide-react-native';
 import InputField from './InputField';
@@ -13,6 +13,7 @@ interface PhoneInputFieldProps extends TextInputProps {
   error?: string;
   countryCode: string;
   onCountryCodeChange: (code: string) => void;
+  wrapperStyle?: StyleProp<ViewStyle>;
 }
 
 const PhoneInputField: React.FC<PhoneInputFieldProps> = ({
@@ -20,6 +21,7 @@ const PhoneInputField: React.FC<PhoneInputFieldProps> = ({
   error,
   countryCode,
   onCountryCodeChange,
+  wrapperStyle,
   ...props
 }) => {
   const [isDropdownFocused, setIsDropdownFocused] = useState(false);
@@ -55,6 +57,7 @@ const PhoneInputField: React.FC<PhoneInputFieldProps> = ({
             leftIcon={Phone}
             style={styles.noMargin}
             containerStyle={styles.noMargin}
+            wrapperStyle={wrapperStyle}
             {...props}
             error={undefined}
           />

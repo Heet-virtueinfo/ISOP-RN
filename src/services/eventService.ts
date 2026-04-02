@@ -2,7 +2,6 @@ import firestore from '@react-native-firebase/firestore';
 import { firebaseFirestore } from '../config/firebase';
 import { AppEvent } from '../types';
 import { COLLECTIONS } from '../constants/collections';
-
 import { uploadImageToCloudinary } from './uploadService';
 
 // CREATE EVENT
@@ -15,14 +14,16 @@ export const createEvent = async (
   try {
     // 1. Upload Images to Cloudinary if they are local paths
     const uploadedImages = await Promise.all(
-      (data.images || []).map(async (img) => {
+      (data.images || []).map(async img => {
         if (img.startsWith('http')) return img; // Already a URL
         return await uploadImageToCloudinary(img, 'ISOP/event');
-      })
+      }),
     );
 
     // Filter out any failed uploads
-    const finalImages = uploadedImages.filter((img): img is string => img !== null);
+    const finalImages = uploadedImages.filter(
+      (img): img is string => img !== null,
+    );
 
     const eventRef = firebaseFirestore.collection(COLLECTIONS.EVENTS).doc();
     const newEvent: AppEvent = {
@@ -87,7 +88,29 @@ export const getActiveEvents = (callback: (events: AppEvent[]) => void) => {
     );
 };
 
-// GET SINGLE EVENT
+// LISTEN TO SINGLE EVENT (Real-time)
+export const listenToEvent = (
+  id: string,
+  callback: (event: AppEvent | null) => void,
+) => {
+  return firebaseFirestore
+    .collection(COLLECTIONS.EVENTS)
+    .doc(id)
+    .onSnapshot(
+      doc => {
+        if (doc.exists()) {
+          callback(doc.data() as AppEvent);
+        } else {
+          callback(null);
+        }
+      },
+      error => {
+        console.error('Listen To Event Error:', error);
+      },
+    );
+};
+
+// GET SINGLE EVENT (One-time fetch for static checks)
 export const getEventById = async (id: string): Promise<AppEvent | null> => {
   try {
     const doc = await firebaseFirestore
@@ -112,12 +135,14 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
     // Support image updates with upload
     if (updates.images) {
       const uploadedImages = await Promise.all(
-        updates.images.map(async (img) => {
+        updates.images.map(async img => {
           if (img.startsWith('http')) return img;
           return await uploadImageToCloudinary(img, 'ISOP/event');
-        })
+        }),
       );
-      finalUpdates.images = uploadedImages.filter((img): img is string => img !== null);
+      finalUpdates.images = uploadedImages.filter(
+        (img): img is string => img !== null,
+      );
     }
 
     await firebaseFirestore

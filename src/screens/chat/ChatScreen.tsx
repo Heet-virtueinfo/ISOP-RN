@@ -1,21 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    FlatList, 
-    TextInput, 
-    TouchableOpacity, 
-    KeyboardAvoidingView, 
-    Platform,
-    Image,
-    SafeAreaView
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+  SafeAreaView,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Send, Image as ImageIcon } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { getMessages, sendMessage, markMessagesRead } from '../../services/chatService';
+import {
+  getMessages,
+  sendMessage,
+  markMessagesRead,
+} from '../../services/chatService';
 import { Message } from '../../types';
 import MessageBubble from '../../components/MessageBubble';
 import CustomLoader from '../../components/CustomLoader';
@@ -34,7 +38,7 @@ const ChatScreen = () => {
   useEffect(() => {
     if (!chatId) return;
 
-    const unsubscribe = getMessages(chatId, (data) => {
+    const unsubscribe = getMessages(chatId, data => {
       setMessages(data);
       setLoading(false);
       // Mark as read after messages load
@@ -59,10 +63,13 @@ const ChatScreen = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={styles.backBtn}
+      >
         <ChevronLeft size={24} color={colors.text.primary} />
       </TouchableOpacity>
-      
+
       <View style={styles.userInfo}>
         {otherUserImage ? (
           <Image source={{ uri: otherUserImage }} style={styles.headerAvatar} />
@@ -79,22 +86,29 @@ const ChatScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
-      
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={styles.messageArea}>
           {loading ? (
-            <CustomLoader message="Loading encrypted messages..." overlay={false} style={{ flex: 1 }} />
+            <CustomLoader
+              message="Loading encrypted messages..."
+              overlay={false}
+              style={{ flex: 1 }}
+            />
           ) : (
             <FlatList
               ref={flatListRef}
               data={messages}
-              keyExtractor={(item) => item.id}
+              keyExtractor={item => item.id}
               renderItem={({ item }) => (
-                <MessageBubble message={item} isMe={item.senderId === user?.uid} />
+                <MessageBubble
+                  message={item}
+                  isMe={item.senderId === user?.uid}
+                />
               )}
               inverted
               contentContainerStyle={styles.listContent}
@@ -113,8 +127,11 @@ const ChatScreen = () => {
             multiline
             maxLength={1000}
           />
-          <TouchableOpacity 
-            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+          <TouchableOpacity
+            style={[
+              styles.sendBtn,
+              !inputText.trim() && styles.sendBtnDisabled,
+            ]}
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
