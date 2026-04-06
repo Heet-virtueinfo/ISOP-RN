@@ -55,14 +55,31 @@ const MyEventsScreen = () => {
     return () => unsubscribe();
   }, [userProfile]);
 
+  // Helper: returns true if the event date is in the future (upcoming/active)
+  const isUpcomingEvent = (event: AppEvent): boolean => {
+    try {
+      const eventDate =
+        event.date && typeof event.date.toDate === 'function'
+          ? event.date.toDate()
+          : new Date(event.date);
+      return eventDate.getTime() > Date.now();
+    } catch {
+      return true; // Fallback: show if date can't be parsed
+    }
+  };
+
   const filteredEvents = useMemo(() => {
     return enrolledEvents.filter(event => {
+      // Exclude past (completed) events automatically
+      if (!isUpcomingEvent(event)) return false;
+
       const matchesQuery =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = selectedType === 'all' || event.type === selectedType;
       return matchesQuery && matchesType;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enrolledEvents, searchQuery, selectedType]);
 
   const onRefresh = () => {

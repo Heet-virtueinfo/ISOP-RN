@@ -71,6 +71,16 @@ const EventDetailScreen = () => {
   const handleEnrollmentPress = () => {
     if (!event || !userProfile) return;
 
+    // Block enrollment/unenrollment for past events
+    if (isPastEvent) {
+      Toast.show({
+        type: 'info',
+        text1: 'Event Has Ended',
+        text2: 'This event is already completed.',
+      });
+      return;
+    }
+
     if (!enrollment && event.maxCapacity && event.enrolledCount >= event.maxCapacity) {
       Toast.show({
         type: 'error',
@@ -79,7 +89,7 @@ const EventDetailScreen = () => {
       });
       return;
     }
-    
+
     if (enrollment) {
       setShowUnenrollModal(true);
     } else {
@@ -148,6 +158,19 @@ const EventDetailScreen = () => {
     );
 
   const isFull = event.maxCapacity && event.enrolledCount >= event.maxCapacity;
+
+  // Check if event date is in the past → automatically completed
+  const isPastEvent = (() => {
+    try {
+      const eventDate =
+        event.date && typeof event.date.toDate === 'function'
+          ? event.date.toDate()
+          : new Date(event.date);
+      return eventDate.getTime() < Date.now();
+    } catch {
+      return false;
+    }
+  })();
 
   return (
     <View style={styles.container}>
@@ -236,36 +259,51 @@ const EventDetailScreen = () => {
 
           {/* Action Buttons */}
           <View style={styles.actions}>
-            <Button
-              title={
-                enrollment
-                  ? 'Unenroll From Event'
-                  : isFull
-                  ? 'Sold Out'
-                  : 'Enroll Now'
-              }
-              onPress={handleEnrollmentPress}
-              loading={actionLoading}
-              variant={enrollment ? 'outline' : 'primary'}
-              disabled={!enrollment && !!isFull}
-              style={styles.enrollBtn}
-            />
+            {isPastEvent ? (
+              // Past event — show completed banner, hide enroll button
+              <View style={styles.completedBanner}>
+                <CheckCircle2 size={20} color={colors.text.tertiary} />
+                <View style={styles.completedBannerText}>
+                  <Text style={styles.completedBannerTitle}>This Event Has Ended</Text>
+                  <Text style={styles.completedBannerSub}>
+                    {enrollment ? 'You participated in this event.' : 'This event is no longer accepting enrollments.'}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <>
+                <Button
+                  title={
+                    enrollment
+                      ? 'Unenroll From Event'
+                      : isFull
+                      ? 'Sold Out'
+                      : 'Enroll Now'
+                  }
+                  onPress={handleEnrollmentPress}
+                  loading={actionLoading}
+                  variant={enrollment ? 'outline' : 'primary'}
+                  disabled={!enrollment && !!isFull}
+                  style={styles.enrollBtn}
+                />
 
-            {enrollment && (
-              <TouchableOpacity
-                style={styles.participantsBtn}
-                onPress={() =>
-                  navigation.navigate('Participants', {
-                    eventId,
-                    eventTitle: event.title,
-                  })
-                }
-              >
-                <Text style={styles.participantsBtnText}>
-                  View Other Participants
-                </Text>
-                <Users size={18} color={colors.brand.primary} />
-              </TouchableOpacity>
+                {enrollment && (
+                  <TouchableOpacity
+                    style={styles.participantsBtn}
+                    onPress={() =>
+                      navigation.navigate('Participants', {
+                        eventId,
+                        eventTitle: event.title,
+                      })
+                    }
+                  >
+                    <Text style={styles.participantsBtnText}>
+                      View Other Participants
+                    </Text>
+                    <Users size={18} color={colors.brand.primary} />
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -458,6 +496,32 @@ const styles = StyleSheet.create({
   enrollBtn: {
     height: 56,
     borderRadius: radius.lg,
+  },
+  completedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: spacing.lg,
+    backgroundColor: colors.palette.slate.bg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+  },
+  completedBannerText: {
+    flex: 1,
+  },
+  completedBannerTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text.secondary,
+    marginBottom: 2,
+  },
+  completedBannerSub: {
+    fontFamily: typography.fontFamily,
+    fontSize: 12,
+    color: colors.text.tertiary,
+    lineHeight: 18,
   },
   participantsBtn: {
     flexDirection: 'row',
