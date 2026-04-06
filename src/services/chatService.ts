@@ -2,6 +2,7 @@ import firestore from '@react-native-firebase/firestore';
 import { firebaseFirestore } from '../config/firebase';
 import { ChatRequest, Chat, Message, UserProfile, Enrollment } from '../types';
 import { COLLECTIONS } from '../constants/collections';
+import { apiService } from './apiService';
 
 // SEND CHAT REQUEST
 export const sendChatRequest = async (
@@ -19,13 +20,16 @@ export const sendChatRequest = async (
 
     // Check if any request already exists between these two users (any status)
     const existingRequest = await getChatRequestStatus(fromUid, toUid);
-    if (existingRequest) {
+    if (existingRequest && existingRequest.status !== 'declined') {
       return { success: false, error: 'Request already exists' };
     }
 
+    const requestId =
+      existingRequest?.id ||
+      firebaseFirestore.collection(COLLECTIONS.CHAT_REQUESTS).doc().id;
     const requestRef = firebaseFirestore
       .collection(COLLECTIONS.CHAT_REQUESTS)
-      .doc();
+      .doc(requestId);
     const chatRequest: ChatRequest = {
       id: requestRef.id,
       fromUid,
@@ -35,12 +39,42 @@ export const sendChatRequest = async (
       toName: toParticipant.displayName,
       eventId,
       eventTitle,
+      participants: [fromUid, toUid], // For single query listening
       status: 'pending',
       createdAt: firestore.Timestamp.now(),
       updatedAt: firestore.Timestamp.now(),
     };
 
     await requestRef.set(chatRequest);
+
+    // [NOTIFICATION] Send push notification to recipient
+    try {
+      const recipientDoc = await firebaseFirestore
+        .collection(COLLECTIONS.USERS)
+        .doc(toUid)
+        .get();
+
+      if (recipientDoc.exists()) {
+        const recipientProfile = recipientDoc.data() as UserProfile;
+        if (recipientProfile.fcmToken) {
+          await apiService.sendNotification({
+            fcmToken: recipientProfile.fcmToken,
+            title: 'New Chat Request!',
+            body: `${
+              fromProfile.displayName || 'Someone'
+            } wants to connect regarding ${eventTitle}`,
+            data: {
+              screen: 'RequestsTab', // Deep link to requests screen
+              chatId: chatRequest.id,
+              fromName: fromProfile.displayName,
+            },
+          });
+        }
+      }
+    } catch (notifError) {
+      console.warn('Silent failure on request notification:', notifError);
+    }
+
     return { success: true, chatRequest };
   } catch (error) {
     console.error('Send Chat Request Error:', error);
@@ -96,29 +130,42 @@ export const getChatRequestStatus = async (
   uid2: string,
 ): Promise<ChatRequest | null> => {
   try {
-    // Query requests where sender is uid1 and recipient is uid2
-    const shot1 = await firebaseFirestore
+    const shot = await firebaseFirestore
       .collection(COLLECTIONS.CHAT_REQUESTS)
-      .where('fromUid', '==', uid1)
-      .where('toUid', '==', uid2)
+      .where('participants', 'array-contains', uid1)
       .get();
 
-    if (!shot1.empty) return shot1.docs[0].data() as ChatRequest;
+    const request = shot.docs
+      .map(doc => doc.data() as ChatRequest)
+      .find(req => req.participants.includes(uid2));
 
-    // Query requests where sender is uid2 and recipient is uid1
-    const shot2 = await firebaseFirestore
-      .collection(COLLECTIONS.CHAT_REQUESTS)
-      .where('fromUid', '==', uid2)
-      .where('toUid', '==', uid1)
-      .get();
-
-    if (!shot2.empty) return shot2.docs[0].data() as ChatRequest;
-
-    return null;
+    return request || null;
   } catch (error) {
     console.error('Get Chat Request Status Error:', error);
     return null;
   }
+};
+
+// LISTEN TO CHAT REQUEST STATUS (Real-time version)
+export const listenToChatRequestStatus = (
+  uid1: string,
+  uid2: string,
+  callback: (request: ChatRequest | null) => void,
+) => {
+  return firebaseFirestore
+    .collection(COLLECTIONS.CHAT_REQUESTS)
+    .where('participants', 'array-contains', uid1)
+    .onSnapshot(
+      snapshot => {
+        const requests = snapshot.docs.map(doc => doc.data() as ChatRequest);
+        // Find the specific request between these two users
+        const request = requests.find(req => req.participants.includes(uid2));
+        callback(request || null);
+      },
+      error => {
+        console.error('Listen Chat Request Status Error:', error);
+      },
+    );
 };
 
 // ACCEPT CHAT REQUEST
@@ -140,7 +187,7 @@ export const acceptChatRequest = async (request: ChatRequest) => {
       },
       participantImages: {
         [request.fromUid]: request.fromImage || null,
-        [request.toUid]: null, // Note: Recipient's image could be fetched if needed
+        [request.toUid]: null,
       },
       createdAt: firestore.Timestamp.now(),
     };

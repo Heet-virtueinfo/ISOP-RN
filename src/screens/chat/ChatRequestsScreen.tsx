@@ -21,10 +21,13 @@ import {
   acceptChatRequest,
   declineChatRequest,
 } from '../../services/chatService';
-import { ChatRequest } from '../../types';
+import { ChatRequest, UserProfile } from '../../types';
 import CustomLoader from '../../components/CustomLoader';
 import Toast from 'react-native-toast-message';
 import UserHeader from '../../components/UserHeader';
+import { apiService } from '../../services/apiService';
+import { firebaseFirestore } from '../../config/firebase';
+import { COLLECTIONS } from '../../constants/collections';
 
 const ChatRequestsScreen = () => {
   const navigation = useNavigation<any>();
@@ -67,6 +70,33 @@ const ChatRequestsScreen = () => {
     setActionLoading(true);
     try {
       await acceptChatRequest(request);
+
+      // [NOTIFICATION] Notify original sender
+      try {
+        const senderDoc = await firebaseFirestore
+          .collection(COLLECTIONS.USERS)
+          .doc(request.fromUid)
+          .get();
+
+        if (senderDoc.exists()) {
+          const senderProfile = senderDoc.data() as UserProfile;
+          if (senderProfile.fcmToken) {
+            await apiService.sendNotification({
+              fcmToken: senderProfile.fcmToken,
+              title: 'Request Accepted!',
+              body: `${request.toName || 'Someone'} accepted your chat request. Start the conversation!`,
+              data: {
+                screen: 'Chat',
+                chatId: request.id,
+                otherUserName: request.toName || 'Someone',
+              },
+            });
+          }
+        }
+      } catch (notifError) {
+        console.warn('Acceptance notification failed:', notifError);
+      }
+
       Toast.show({
         type: 'success',
         text1: 'Connection Established',
@@ -84,9 +114,36 @@ const ChatRequestsScreen = () => {
     }
   };
 
-  const handleDecline = async (requestId: string) => {
+  const handleDecline = async (request: ChatRequest) => {
     try {
-      await declineChatRequest(requestId);
+      await declineChatRequest(request.id);
+
+      // [NOTIFICATION] Notify original sender about the decline
+      try {
+        const senderDoc = await firebaseFirestore
+          .collection(COLLECTIONS.USERS)
+          .doc(request.fromUid)
+          .get();
+
+        if (senderDoc.exists()) {
+          const senderProfile = senderDoc.data() as UserProfile;
+          if (senderProfile.fcmToken) {
+            await apiService.sendNotification({
+              fcmToken: senderProfile.fcmToken,
+              title: 'Request Declined',
+              body: `${request.toName || 'Someone'} declined your chat request.`,
+              data: {
+                screen: 'Participants', // Updated target screen
+                eventId: request.eventId,
+                eventTitle: request.eventTitle,
+              },
+            });
+          }
+        }
+      } catch (notifError) {
+        console.warn('Decline notification failed:', notifError);
+      }
+
       Toast.show({ type: 'success', text1: 'Request Declined' });
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Action Failed' });
@@ -140,7 +197,7 @@ const ChatRequestsScreen = () => {
                 <View style={styles.dualActions}>
                   <TouchableOpacity
                     style={[styles.miniActionBtn, styles.declineBtn]}
-                    onPress={() => handleDecline(item.id)}
+                    onPress={() => handleDecline(item)}
                   >
                     <X size={16} color={colors.status.error} />
                   </TouchableOpacity>

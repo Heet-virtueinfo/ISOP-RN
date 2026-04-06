@@ -1,6 +1,12 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MessageCircle, Home, BookMarked, User, UserPlus } from 'lucide-react-native';
+import {
+  MessageCircle,
+  Home,
+  BookMarked,
+  User,
+  UserPlus,
+} from 'lucide-react-native';
 import { View } from 'react-native';
 import { colors, typography } from '../../theme';
 import HomeStack from './stacks/HomeStack';
@@ -55,13 +61,13 @@ const UserTabs = () => {
         options={{
           tabBarLabel: 'Chats',
           tabBarIcon: ({ color, size }) => (
-             <MessageCircle color={color} size={size} />
+            <MessageCircle color={color} size={size} />
           ),
         }}
       />
       <Tab.Screen
         name="RequestsTab"
-        component={ChatsStack} // This is the stack that contains ChatRequests
+        component={ChatsStack}
         options={{
           tabBarLabel: 'Requests',
           tabBarIcon: ({ color, size }) => (
@@ -72,7 +78,7 @@ const UserTabs = () => {
           ),
         }}
         listeners={({ navigation }) => ({
-          tabPress: (e) => {
+          tabPress: e => {
             e.preventDefault();
             navigation.navigate('RequestsTab', { screen: 'ChatRequests' });
           },

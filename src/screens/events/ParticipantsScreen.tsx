@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Users } from 'lucide-react-native';
+import { Users } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { listenToEvent } from '../../services/eventService';
@@ -71,7 +65,13 @@ const ParticipantsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="Participants" participantsCount={participants.length} showBack={true} onBackPress={() => navigation.goBack()} showActions={false} />
+      <UserHeader
+        title="Participants"
+        participantsCount={participants.length}
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+        showActions={false}
+      />
 
       {loading ? (
         <CustomLoader

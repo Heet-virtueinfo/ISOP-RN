@@ -22,11 +22,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Refs to prevent infinite loops and redundant calls
   const fcmInitialized = React.useRef(false);
   const currentUserUid = React.useRef<string | null>(null);
 
-  // Constants for AsyncStorage
   const STORAGE_KEY_ROLE = '@user_role';
 
   const fetchProfile = async (uid: string) => {
@@ -38,7 +36,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (doc.exists()) {
         const data = doc.data() as UserProfile;
         setUserProfile(data);
-        // Cache role for faster initial loads
         await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
       } else {
         console.warn('No user profile found in Firestore for UID:', uid);
@@ -65,16 +62,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setUser(firebaseUser);
 
         if (firebaseUser) {
-          // Reset FCM flag for new user logins
           if (currentUserUid.current !== firebaseUser.uid) {
             fcmInitialized.current = false;
             currentUserUid.current = firebaseUser.uid;
           }
-
-          // Stop any existing profile listener
           if (profileUnsubscribe) profileUnsubscribe();
 
-          // Start a real-time listener for the user profile document
           profileUnsubscribe = firebaseFirestore
             .collection(COLLECTIONS.USERS)
             .doc(firebaseUser.uid)
@@ -83,27 +76,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 if (doc.exists()) {
                   const data = doc.data() as UserProfile;
                   setUserProfile(data);
-                  // Cache role for faster initial loads
                   await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
-
-                  // --- ROLE-BASED FCM Integration ---
                   if (data.role === 'user' && !fcmInitialized.current) {
-                    fcmInitialized.current = true; // Mark as initialized to prevent loop
-                    
+                    fcmInitialized.current = true;
+
                     notificationService.requestPermission().then(granted => {
                       if (granted) {
-                        notificationService.updateUserToken(firebaseUser.uid, data.fcmToken);
+                        notificationService.updateUserToken(
+                          firebaseUser.uid,
+                          data.fcmToken,
+                        );
                       }
                     });
 
-                    // Manage token refresh listener
                     if (!tokenRefreshUnsubscribe) {
-                      tokenRefreshUnsubscribe = notificationService.onTokenRefresh(
-                        firebaseUser.uid,
-                      );
+                      tokenRefreshUnsubscribe =
+                        notificationService.onTokenRefresh(firebaseUser.uid);
                     }
                   } else if (data.role !== 'user') {
-                    // Cleanup token listener if role is not user
                     if (tokenRefreshUnsubscribe) {
                       tokenRefreshUnsubscribe();
                       tokenRefreshUnsubscribe = null;
@@ -124,7 +114,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               },
             );
         } else {
-          // Cleanup on logout
           fcmInitialized.current = false;
           currentUserUid.current = null;
           if (profileUnsubscribe) {
@@ -153,7 +142,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setLoading(true);
       await firebaseAuth.signOut();
-      // Note: State cleanup is handled within the onAuthStateChanged effect above
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

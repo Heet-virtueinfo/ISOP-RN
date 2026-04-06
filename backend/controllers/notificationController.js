@@ -3,7 +3,6 @@ const { db, messaging } = require('../utils/firebaseAdmin');
 exports.sendNotification = async (req, res) => {
   const { fcmToken, title, body, data, isBroadcast } = req.body;
 
-  // Validation: Either fcmToken (string/array) OR isBroadcast must exist
   if ((!fcmToken && !isBroadcast) || !title || !body) {
     return res.status(400).json({
       error:
@@ -15,10 +14,8 @@ exports.sendNotification = async (req, res) => {
     let tokensToNotify = [];
 
     if (isBroadcast) {
-      // 1. Fetch ALL tokens from Firestore 'users' collection
       const usersSnapshot = await db.collection('users').get();
       usersSnapshot.forEach(doc => {
-        // Skip the admin token (Admin UID: E8aGjE9fKkRJzxJvsiCtZ4QYZon2)
         if (doc.id === 'E8aGjE9fKkRJzxJvsiCtZ4QYZon2') return;
 
         const token = doc.data().fcmToken;
@@ -33,11 +30,9 @@ exports.sendNotification = async (req, res) => {
           .json({ error: 'No user tokens found in database' });
       }
     } else {
-      // 2. Use specific token(s) provided in request
       tokensToNotify = Array.isArray(fcmToken) ? fcmToken : [fcmToken];
     }
 
-    // MULTICAST: Send to a list of tokens (handles 1 or many)
     const message = {
       tokens: tokensToNotify,
       notification: { title, body },
@@ -50,9 +45,6 @@ exports.sendNotification = async (req, res) => {
     };
 
     const response = await messaging.sendEachForMulticast(message);
-    console.log(
-      `Success: ${response.successCount}, Failure: ${response.failureCount}`,
-    );
 
     return res.status(200).json({
       success: true,

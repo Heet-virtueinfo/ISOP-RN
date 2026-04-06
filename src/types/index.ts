@@ -52,6 +52,7 @@ export interface ChatRequest {
   toName: string;
   eventId: string;
   eventTitle: string;
+  participants: string[]; // [fromUid, toUid] for efficient querying
   status: ChatRequestStatus;
   createdAt: any;
   updatedAt: any;

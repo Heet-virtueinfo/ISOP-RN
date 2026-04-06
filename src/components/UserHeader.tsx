@@ -55,9 +55,8 @@ const UserHeader: React.FC<UserHeaderProps> = ({
             </Text>
           </View>
 
-
           <View style={styles.actionsRow}>
-            {participantsCount && (
+            {!!participantsCount && (
               <View style={styles.participantsCount}>
                 <Text style={styles.participantsCountText}>
                   {participantsCount}
@@ -84,7 +83,8 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                   ) : (
                     <View style={styles.avatarPlaceholder}>
                       <Text style={styles.avatarText}>
-                        {userProfile?.displayName?.charAt(0).toUpperCase() || 'U'}
+                        {userProfile?.displayName?.charAt(0).toUpperCase() ||
+                          'U'}
                       </Text>
                     </View>
                   )}

@@ -181,9 +181,36 @@ class NotificationService {
     const { data } = remoteMessage;
     console.log('[NotificationService] Processing data:', data);
 
-    if (data && data.eventId) {
+    if (data && data.screen === 'Participants') {
+      console.log('[NotificationService] Navigating to Participants screen');
+      navigationRef.navigate('User', {
+        screen: 'HomeTab',
+        params: {
+          screen: 'Participants',
+          params: { eventId: data.eventId, eventTitle: data.eventTitle },
+        },
+      });
+    } else if (data && data.screen === 'RequestsTab') {
+      console.log('[NotificationService] Navigating to RequestsTab');
+      navigationRef.navigate('User', {
+        screen: 'RequestsTab',
+        params: { screen: 'ChatRequests' },
+      });
+    } else if (data && data.screen === 'Chat') {
+      console.log('[NotificationService] Navigating to Chat screen');
+      navigationRef.navigate('User', {
+        screen: 'ChatsTab',
+        params: {
+          screen: 'Chat',
+          params: {
+            chatId: data.chatId,
+            otherUserName: data.otherUserName || data.fromName,
+            otherUserImage: data.otherUserImage || data.fromImage,
+          },
+        },
+      });
+    } else if (data && data.eventId) {
       console.log(`[NotificationService] Attempting deep-link to event: ${data.eventId}`);
-      
       // Navigate through the hierarchy: Root (User) -> Tab (HomeTab) -> Screen (EventDetail)
       navigationRef.navigate('User', {
         screen: 'HomeTab',
@@ -193,7 +220,7 @@ class NotificationService {
         },
       });
     } else if (data && data.screen) {
-      console.log(`[NotificationService] Attempting screen-link to: ${data.screen}`);
+      console.log(`[NotificationService] Attempting generic screen-link to: ${data.screen}`);
       navigationRef.navigate(data.screen, data);
     }
 

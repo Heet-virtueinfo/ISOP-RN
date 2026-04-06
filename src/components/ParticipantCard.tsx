@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MessageSquare, UserCheck } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../theme';
 import { Enrollment, ChatRequest, UserProfile } from '../types';
-import { getChatRequestStatus, sendChatRequest } from '../services/chatService';
+import { listenToChatRequestStatus, sendChatRequest } from '../services/chatService';
 import CustomLoader from './CustomLoader';
 
 interface ParticipantCardProps {
@@ -31,16 +31,16 @@ const ParticipantCard = ({
       return;
     }
 
-    const fetchStatus = async () => {
-      const status = await getChatRequestStatus(
-        currentUser.uid,
-        participant.uid,
-      );
-      setRequest(status);
-      setLoading(false);
-    };
+    const unsubscribe = listenToChatRequestStatus(
+      currentUser.uid,
+      participant.uid,
+      data => {
+        setRequest(data);
+        setLoading(false);
+      },
+    );
 
-    fetchStatus();
+    return () => unsubscribe();
   }, [currentUser.uid, participant.uid, isMe]);
 
   const handleSendRequest = async () => {
@@ -71,7 +71,7 @@ const ParticipantCard = ({
       );
     if (loading) return null;
 
-    if (!request) {
+    if (!request || request.status === 'declined') {
       return (
         <TouchableOpacity
           style={styles.actionBtn}
@@ -109,7 +109,13 @@ const ParticipantCard = ({
       return (
         <TouchableOpacity
           style={[styles.actionBtn, styles.chatBtn]}
-          onPress={() => onChatPress(request.id, participant.displayName, participant.profileImage || null)}
+          onPress={() =>
+            onChatPress(
+              request.id,
+              participant.displayName,
+              participant.profileImage || null,
+            )
+          }
         >
           <UserCheck size={14} color="white" />
           <Text style={[styles.actionBtnText, styles.chatBtnText]}>Chat</Text>
