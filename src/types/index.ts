@@ -7,6 +7,7 @@ export interface UserProfile {
   role: UserRole;
   phoneNumber?: string;
   profileImage?: string | null;
+  fcmToken?: string;
   createdAt: any;
   updatedAt: any;
 }

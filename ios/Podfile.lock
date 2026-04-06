@@ -3557,6 +3557,11 @@ PODS:
     - ReactNativeDependencies
     - TOCropViewController (~> 2.8.0)
     - Yoga
+  - RNNotifee (9.1.8):
+    - React-Core
+    - RNNotifee/NotifeeCore (= 9.1.8)
+  - RNNotifee/NotifeeCore (9.1.8):
+    - React-Core
   - RNScreens (4.24.0):
     - hermes-engine
     - RCTRequired
@@ -3738,6 +3743,7 @@ DEPENDENCIES:
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNImageCropPicker (from `../node_modules/react-native-image-crop-picker`)
+  - "RNNotifee (from `../node_modules/@notifee/react-native`)"
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -3941,6 +3947,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNImageCropPicker:
     :path: "../node_modules/react-native-image-crop-picker"
+  RNNotifee:
+    :path: "../node_modules/@notifee/react-native"
   RNScreens:
     :path: "../node_modules/react-native-screens"
   RNSVG:
@@ -4058,6 +4066,7 @@ SPEC CHECKSUMS:
   RNFBMessaging: 40923618afea919a321d1f0eab610d363229293e
   RNGestureHandler: 2d9fbac3450b0317d1d599a1db9c5f230221370e
   RNImageCropPicker: ca0705cf455bc5e1601bbef08ced408ae7b5a348
+  RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
   RNScreens: ca829379d20b0d1ff41a0b87bc37bdc50276cef5
   RNSVG: 68baaafbd26ef58405193d56290537362fa8e6e4
   TOCropViewController: 797deaf39c90e6e9ddd848d88817f6b9a8a09888

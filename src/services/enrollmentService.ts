@@ -28,7 +28,6 @@ export const enrollInEvent = async (
       enrolledAt: firestore.Timestamp.now(),
     };
 
-    // Use a batch to ensure atomicity
     const batch = firebaseFirestore.batch();
     batch.set(enrollmentRef, enrollment);
     batch.update(eventRef, {

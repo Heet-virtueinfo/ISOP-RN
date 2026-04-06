@@ -3,6 +3,7 @@ import { firebaseAuth, firebaseFirestore } from '../config/firebase';
 import { UserProfile, UserRole } from '../types';
 import { COLLECTIONS } from '../constants/collections';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notificationService } from '../services/notificationService';
 
 interface AuthContextType {
   user: any;
@@ -20,6 +21,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Refs to prevent infinite loops and redundant calls
+  const fcmInitialized = React.useRef(false);
+  const currentUserUid = React.useRef<string | null>(null);
 
   // Constants for AsyncStorage
   const STORAGE_KEY_ROLE = '@user_role';
@@ -53,50 +58,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
 
-    const authUnsubscribe = firebaseAuth.onAuthStateChanged(async firebaseUser => {
-      setUser(firebaseUser);
+    let tokenRefreshUnsubscribe: (() => void) | null = null;
 
-      if (firebaseUser) {
-        // Stop any existing profile listener
-        if (profileUnsubscribe) profileUnsubscribe();
+    const authUnsubscribe = firebaseAuth.onAuthStateChanged(
+      async firebaseUser => {
+        setUser(firebaseUser);
 
-        // Start a real-time listener for the user profile document
-        profileUnsubscribe = firebaseFirestore
-          .collection(COLLECTIONS.USERS)
-          .doc(firebaseUser.uid)
-          .onSnapshot(
-            async doc => {
-              if (doc.exists()) {
-                const data = doc.data() as UserProfile;
-                setUserProfile(data);
-                // Cache role for faster initial loads
-                await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
-              } else {
-                console.warn('No user profile found for UID:', firebaseUser.uid);
-                setUserProfile(null);
-              }
-              setLoading(false);
-            },
-            error => {
-              console.error('Real-time profile listener error:', error);
-              setLoading(false);
-            },
-          );
-      } else {
-        // Cleanup on logout
-        if (profileUnsubscribe) {
-          profileUnsubscribe();
-          profileUnsubscribe = null;
+        if (firebaseUser) {
+          // Reset FCM flag for new user logins
+          if (currentUserUid.current !== firebaseUser.uid) {
+            fcmInitialized.current = false;
+            currentUserUid.current = firebaseUser.uid;
+          }
+
+          // Stop any existing profile listener
+          if (profileUnsubscribe) profileUnsubscribe();
+
+          // Start a real-time listener for the user profile document
+          profileUnsubscribe = firebaseFirestore
+            .collection(COLLECTIONS.USERS)
+            .doc(firebaseUser.uid)
+            .onSnapshot(
+              async doc => {
+                if (doc.exists()) {
+                  const data = doc.data() as UserProfile;
+                  setUserProfile(data);
+                  // Cache role for faster initial loads
+                  await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
+
+                  // --- ROLE-BASED FCM Integration ---
+                  if (data.role === 'user' && !fcmInitialized.current) {
+                    fcmInitialized.current = true; // Mark as initialized to prevent loop
+                    
+                    notificationService.requestPermission().then(granted => {
+                      if (granted) {
+                        notificationService.updateUserToken(firebaseUser.uid, data.fcmToken);
+                      }
+                    });
+
+                    // Manage token refresh listener
+                    if (!tokenRefreshUnsubscribe) {
+                      tokenRefreshUnsubscribe = notificationService.onTokenRefresh(
+                        firebaseUser.uid,
+                      );
+                    }
+                  } else if (data.role !== 'user') {
+                    // Cleanup token listener if role is not user
+                    if (tokenRefreshUnsubscribe) {
+                      tokenRefreshUnsubscribe();
+                      tokenRefreshUnsubscribe = null;
+                    }
+                  }
+                } else {
+                  console.warn(
+                    'No user profile found for UID:',
+                    firebaseUser.uid,
+                  );
+                  setUserProfile(null);
+                }
+                setLoading(false);
+              },
+              error => {
+                console.error('Real-time profile listener error:', error);
+                setLoading(false);
+              },
+            );
+        } else {
+          // Cleanup on logout
+          fcmInitialized.current = false;
+          currentUserUid.current = null;
+          if (profileUnsubscribe) {
+            profileUnsubscribe();
+            profileUnsubscribe = null;
+          }
+          if (tokenRefreshUnsubscribe) {
+            tokenRefreshUnsubscribe();
+            tokenRefreshUnsubscribe = null;
+          }
+          setUserProfile(null);
+          await AsyncStorage.removeItem(STORAGE_KEY_ROLE);
+          setLoading(false);
         }
-        setUserProfile(null);
-        await AsyncStorage.removeItem(STORAGE_KEY_ROLE);
-        setLoading(false);
-      }
-    });
+      },
+    );
 
     return () => {
       authUnsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
+      if (tokenRefreshUnsubscribe) tokenRefreshUnsubscribe();
     };
   }, []);
 

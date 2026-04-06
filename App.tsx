@@ -5,9 +5,25 @@ import AppToast from './src/components/AppToast';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { useNetwork } from './src/hooks/useNetwork';
 import NoInternetScreen from './src/components/NoInternetScreen';
+import { notificationService } from './src/services/notificationService';
+
+notificationService.setBackgroundMessageHandler();
 
 const App = () => {
   const { isOnline } = useNetwork();
+
+  React.useEffect(() => {
+    // Setup foreground and initial notification handlers
+    const unsubForeground = notificationService.setupForegroundHandler();
+    notificationService.handleInitialNotification((screen, data) => {
+      console.log('Navigate to:', screen, data);
+      // navigationRef.navigate(screen, data);
+    });
+
+    return () => {
+      unsubForeground();
+    };
+  }, []);
 
   return (
     <SafeAreaProvider>

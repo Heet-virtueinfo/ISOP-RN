@@ -7,6 +7,7 @@ import UserTabs from './user/UserTabs';
 import { ADMIN_UID } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import CustomLoader from '../components/CustomLoader';
+import { navigationRef } from '../utils/navigationRef';
 
 const Stack = createStackNavigator();
 
@@ -18,7 +19,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
           <Stack.Screen name="Auth" component={AuthStack} />

@@ -30,15 +30,14 @@ import Button from '../../components/Button';
 import EventTypePicker from '../../components/EventTypePicker';
 import ImagePickerGrid from '../../components/ImagePickerGrid';
 import { createEvent } from '../../services/eventService';
+import { apiService } from '../../services/apiService';
 import { formatEventDate } from '../../utils/eventHelpers';
 import { firebaseAuth } from '../../config/firebase';
 
 const BentoShell = ({ children, icon: Icon, title, isValid }: any) => (
   <View style={styles.shell}>
     {/* Floating Badge */}
-    <View
-      style={[styles.floatingBadge, isValid && styles.floatingBadgeValid]}
-    >
+    <View style={[styles.floatingBadge, isValid && styles.floatingBadgeValid]}>
       <Icon
         size={14}
         color={isValid ? colors.text.inverse : colors.brand.primary}
@@ -127,7 +126,7 @@ const CreateEventScreen = () => {
     try {
       const adminUid = firebaseAuth.currentUser?.uid || 'unknown_admin';
 
-      await createEvent({
+      const { event } = await createEvent({
         title,
         description,
         location,
@@ -139,11 +138,28 @@ const CreateEventScreen = () => {
         createdBy: adminUid,
       });
 
+      if (event?.id) {
+        try {
+          await apiService.sendNotification({
+            isBroadcast: true,
+            title: 'New Event Published!',
+            body: `${title} is now live at ${location}. Check it out now!`,
+            data: {
+              screen: 'EventDetail',
+              eventId: event.id,
+            },
+          });
+        } catch (notifError) {
+          console.error('Error sending broadcast notification:', notifError);
+        }
+      }
+
       Toast.show({
         type: 'success',
         text1: 'Event Created',
         text2: 'The event has been successfully published.',
       });
+
       // Reset all fields
       setTitle('');
       setDescription('');
@@ -250,8 +266,8 @@ const CreateEventScreen = () => {
           </View>
 
           {/* Modal Picker for iOS / Dialog for Android */}
-          {(openDatePicker || openEndDatePicker) && (
-            Platform.OS === 'ios' ? (
+          {(openDatePicker || openEndDatePicker) &&
+            (Platform.OS === 'ios' ? (
               <Modal
                 transparent
                 animationType="slide"
@@ -285,7 +301,7 @@ const CreateEventScreen = () => {
                   </View>
                   <View style={styles.pickerWrapper}>
                     <DateTimePicker
-                      value={openDatePicker ? date : (endDate || new Date())}
+                      value={openDatePicker ? date : endDate || new Date()}
                       mode="datetime"
                       display="spinner"
                       minimumDate={new Date()}
@@ -305,7 +321,7 @@ const CreateEventScreen = () => {
               </Modal>
             ) : (
               <DateTimePicker
-                value={openDatePicker ? date : (endDate || new Date())}
+                value={openDatePicker ? date : endDate || new Date()}
                 mode={pickerMode}
                 display="default"
                 minimumDate={new Date()}
@@ -316,7 +332,7 @@ const CreateEventScreen = () => {
                     setPickerMode('date');
                     return;
                   }
-                  
+
                   if (selectedDate) {
                     if (openDatePicker) {
                       setDate(selectedDate);
@@ -337,8 +353,7 @@ const CreateEventScreen = () => {
                   }
                 }}
               />
-            )
-          )}
+            ))}
 
           <InputField
             label="Location / Link"

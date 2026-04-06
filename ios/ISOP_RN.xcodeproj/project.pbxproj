@@ -20,6 +20,7 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ISOP_RN/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = ISOP_RN/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = ISOP_RN/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		184F16182F7FC55C0052086D /* ISOP_RN.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = ISOP_RN.entitlements; path = ISOP_RN/ISOP_RN.entitlements; sourceTree = "<group>"; };
 		18CFE5022F7BE52600AEF69C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-ISOP_RN.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ISOP_RN.debug.xcconfig"; path = "Target Support Files/Pods-ISOP_RN/Pods-ISOP_RN.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-ISOP_RN.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ISOP_RN.release.xcconfig"; path = "Target Support Files/Pods-ISOP_RN/Pods-ISOP_RN.release.xcconfig"; sourceTree = "<group>"; };
@@ -44,6 +45,7 @@
 		13B07FAE1A68108700A75B9A /* ISOP_RN */ = {
 			isa = PBXGroup;
 			children = (
+				184F16182F7FC55C0052086D /* ISOP_RN.entitlements */,
 				18CFE5022F7BE52600AEF69C /* GoogleService-Info.plist */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
@@ -277,6 +279,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ISOP_RN/ISOP_RN.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5DSXYK6JTQ;
 				ENABLE_BITCODE = NO;
@@ -309,6 +312,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ISOP_RN/ISOP_RN.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5DSXYK6JTQ;
 				INFOPLIST_FILE = ISOP_RN/Info.plist;
