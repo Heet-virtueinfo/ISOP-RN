@@ -11,18 +11,22 @@ const EventsStack = () => {
     <Stack.Navigator
       screenOptions={{
         headerShown: true,
-        header: ({ route }) => (
-          <AdminHeader title={route.name === 'AdminDashboard' ? 'Manage Events' : 'Edit Event'} />
+        header: ({ route, navigation }) => (
+          <AdminHeader
+            title={route.name === 'AdminDashboard' ? 'Manage Events' : 'Edit Event'}
+            showBack={route.name === 'EditEvent'}
+            onBackPress={() => navigation.goBack()}
+          />
         ),
       }}
     >
-      <Stack.Screen 
-        name="AdminDashboard" 
-        component={AdminDashboard} 
+      <Stack.Screen
+        name="AdminDashboard"
+        component={AdminDashboard}
       />
-      <Stack.Screen 
-        name="EditEvent" 
-        component={EditEventScreen} 
+      <Stack.Screen
+        name="EditEvent"
+        component={EditEventScreen}
       />
     </Stack.Navigator>
   );

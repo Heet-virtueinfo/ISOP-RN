@@ -74,68 +74,78 @@ const LoginScreen = () => {
   };
 
   return (
-    <AuthLayout>
-      <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <ShieldCheck size={48} color={colors.brand.primary} />
+    // Root View needed so CustomLoader's absoluteFillObject covers the full screen
+    <View style={styles.root}>
+      <AuthLayout>
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <ShieldCheck size={48} color={colors.brand.primary} />
+          </View>
+          <Text style={styles.title}>Welcome to ISoP</Text>
+          <Text style={styles.subtitle}>
+            The Global Community for Pharmacovigilance Professionals
+          </Text>
         </View>
-        <Text style={styles.title}>Welcome to ISoP</Text>
-        <Text style={styles.subtitle}>
-          The Global Community for Pharmacovigilance Professionals
-        </Text>
-      </View>
 
-      <View style={styles.form}>
-        <InputField
-          label="Email Address"
-          placeholder="Enter your email"
-          leftIcon={Mail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={text => {
-            setEmail(text);
-            if (errors.email) setErrors({ ...errors, email: undefined });
-          }}
-          error={errors.email}
-        />
-        <InputField
-          label="Password"
-          placeholder="Enter your password"
-          leftIcon={Lock}
-          isPassword
-          value={password}
-          onChangeText={text => {
-            setPassword(text);
-            if (errors.password) setErrors({ ...errors, password: undefined });
-          }}
-          error={errors.password}
-        />
+        <View style={styles.form}>
+          <InputField
+            label="Email Address"
+            placeholder="Enter your email"
+            leftIcon={Mail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={text => {
+              setEmail(text);
+              if (errors.email) setErrors({ ...errors, email: undefined });
+            }}
+            error={errors.email}
+          />
+          <InputField
+            label="Password"
+            placeholder="Enter your password"
+            leftIcon={Lock}
+            isPassword
+            value={password}
+            onChangeText={text => {
+              setPassword(text);
+              if (errors.password) setErrors({ ...errors, password: undefined });
+            }}
+            error={errors.password}
+          />
 
-        <TouchableOpacity style={styles.forgotPassword}>
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-        </TouchableOpacity>
-
-        <Button
-          title="Sign In"
-          onPress={handleLogin}
-          loading={loading}
-          style={styles.submitBtn}
-        />
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.linkText}>Register</Text>
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
+
+          <Button
+            title="Sign In"
+            onPress={handleLogin}
+            loading={loading}
+            style={styles.submitBtn}
+          />
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+              <Text style={styles.linkText}>Register</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </AuthLayout>
+
+      {/* Overlay sits outside AuthLayout so absoluteFillObject covers the whole screen.
+          This avoids the iOS Modal ghost-layer bug where an unmounted Modal leaves
+          an invisible touch-blocking layer on the next visit. */}
       {loading && <CustomLoader overlay={true} message="Authenticating..." />}
-    </AuthLayout>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   header: {
     alignItems: 'center',
     marginBottom: spacing.xxl,
