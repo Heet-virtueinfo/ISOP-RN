@@ -88,7 +88,7 @@ const MyEventsScreen = () => {
         </Text>
         <TouchableOpacity
           style={styles.browseBtn}
-          onPress={() => navigation.navigate('EventsTab')}
+          onPress={() => navigation.navigate('HomeTab')}
         >
           <Calendar size={18} color="white" />
           <Text style={styles.browseBtnText}>Browse Events</Text>

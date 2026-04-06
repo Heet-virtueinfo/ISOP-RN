@@ -15,6 +15,7 @@ import { getEventParticipants } from '../../services/enrollmentService';
 import { Enrollment } from '../../types';
 import ParticipantCard from '../../components/ParticipantCard';
 import CustomLoader from '../../components/CustomLoader';
+import UserHeader from '../../components/UserHeader';
 
 const ParticipantsScreen = () => {
   const route = useRoute<any>();
@@ -70,24 +71,7 @@ const ParticipantsScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Custom Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-        >
-          <ChevronLeft size={24} color={colors.text.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Participants</Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {eventTitle}
-          </Text>
-        </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{participants.length}</Text>
-        </View>
-      </View>
+      <UserHeader title="Participants" participantsCount={participants.length} showBack={true} onBackPress={() => navigation.goBack()} showActions={false} />
 
       {loading ? (
         <CustomLoader

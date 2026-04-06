@@ -8,15 +8,21 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell } from 'lucide-react-native';
+import { Bell, ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../theme';
 import { useAuth } from '../contexts/AuthContext';
 
 interface AdminHeaderProps {
   title?: string;
+  showBack?: boolean;
+  onBackPress?: () => void;
 }
 
-const AdminHeader: React.FC<AdminHeaderProps> = ({ title = 'ISoP Admin' }) => {
+const AdminHeader: React.FC<AdminHeaderProps> = ({
+  title = 'ISoP Admin',
+  showBack = false,
+  onBackPress,
+}) => {
   const insets = useSafeAreaInsets();
   const { userProfile } = useAuth();
 
@@ -25,18 +31,28 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ title = 'ISoP Admin' }) => {
       <View
         style={[
           styles.container,
-          { paddingTop: Math.max(insets.top, spacing.sm) },
+          { paddingTop: insets.top + spacing.sm },
         ]}
       >
         <View style={styles.contentRow}>
-          {/* Executive Header Title */}
-          <View style={styles.titleContainer}>
+
+          {/* LEFT — back button (optional) + title */}
+          <View style={styles.leftGroup}>
+            {showBack && (
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={onBackPress}
+                activeOpacity={0.7}
+              >
+                <ChevronLeft size={22} color={colors.text.primary} />
+              </TouchableOpacity>
+            )}
             <Text style={styles.title} numberOfLines={1}>
               {title}
             </Text>
           </View>
 
-          {/* Action Buttons Row */}
+          {/* RIGHT — notification + avatar */}
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.notificationBtn}
@@ -63,6 +79,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ title = 'ISoP Admin' }) => {
               <View style={styles.statusDot} />
             </TouchableOpacity>
           </View>
+
         </View>
       </View>
     </View>
@@ -94,18 +111,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.md,
   },
-  titleContainer: {
+  // Back button + title grouped on the left
+  leftGroup: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginRight: spacing.md,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.palette.slate.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.ui.inputBorderLight,
+    flexShrink: 0,
   },
   title: {
     fontFamily: typography.fontFamily,
-    fontSize: 22, // Standard, punchy dashboard scale
+    fontSize: 20,
     fontWeight: '800',
     color: colors.text.primary,
     letterSpacing: -0.5,
+    flexShrink: 1,
   },
   actionsRow: {
     flexDirection: 'row',

@@ -367,7 +367,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(239, 68, 68, 0.02)',
     padding: spacing.md,
-    paddingVertical: spacing.lg,
     borderRadius: 24,
     borderWidth: 1,
     borderStyle: 'dashed',

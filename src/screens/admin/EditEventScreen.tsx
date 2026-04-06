@@ -85,20 +85,20 @@ const EditEventScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
   const { eventId } = route.params || {};
-  
+
   const [eventData, setEventData] = useState<AppEvent | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
-  
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
   const [type, setType] = useState<EventType>('conference');
   const [images, setImages] = useState<string[]>([]);
   const [maxCapacityStr, setMaxCapacityStr] = useState('');
-  
+
   const [date, setDate] = useState(new Date());
   const [openDatePicker, setOpenDatePicker] = useState(false);
-  
+
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [openEndDatePicker, setOpenEndDatePicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
@@ -130,7 +130,7 @@ const EditEventScreen = () => {
           setType(ev.type);
           setImages(ev.images || []);
           setMaxCapacityStr(ev.maxCapacity ? String(ev.maxCapacity) : '');
-          
+
           if (ev.date) {
             setDate(ev.date.toDate ? ev.date.toDate() : new Date(ev.date));
           }
@@ -147,7 +147,7 @@ const EditEventScreen = () => {
         setLoadingInitial(false);
       }
     };
-    
+
     fetchEvent();
   }, [eventId]);
 
@@ -157,7 +157,7 @@ const EditEventScreen = () => {
     if (!description.trim()) newErrors.description = 'Description is required';
     if (!location.trim()) newErrors.location = 'Location is required';
     if (images.length === 0) newErrors.images = 'At least 1 image is required';
-    
+
     if (endDate && endDate < date) {
       newErrors.endDate = 'End date must be after start date';
     }
@@ -204,16 +204,16 @@ const EditEventScreen = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-             setDeleting(true);
-             try {
-               await deleteEvent(eventId);
-               Toast.show({ type: 'success', text1: 'Deleted', text2: 'Event was successfully deleted.' });
-               navigation.goBack();
-             } catch(err) {
-               Toast.show({ type: 'error', text1: 'Delete Failed', text2: 'Failed to delete event.' });
-             } finally {
-               setDeleting(false);
-             }
+            setDeleting(true);
+            try {
+              await deleteEvent(eventId);
+              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Event was successfully deleted.' });
+              navigation.goBack();
+            } catch (err) {
+              Toast.show({ type: 'error', text1: 'Delete Failed', text2: 'Failed to delete event.' });
+            } finally {
+              setDeleting(false);
+            }
           }
         }
       ]
@@ -373,7 +373,7 @@ const EditEventScreen = () => {
                     setPickerMode('date');
                     return;
                   }
-                  
+
                   if (selectedDate) {
                     if (openDatePicker) {
                       setDate(selectedDate);

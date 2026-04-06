@@ -18,6 +18,7 @@ interface UserHeaderProps {
   showBack?: boolean;
   onBackPress?: () => void;
   showActions?: boolean;
+  participantsCount?: number;
 }
 
 const UserHeader: React.FC<UserHeaderProps> = ({
@@ -26,6 +27,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({
   showBack = false,
   onBackPress,
   showActions = true,
+  participantsCount,
 }) => {
   const insets = useSafeAreaInsets();
   const { userProfile } = useAuth();
@@ -53,7 +55,15 @@ const UserHeader: React.FC<UserHeaderProps> = ({
             </Text>
           </View>
 
+
           <View style={styles.actionsRow}>
+            {participantsCount && (
+              <View style={styles.participantsCount}>
+                <Text style={styles.participantsCountText}>
+                  {participantsCount}
+                </Text>
+              </View>
+            )}
             {showActions && (
               <View style={styles.actionPod}>
                 <TouchableOpacity
@@ -140,6 +150,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 2,
     textAlign: 'center',
+  },
+  participantsCount: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  participantsCountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text.primary,
   },
   actionsRow: {
     minWidth: 80,
