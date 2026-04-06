@@ -37,7 +37,6 @@ const HomeScreen = () => {
 
     // Fetch active events
     const unsubscribeEvents = getActiveEvents(events => {
-      setTotalEventsCount(events.length);
       setAllEvents(events);
     });
 
@@ -63,8 +62,24 @@ const HomeScreen = () => {
       return;
     }
 
-    const notEnrolled = allEvents.filter(e => !enrollmentIds.includes(e.id));
-    const enrolled = allEvents.filter(e => enrollmentIds.includes(e.id));
+    const isUpcomingEvent = (event: AppEvent): boolean => {
+      try {
+        const eventDate =
+          event.date && typeof event.date.toDate === 'function'
+            ? event.date.toDate()
+            : new Date(event.date);
+        return eventDate.getTime() > Date.now();
+      } catch {
+        return true; 
+      }
+    };
+
+    // Explicitly filter out any past events before rendering
+    const validEvents = allEvents.filter(isUpcomingEvent);
+    setTotalEventsCount(validEvents.length);
+
+    const notEnrolled = validEvents.filter(e => !enrollmentIds.includes(e.id));
+    const enrolled = validEvents.filter(e => enrollmentIds.includes(e.id));
     
     setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
     setLoading(false);

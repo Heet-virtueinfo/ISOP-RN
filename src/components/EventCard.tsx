@@ -28,9 +28,16 @@ interface EventCardProps {
   isEnrolled?: boolean;
 }
 
-const getEventStatus = (eventDate: Date) => {
+const getEventStatus = (eventDate: any) => {
   const now = new Date();
-  const event = new Date(eventDate);
+  
+  let event: Date;
+  if (eventDate && typeof eventDate.toDate === 'function') {
+    event = eventDate.toDate();
+  } else {
+    event = new Date(eventDate);
+  }
+  
   const diffHours = (event.getTime() - now.getTime()) / (1000 * 60 * 60);
 
   if (diffHours < 0)
