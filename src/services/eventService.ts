@@ -1,4 +1,4 @@
-import firestore from '@react-native-firebase/firestore';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import { firebaseFirestore } from '../config/firebase';
 import { AppEvent } from '../types';
 import { COLLECTIONS } from '../constants/collections';
@@ -127,6 +127,20 @@ export const getEventById = async (id: string): Promise<AppEvent | null> => {
   }
 };
 
+// Helper: commit batched writes in chunks of 499 (Firestore limit is 500)
+const commitInChunks = async (
+  docs: FirebaseFirestoreTypes.QueryDocumentSnapshot[],
+  updater: (batch: FirebaseFirestoreTypes.WriteBatch, doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) => void,
+) => {
+  const CHUNK_SIZE = 499;
+  for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+    const chunk = docs.slice(i, i + CHUNK_SIZE);
+    const batch = firebaseFirestore.batch();
+    chunk.forEach(doc => updater(batch, doc));
+    await batch.commit();
+  }
+};
+
 // UPDATE EVENT
 export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
   try {
@@ -145,6 +159,7 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
       );
     }
 
+    // 1. Update the event document itself
     await firebaseFirestore
       .collection(COLLECTIONS.EVENTS)
       .doc(id)
@@ -152,6 +167,50 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
         ...finalUpdates,
         updatedAt: firestore.Timestamp.now(),
       });
+
+    // 2. Cascade denormalized fields to related collections
+    const needsTitleSync = finalUpdates.title !== undefined;
+    const needsDateSync = finalUpdates.date !== undefined;
+
+    if (needsTitleSync || needsDateSync) {
+      // 2a. Update enrollments (eventTitle + eventDate)
+      try {
+        const enrollSnap = await firebaseFirestore
+          .collection(COLLECTIONS.ENROLLMENTS)
+          .where('eventId', '==', id)
+          .get();
+
+        if (!enrollSnap.empty) {
+          await commitInChunks(enrollSnap.docs, (batch, doc) => {
+            const enrollUpdate: Record<string, any> = {};
+            if (needsTitleSync) enrollUpdate.eventTitle = finalUpdates.title;
+            if (needsDateSync) enrollUpdate.eventDate = finalUpdates.date;
+            batch.update(doc.ref, enrollUpdate);
+          });
+        }
+      } catch (cascadeErr) {
+        console.warn('Enrollment cascade warning:', cascadeErr);
+      }
+
+      // 2b. Update chatRequests (eventTitle only)
+      if (needsTitleSync) {
+        try {
+          const chatReqSnap = await firebaseFirestore
+            .collection(COLLECTIONS.CHAT_REQUESTS)
+            .where('eventId', '==', id)
+            .get();
+
+          if (!chatReqSnap.empty) {
+            await commitInChunks(chatReqSnap.docs, (batch, doc) => {
+              batch.update(doc.ref, { eventTitle: finalUpdates.title });
+            });
+          }
+        } catch (cascadeErr) {
+          console.warn('ChatRequests cascade warning:', cascadeErr);
+        }
+      }
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Update Event Error:', error);
@@ -162,23 +221,31 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
 // DELETE EVENT
 export const deleteEvent = async (id: string) => {
   try {
-    // Note: We also need a cloud function or batch process to delete enrollments for this event,
-    // but for now we focus on the event document deletion on free tier.
+    // 1. Delete the event document
     await firebaseFirestore.collection(COLLECTIONS.EVENTS).doc(id).delete();
 
-    // Attempting to batch delete enrollments client side is possible but might be heavy.
-    // For free tier simplicity, we just delete the event document now.
+    // 2. Cascade delete all enrollments for this event
     const enrollmentsSnapshot = await firebaseFirestore
       .collection(COLLECTIONS.ENROLLMENTS)
       .where('eventId', '==', id)
       .get();
 
     if (!enrollmentsSnapshot.empty) {
-      const batch = firebaseFirestore.batch();
-      enrollmentsSnapshot.docs.forEach(doc => {
+      await commitInChunks(enrollmentsSnapshot.docs, (batch, doc) => {
         batch.delete(doc.ref);
       });
-      await batch.commit();
+    }
+
+    // 3. Cascade delete all chatRequests for this event
+    const chatReqSnapshot = await firebaseFirestore
+      .collection(COLLECTIONS.CHAT_REQUESTS)
+      .where('eventId', '==', id)
+      .get();
+
+    if (!chatReqSnapshot.empty) {
+      await commitInChunks(chatReqSnapshot.docs, (batch, doc) => {
+        batch.delete(doc.ref);
+      });
     }
 
     return { success: true };
