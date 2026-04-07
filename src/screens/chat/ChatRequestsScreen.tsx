@@ -40,22 +40,35 @@ const ChatRequestsScreen = () => {
     'incoming',
   );
   const [actionLoading, setActionLoading] = useState(false);
-
+  console.log("sent", sent);
   useEffect(() => {
     if (!user) return;
 
     const unsubscribeIncoming = getIncomingRequests(user.uid, data => {
-      setIncoming(data);
+      const uniqueData = data.filter(
+        (item, index, self) =>
+          index === self.findIndex(t => t.fromUid === item.fromUid),
+      );
+      setIncoming(uniqueData);
       if (activeTab === 'incoming') setLoading(false);
     });
 
     const unsubscribeSent = getSentRequests(user.uid, data => {
-      setSent(data);
+      const uniqueData = data.filter(
+        (item, index, self) =>
+          index === self.findIndex(t => t.toUid === item.toUid),
+      );
+      setSent(uniqueData);
       if (activeTab === 'sent') setLoading(false);
     });
 
     const unsubscribeAccepted = getAcceptedRequests(user.uid, data => {
-      setAccepted(data);
+      const uniqueData = data.filter((item, index, self) => {
+        const getUid = (req: ChatRequest) =>
+          req.fromUid === user.uid ? req.toUid : req.fromUid;
+        return index === self.findIndex(t => getUid(t) === getUid(item));
+      });
+      setAccepted(uniqueData);
       if (activeTab === 'accepted') setLoading(false);
     });
 
@@ -152,19 +165,22 @@ const ChatRequestsScreen = () => {
 
   const renderRequestItem = ({ item }: { item: ChatRequest }) => {
     const isIncoming = activeTab === 'incoming';
+    const isSent = activeTab === 'sent';
     const isAccepted = activeTab === 'accepted';
     const name = isIncoming
       ? item.fromName
       : isAccepted
-      ? item.fromUid === user?.uid
-        ? item.toName
-        : item.fromName
-      : item.toName;
+        ? item.fromUid === user?.uid
+          ? item.toName
+          : item.fromName
+        : item.toName;
     const image = isIncoming
       ? item.fromImage
-      : isAccepted && item.toUid === user?.uid
-      ? item.fromImage
-      : null;
+      : isSent
+        ? item.toImage
+        : isAccepted
+          ? (item.fromUid === user?.uid ? item.toImage : item.fromImage)
+          : item.toImage;
 
     return (
       <View style={styles.cardWrapper}>
@@ -175,7 +191,9 @@ const ChatRequestsScreen = () => {
                 <Image source={{ uri: image }} style={styles.avatarImage} />
               ) : (
                 <View style={styles.initialsAvatar}>
-                  <Text style={styles.avatarText}>{name[0]}</Text>
+                  <Text style={styles.avatarText}>
+                    {(name && name.length > 0) ? name[0].toUpperCase() : '?'}
+                  </Text>
                 </View>
               )}
               <View style={styles.statusDot} />
@@ -185,11 +203,6 @@ const ChatRequestsScreen = () => {
               <Text style={styles.userName} numberOfLines={1}>
                 {name}
               </Text>
-              <View style={styles.eventBadge}>
-                <Text style={styles.eventText} numberOfLines={1}>
-                  Re: {item.eventTitle}
-                </Text>
-              </View>
             </View>
 
             <View style={styles.cardActions}>
@@ -320,8 +333,8 @@ const ChatRequestsScreen = () => {
             activeTab === 'incoming'
               ? incoming
               : activeTab === 'sent'
-              ? sent
-              : accepted
+                ? sent
+                : accepted
           }
           keyExtractor={item => item.id}
           renderItem={renderRequestItem}
@@ -341,8 +354,8 @@ const ChatRequestsScreen = () => {
                   {activeTab === 'incoming'
                     ? 'No one has reached out yet. Why not start the conversation?'
                     : activeTab === 'sent'
-                    ? 'Your sent requests will appear here. Start reaching out to peers!'
-                    : 'Collaborations and established connections will sync here.'}
+                      ? 'Your sent requests will appear here. Start reaching out to peers!'
+                      : 'Collaborations and established connections will sync here.'}
                 </Text>
               </View>
             ) : null
@@ -497,20 +510,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: colors.text.primary,
-    marginBottom: 4,
-  },
-  eventBadge: {
-    backgroundColor: colors.layout.background,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  eventText: {
-    fontFamily: typography.fontFamily,
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.text.tertiary,
   },
   cardActions: {
     marginLeft: 12,

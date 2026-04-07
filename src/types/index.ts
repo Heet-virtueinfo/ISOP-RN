@@ -50,6 +50,7 @@ export interface ChatRequest {
   fromImage?: string | null;
   toUid: string;
   toName: string;
+  toImage?: string | null;
   eventId: string;
   eventTitle: string;
   participants: string[]; // [fromUid, toUid] for efficient querying

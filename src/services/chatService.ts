@@ -37,6 +37,7 @@ export const sendChatRequest = async (
       fromImage: fromProfile.profileImage || null,
       toUid,
       toName: toParticipant.displayName,
+      toImage: toParticipant.profileImage || null,
       eventId,
       eventTitle,
       participants: [fromUid, toUid], // For single query listening
@@ -130,16 +131,29 @@ export const getChatRequestStatus = async (
   uid2: string,
 ): Promise<ChatRequest | null> => {
   try {
-    const shot = await firebaseFirestore
+    const shot1 = await firebaseFirestore
       .collection(COLLECTIONS.CHAT_REQUESTS)
-      .where('participants', 'array-contains', uid1)
+      .where('fromUid', '==', uid1)
+      .where('toUid', '==', uid2)
+      .get();
+      
+    const shot2 = await firebaseFirestore
+      .collection(COLLECTIONS.CHAT_REQUESTS)
+      .where('fromUid', '==', uid2)
+      .where('toUid', '==', uid1)
       .get();
 
-    const request = shot.docs
-      .map(doc => doc.data() as ChatRequest)
-      .find(req => req.participants.includes(uid2));
+    const requests = [
+      ...shot1.docs.map(doc => doc.data() as ChatRequest),
+      ...shot2.docs.map(doc => doc.data() as ChatRequest)
+    ];
 
-    return request || null;
+    const bestRequest = 
+      requests.find(r => r.status === 'accepted') ||
+      requests.find(r => r.status === 'pending') ||
+      requests[0] || null;
+
+    return bestRequest;
   } catch (error) {
     console.error('Get Chat Request Status Error:', error);
     return null;
@@ -152,20 +166,46 @@ export const listenToChatRequestStatus = (
   uid2: string,
   callback: (request: ChatRequest | null) => void,
 ) => {
-  return firebaseFirestore
+  let sentData: ChatRequest[] = [];
+  let receivedData: ChatRequest[] = [];
+
+  const handleCombined = () => {
+    const combined = [...sentData, ...receivedData];
+    const bestRequest = 
+        combined.find(r => r.status === 'accepted') ||
+        combined.find(r => r.status === 'pending') ||
+        combined[0] || null;
+    callback(bestRequest);
+  };
+
+  const unsub1 = firebaseFirestore
     .collection(COLLECTIONS.CHAT_REQUESTS)
-    .where('participants', 'array-contains', uid1)
+    .where('fromUid', '==', uid1)
+    .where('toUid', '==', uid2)
     .onSnapshot(
-      snapshot => {
-        const requests = snapshot.docs.map(doc => doc.data() as ChatRequest);
-        // Find the specific request between these two users
-        const request = requests.find(req => req.participants.includes(uid2));
-        callback(request || null);
+      s => {
+        sentData = s.docs.map(doc => doc.data() as ChatRequest);
+        handleCombined();
       },
-      error => {
-        console.error('Listen Chat Request Status Error:', error);
-      },
+      error => console.error('Listen Chat Request Status Error:', error)
     );
+
+  const unsub2 = firebaseFirestore
+    .collection(COLLECTIONS.CHAT_REQUESTS)
+    .where('fromUid', '==', uid2)
+    .where('toUid', '==', uid1)
+    .onSnapshot(
+      s => {
+        receivedData = s.docs.map(doc => doc.data() as ChatRequest);
+        handleCombined();
+      },
+      error => console.error('Listen Chat Request Status Error:', error)
+    );
+
+  return () => {
+    unsub1();
+    unsub2();
+  };
 };
 
 // ACCEPT CHAT REQUEST
@@ -187,7 +227,7 @@ export const acceptChatRequest = async (request: ChatRequest) => {
       },
       participantImages: {
         [request.fromUid]: request.fromImage || null,
-        [request.toUid]: null,
+        [request.toUid]: request.toImage || null,
       },
       createdAt: firestore.Timestamp.now(),
     };

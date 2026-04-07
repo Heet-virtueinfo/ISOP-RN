@@ -63,7 +63,21 @@ const EventListScreen = () => {
 
 
   const filteredEvents = useMemo(() => {
+    const isUpcomingEvent = (event: AppEvent): boolean => {
+      try {
+        const eventDate =
+          event.date && typeof event.date.toDate === 'function'
+            ? event.date.toDate()
+            : new Date(event.date);
+        return eventDate.getTime() > Date.now();
+      } catch {
+        return true;
+      }
+    };
+
     return events.filter(event => {
+      if (!isUpcomingEvent(event)) return false;
+
       const matchesQuery =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
