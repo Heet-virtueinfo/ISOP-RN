@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { BookMarked, Calendar, Search } from 'lucide-react-native';
+import { BookMarked, Calendar, Search, ChevronDown, Check } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserEnrollments } from '../../services/enrollmentService';
@@ -24,12 +24,16 @@ const MyEventsScreen = () => {
   const navigation = useNavigation<any>();
   const { userProfile } = useAuth();
   const [enrolledEvents, setEnrolledEvents] = useState<AppEvent[]>([]);
+  type StatusFilter = 'all' | 'upcoming' | 'completed';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<EventType | 'all'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<'type' | 'status' | null>(null);
 
   const categories: (EventType | 'all')[] = ['all', 'conference', 'webinar', 'training', 'meeting'];
+  const statuses: StatusFilter[] = ['all', 'upcoming', 'completed'];
 
   useEffect(() => {
     if (!userProfile) return;
@@ -55,23 +59,24 @@ const MyEventsScreen = () => {
     return () => unsubscribe();
   }, [userProfile]);
 
-  // Helper: returns true if the event date is in the future (upcoming/active)
-  const isUpcomingEvent = (event: AppEvent): boolean => {
-    try {
-      const eventDate =
-        event.date && typeof event.date.toDate === 'function'
-          ? event.date.toDate()
-          : new Date(event.date);
-      return eventDate.getTime() > Date.now();
-    } catch {
-      return true; // Fallback: show if date can't be parsed
-    }
-  };
-
   const filteredEvents = useMemo(() => {
-    return enrolledEvents.filter(event => {
-      // Exclude past (completed) events automatically
-      if (!isUpcomingEvent(event)) return false;
+    // Helper: returns true if the event date is in the future (upcoming/active)
+    const isUpcomingEvent = (event: AppEvent): boolean => {
+      try {
+        const eventDate =
+          event.date && typeof event.date.toDate === 'function'
+            ? event.date.toDate()
+            : new Date(event.date);
+        return eventDate.getTime() > Date.now();
+      } catch {
+        return true; // Fallback: show if date can't be parsed
+      }
+    };
+
+    let result = enrolledEvents.filter(event => {
+      const isUpcoming = isUpcomingEvent(event);
+      if (selectedStatus === 'upcoming' && !isUpcoming) return false;
+      if (selectedStatus === 'completed' && isUpcoming) return false;
 
       const matchesQuery =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -79,8 +84,17 @@ const MyEventsScreen = () => {
       const matchesType = selectedType === 'all' || event.type === selectedType;
       return matchesQuery && matchesType;
     });
+
+    // Sort: Upcoming events top, past events at bottom
+    result.sort((a, b) => {
+      const aScore = isUpcomingEvent(a) ? 0 : 1;
+      const bScore = isUpcomingEvent(b) ? 0 : 1;
+      return aScore - bScore;
+    });
+
+    return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enrolledEvents, searchQuery, selectedType]);
+  }, [enrolledEvents, searchQuery, selectedType, selectedStatus]);
 
   const onRefresh = () => {
     if (!userProfile) return;
@@ -137,31 +151,27 @@ const MyEventsScreen = () => {
                 leftIcon={Search}
                 containerStyle={styles.searchBar}
               />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterContainer}
-              >
-                {categories.map(cat => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.filterTab,
-                      selectedType === cat && styles.filterTabActive,
-                    ]}
-                    onPress={() => setSelectedType(cat)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterTabText,
-                        selectedType === cat && styles.filterTabTextActive,
-                      ]}
-                    >
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <View style={styles.dropdownRow}>
+                <TouchableOpacity
+                  style={styles.dropdownTrigger}
+                  onPress={() => setActiveDropdown('type')}
+                >
+                  <Text style={styles.dropdownTriggerText} numberOfLines={1}>
+                    Type: {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}
+                  </Text>
+                  <ChevronDown size={14} color={colors.text.tertiary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.dropdownTrigger}
+                  onPress={() => setActiveDropdown('status')}
+                >
+                  <Text style={styles.dropdownTriggerText} numberOfLines={1}>
+                    Status: {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
+                  </Text>
+                  <ChevronDown size={14} color={colors.text.tertiary} />
+                </TouchableOpacity>
+              </View>
             </View>
           }
           renderItem={({ item }) => (
@@ -184,6 +194,64 @@ const MyEventsScreen = () => {
           }
         />
       )}
+
+      {/* Type Filter Dropdown Modal */}
+      {activeDropdown === 'type' && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBg} 
+            activeOpacity={1} 
+            onPress={() => setActiveDropdown(null)} 
+          />
+          <View style={styles.dropdownCard}>
+            <Text style={styles.dropdownTitle}>Select Event Type</Text>
+            {categories.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.dropdownOption, selectedType === cat && styles.dropdownOptionActive]}
+                onPress={() => {
+                  setSelectedType(cat);
+                  setActiveDropdown(null);
+                }}
+              >
+                <Text style={[styles.dropdownOptionText, selectedType === cat && styles.dropdownOptionTextActive]}>
+                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </Text>
+                {selectedType === cat && <Check size={18} color={colors.brand.primary} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Status Filter Dropdown Modal */}
+      {activeDropdown === 'status' && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBg} 
+            activeOpacity={1} 
+            onPress={() => setActiveDropdown(null)} 
+          />
+          <View style={styles.dropdownCard}>
+            <Text style={styles.dropdownTitle}>Select Event Status</Text>
+            {statuses.map(status => (
+              <TouchableOpacity
+                key={status}
+                style={[styles.dropdownOption, selectedStatus === status && styles.dropdownOptionActive]}
+                onPress={() => {
+                  setSelectedStatus(status);
+                  setActiveDropdown(null);
+                }}
+              >
+                <Text style={[styles.dropdownOptionText, selectedStatus === status && styles.dropdownOptionTextActive]}>
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+                {selectedStatus === status && <Check size={18} color={colors.brand.primary} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -204,30 +272,73 @@ const styles = StyleSheet.create({
   searchBar: {
     marginBottom: 0,
   },
-  filterContainer: {
-    paddingBottom: spacing.xs,
-    gap: spacing.xs,
+  dropdownRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
-  filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.round,
+  dropdownTrigger: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.layout.surface,
     borderWidth: 1,
     borderColor: colors.layout.divider,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.md,
   },
-  filterTabActive: {
-    backgroundColor: colors.brand.primary,
-    borderColor: colors.brand.primary,
-  },
-  filterTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.text.tertiary,
+  dropdownTriggerText: {
     fontFamily: typography.fontFamily,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    flex: 1,
   },
-  filterTabTextActive: {
-    color: colors.text.inverse,
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    zIndex: 1000,
+  },
+  modalBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  dropdownCard: {
+    backgroundColor: colors.layout.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  dropdownTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  dropdownOptionActive: {
+    backgroundColor: 'rgba(79, 70, 229, 0.05)',
+  },
+  dropdownOptionText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text.secondary,
+  },
+  dropdownOptionTextActive: {
+    color: colors.brand.primary,
+    fontWeight: '700',
   },
   emptyContainer: {
     marginTop: 40,

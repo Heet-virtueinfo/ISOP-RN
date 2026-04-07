@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Send, Image as ImageIcon } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
@@ -61,10 +61,19 @@ const ChatScreen = () => {
     }
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Fallback: Ensure user stays within the Chat feature if they arrived via a direct link
+      navigation.navigate('ChatInbox');
+    }
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity
-        onPress={() => navigation.goBack()}
+        onPress={handleBack}
         style={styles.backBtn}
       >
         <ChevronLeft size={24} color={colors.text.primary} />
