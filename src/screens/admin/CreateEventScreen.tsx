@@ -22,8 +22,13 @@ import {
   Layers,
   ChevronDown,
   CheckCircle2,
+  Plus,
+  Trash2,
+  Edit2,
+  User,
+  Clock,
 } from 'lucide-react-native';
-import { EventType } from '../../types';
+import { EventType, Speaker, AgendaItem } from '../../types';
 import { colors, spacing, typography } from '../../theme';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
@@ -96,6 +101,24 @@ const CreateEventScreen = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // New Features State
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
+  const [agenda, setAgenda] = useState<AgendaItem[]>([]);
+
+  // Speaker Modal State
+  const [speakerModalVisible, setSpeakerModalVisible] = useState(false);
+  const [editingSpeaker, setEditingSpeaker] = useState<Speaker | null>(null);
+  const [tempSpeaker, setTempSpeaker] = useState<Partial<Speaker>>({});
+
+  // Agenda Modal State
+  const [agendaModalVisible, setAgendaModalVisible] = useState(false);
+  const [editingAgenda, setEditingAgenda] = useState<AgendaItem | null>(null);
+  const [tempAgenda, setTempAgenda] = useState<Partial<AgendaItem>>({});
+  const [agendaStartTime, setAgendaStartTime] = useState(new Date());
+  const [agendaEndTime, setAgendaEndTime] = useState(new Date());
+  const [showItemStartPicker, setShowItemStartPicker] = useState(false);
+  const [showItemEndPicker, setShowItemEndPicker] = useState(false);
+
   const isMediaValid = images.length > 0;
   const isDetailsValid =
     title.trim().length > 0 && description.trim().length > 0;
@@ -108,10 +131,9 @@ const CreateEventScreen = () => {
     if (!location.trim()) newErrors.location = 'Location is required';
     if (images.length === 0) newErrors.images = 'At least 1 image is required';
 
-    if (endDate && endDate < date) {
-      newErrors.endDate = 'End date must be after start date';
-    }
-
+    // if (endDate && endDate < date) {
+    //   newErrors.endDate = 'End date must be after start date';
+    // }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       Toast.show({
@@ -136,6 +158,8 @@ const CreateEventScreen = () => {
         ...(endDate && { endDate }),
         ...(maxCapacityStr && { maxCapacity: parseInt(maxCapacityStr, 10) }),
         createdBy: adminUid,
+        speakers,
+        agenda,
       });
 
       if (event?.id) {
@@ -169,6 +193,8 @@ const CreateEventScreen = () => {
       setMaxCapacityStr('');
       setDate(new Date());
       setEndDate(null);
+      setSpeakers([]);
+      setAgenda([]);
       setErrors({});
 
       navigation.navigate('EventsTab');
@@ -379,12 +405,275 @@ const CreateEventScreen = () => {
         </View>
       </BentoShell>
 
+      {/* Speakers Module */}
+      <BentoShell icon={User} title="SPEAKERS" isValid={speakers.length > 0}>
+        <View style={styles.innerContent}>
+          <View style={styles.listContainer}>
+            {speakers.map((s, index) => (
+              <View key={s.id || index} style={styles.listItem}>
+                <View style={styles.listContent}>
+                  <Text style={styles.listItemTitle}>{s.name}</Text>
+                  <Text style={styles.listItemSub}>{s.role}</Text>
+                </View>
+                <View style={styles.listActions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEditingSpeaker(s);
+                      setTempSpeaker(s);
+                      setSpeakerModalVisible(true);
+                    }}
+                  >
+                    <Edit2 size={16} color={colors.brand.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setSpeakers(prev => prev.filter(item => item.id !== s.id))
+                    }
+                  >
+                    <Trash2 size={16} color={colors.status.error} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity
+              style={styles.addItemBtn}
+              onPress={() => {
+                setEditingSpeaker(null);
+                setTempSpeaker({ name: '', role: '', bio: '', image: null });
+                setSpeakerModalVisible(true);
+              }}
+            >
+              <Plus size={18} color={colors.brand.primary} />
+              <Text style={styles.addItemText}>Add Speaker Profile</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </BentoShell>
+
+      {/* Agenda Module */}
+      <BentoShell icon={Clock} title="AGENDA" isValid={agenda.length > 0}>
+        <View style={styles.innerContent}>
+          <View style={styles.listContainer}>
+            {agenda
+              .sort((a, b) => {
+                const timeA = new Date(a.startTime);
+                const timeB = new Date(b.startTime);
+                return timeA.getTime() - timeB.getTime();
+              })
+              .map((a, index) => (
+                <View key={a.id || index} style={styles.listItem}>
+                  <View style={styles.listContent}>
+                    <Text style={styles.listItemTitle}>{a.title}</Text>
+                    <Text style={styles.listItemSub}>
+                      {formatEventDate(a.startTime)}
+                    </Text>
+                  </View>
+                  <View style={styles.listActions}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditingAgenda(a);
+                        setTempAgenda(a);
+                        setAgendaStartTime(new Date(a.startTime));
+                        if (a.endTime) setAgendaEndTime(new Date(a.endTime));
+                        setAgendaModalVisible(true);
+                      }}
+                    >
+                      <Edit2 size={16} color={colors.brand.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() =>
+                        setAgenda(prev => prev.filter(item => item.id !== a.id))
+                      }
+                    >
+                      <Trash2 size={16} color={colors.status.error} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            <TouchableOpacity
+              style={styles.addItemBtn}
+              onPress={() => {
+                setEditingAgenda(null);
+                setTempAgenda({ title: '', description: '' });
+                setAgendaStartTime(new Date(date));
+                setAgendaEndTime(new Date(date));
+                setAgendaModalVisible(true);
+              }}
+            >
+              <Plus size={18} color={colors.brand.primary} />
+              <Text style={styles.addItemText}>Add Session Item</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </BentoShell>
+
       <Button
         title="Create Event"
         onPress={handleCreate}
         loading={loading}
         style={styles.submitBtn}
       />
+
+      {/* Speaker Modal */}
+      <Modal visible={speakerModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { height: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}
+              </Text>
+              <TouchableOpacity onPress={() => setSpeakerModalVisible(false)}>
+                <Text style={styles.modalDoneBtn}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ padding: 20 }}>
+              <View style={styles.innerMedia}>
+                <Text style={styles.inputLabel}>Speaker Photo</Text>
+                <ImagePickerGrid
+                  images={tempSpeaker.image ? [tempSpeaker.image] : []}
+                  onChange={imgs =>
+                    setTempSpeaker({ ...tempSpeaker, image: imgs[0] || null })
+                  }
+                  maxImages={1}
+                />
+              </View>
+              <InputField
+                label="Full Name"
+                placeholder="e.g. Dr. John Smith"
+                value={tempSpeaker.name}
+                onChangeText={t => setTempSpeaker({ ...tempSpeaker, name: t })}
+              />
+              <InputField
+                label="Role / Title"
+                placeholder="e.g. Senior Researcher"
+                value={tempSpeaker.role}
+                onChangeText={t => setTempSpeaker({ ...tempSpeaker, role: t })}
+              />
+              <InputField
+                label="Mini Bio"
+                placeholder="Briefly describe the speaker..."
+                value={tempSpeaker.bio}
+                onChangeText={t => setTempSpeaker({ ...tempSpeaker, bio: t })}
+                multiline
+                numberOfLines={3}
+              />
+              <Button
+                title="Confirm Speaker"
+                onPress={() => {
+                  if (!tempSpeaker.name) return;
+                  if (editingSpeaker) {
+                    setSpeakers(prev =>
+                      prev.map(s => (s.id === editingSpeaker.id ? { ...s, ...tempSpeaker as Speaker } : s)),
+                    );
+                  } else {
+                    setSpeakers(prev => [
+                      ...prev,
+                      { ...tempSpeaker as Speaker, id: Math.random().toString(36).substr(2, 9) },
+                    ]);
+                  }
+                  setSpeakerModalVisible(false);
+                }}
+                style={{ marginTop: 20 }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Agenda Modal */}
+      <Modal visible={agendaModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { height: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingAgenda ? 'Edit Session' : 'Add Session'}
+              </Text>
+              <TouchableOpacity onPress={() => setAgendaModalVisible(false)}>
+                <Text style={styles.modalDoneBtn}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ padding: 20 }}>
+              <InputField
+                label="Session Title"
+                placeholder="e.g. Opening Keynote"
+                value={tempAgenda.title}
+                onChangeText={t => setTempAgenda({ ...tempAgenda, title: t })}
+              />
+              <InputField
+                label="Short Description"
+                placeholder="What will happen in this session?"
+                value={tempAgenda.description}
+                onChangeText={t =>
+                  setTempAgenda({ ...tempAgenda, description: t })
+                }
+                multiline
+                numberOfLines={2}
+              />
+
+              <View style={styles.timelineRow}>
+                <View style={styles.nodesContainer}>
+                  <TimeNode
+                    label="SESSION START"
+                    value={formatEventDate(agendaStartTime)}
+                    onPress={() => setShowItemStartPicker(true)}
+                  />
+                  <TimeNode
+                    label="SESSION END (Optional)"
+                    value={formatEventDate(agendaEndTime)}
+                    onPress={() => setShowItemEndPicker(true)}
+                    isEnd
+                  />
+                </View>
+              </View>
+
+              <Button
+                title="Confirm Session"
+                onPress={() => {
+                  if (!tempAgenda.title) return;
+                  const item: AgendaItem = {
+                    ...tempAgenda as AgendaItem,
+                    id: editingAgenda?.id || Math.random().toString(36).substr(2, 9),
+                    startTime: agendaStartTime,
+                    endTime: agendaEndTime,
+                  };
+                  if (editingAgenda) {
+                    setAgenda(prev =>
+                      prev.map(a => (a.id === editingAgenda.id ? item : a)),
+                    );
+                  } else {
+                    setAgenda(prev => [...prev, item]);
+                  }
+                  setAgendaModalVisible(false);
+                }}
+                style={{ marginTop: 20 }}
+              />
+
+              {showItemStartPicker && (
+                <DateTimePicker
+                  value={agendaStartTime}
+                  mode="datetime"
+                  display="default"
+                  onChange={(e, d) => {
+                    setShowItemStartPicker(false);
+                    if (d) setAgendaStartTime(d);
+                  }}
+                />
+              )}
+              {showItemEndPicker && (
+                <DateTimePicker
+                  value={agendaEndTime}
+                  mode="datetime"
+                  display="default"
+                  onChange={(e, d) => {
+                    setShowItemEndPicker(false);
+                    if (d) setAgendaEndTime(d);
+                  }}
+                />
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -544,6 +833,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContainer: {
     borderTopLeftRadius: 32,
@@ -574,6 +864,66 @@ const styles = StyleSheet.create({
   },
   pickerWrapper: {
     paddingTop: 10,
+  },
+  listContainer: {
+    marginTop: 0,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.layout.background,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.ui.dividerLight,
+  },
+  listContent: {
+    flex: 1,
+  },
+  listItemTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  listItemSub: {
+    fontFamily: typography.fontFamily,
+    fontSize: 11,
+    color: colors.text.tertiary,
+  },
+  listActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginLeft: 16,
+  },
+  addItemBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.brand.primary,
+    borderRadius: 16,
+    marginTop: 8,
+    gap: 8,
+    backgroundColor: 'rgba(79, 70, 229, 0.05)',
+  },
+  addItemText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.brand.primary,
+  },
+  inputLabel: {
+    fontFamily: typography.fontFamily,
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.brand.primary,
+    marginBottom: 8,
+    letterSpacing: 0.5,
   },
 });
 

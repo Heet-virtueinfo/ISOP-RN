@@ -27,6 +27,7 @@ export const createEvent = async (
   > & { createdBy: string },
 ) => {
   try {
+    // 1. Upload Main Event Images
     const uploadedImages = await Promise.all(
       (data.images || []).map(async img => {
         if (img.startsWith('http')) return img;
@@ -34,6 +35,19 @@ export const createEvent = async (
       }),
     );
 
+    // 2. Upload Speaker Images
+    const finalSpeakers = await Promise.all(
+      (data.speakers || []).map(async speaker => {
+        if (!speaker.image || speaker.image.startsWith('http')) return speaker;
+        const uploadedUrl = await uploadImageToCloudinary(
+          speaker.image,
+          'ISOP/speakers',
+        );
+        return { ...speaker, image: uploadedUrl };
+      }),
+    );
+
+    // Filter out any failed uploads for main images
     const finalImages = uploadedImages.filter(
       (img): img is string => img !== null,
     );
@@ -43,6 +57,7 @@ export const createEvent = async (
       id: eventRef.id,
       ...data,
       images: finalImages,
+      speakers: finalSpeakers,
       enrolledCount: 0,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -166,7 +181,7 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
   try {
     let finalUpdates = { ...updates };
 
-    // Support image updates with upload
+    // 1. Support main image updates
     if (updates.images) {
       const uploadedImages = await Promise.all(
         updates.images.map(async img => {
@@ -179,11 +194,73 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
       );
     }
 
-    // Update the event document
+    // 2. Support speaker image updates
+    if (updates.speakers) {
+      finalUpdates.speakers = await Promise.all(
+        updates.speakers.map(async speaker => {
+          if (!speaker.image || speaker.image.startsWith('http'))
+            return speaker;
+          const uploadedUrl = await uploadImageToCloudinary(
+            speaker.image,
+            'ISOP/speakers',
+          );
+          return { ...speaker, image: uploadedUrl };
+        }),
+      );
+    }
+
+    // 3. Update the event document itself
     await updateDoc(doc(firebaseFirestore, COLLECTIONS.EVENTS, id), {
       ...finalUpdates,
       updatedAt: Timestamp.now(),
     });
+
+    // 2. Cascade denormalized fields to related collections
+    const needsTitleSync = finalUpdates.title !== undefined;
+    const needsDateSync = finalUpdates.date !== undefined;
+
+    if (needsTitleSync || needsDateSync) {
+      // 2a. Update enrollments (eventTitle + eventDate)
+      try {
+        const enrollSnap = await getDocs(
+          query(
+            collection(firebaseFirestore, COLLECTIONS.ENROLLMENTS),
+            where('eventId', '==', id),
+          ),
+        );
+
+        if (!enrollSnap.empty) {
+          await commitInChunks(enrollSnap.docs, (batch, doc) => {
+            const enrollUpdate: Record<string, any> = {};
+            if (needsTitleSync) enrollUpdate.eventTitle = finalUpdates.title;
+            if (needsDateSync) enrollUpdate.eventDate = finalUpdates.date;
+            batch.update(doc.ref, enrollUpdate);
+          });
+        }
+      } catch (cascadeErr) {
+        console.warn('Enrollment cascade warning:', cascadeErr);
+      }
+
+      // 2b. Update chatRequests (eventTitle only)
+      if (needsTitleSync) {
+        try {
+          const chatReqSnap = await getDocs(
+            query(
+              collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+              where('eventId', '==', id),
+            ),
+          );
+
+          if (!chatReqSnap.empty) {
+            await commitInChunks(chatReqSnap.docs, (batch, doc) => {
+              batch.update(doc.ref, { eventTitle: finalUpdates.title });
+            });
+          }
+        } catch (cascadeErr) {
+          console.warn('ChatRequests cascade warning:', cascadeErr);
+        }
+      }
+    }
 
     return { success: true };
   } catch (error) {

@@ -62,7 +62,7 @@ export const sendChatRequest = async (
       updatedAt: Timestamp.now(),
     };
 
-    await requestRef.set(chatRequest);
+    await setDoc(requestRef, chatRequest);
 
     // [NOTIFICATION] Send push notification to recipient
     try {
