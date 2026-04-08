@@ -175,6 +175,12 @@ const AdminDashboard = () => {
                   <EventCard
                     key={item.id}
                     event={item}
+                    onPress={() =>
+                      navigation.navigate('AdminEventDetail', {
+                        eventId: item.id,
+                        eventTitle: item.title,
+                      })
+                    }
                     onEdit={() => navigateToEdit(item.id)}
                     onDelete={() => handleDeletePress(item)}
                     isAdminView

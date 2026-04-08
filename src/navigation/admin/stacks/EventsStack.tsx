@@ -4,6 +4,7 @@ import AdminDashboard from '../../../screens/admin/AdminDashboard';
 import EditEventScreen from '../../../screens/admin/EditEventScreen';
 import FeedbackListScreen from '../../../screens/events/FeedbackListScreen';
 import AdminHeader from '../../../components/AdminHeader';
+import AdminEventDetailScreen from '../../../screens/admin/AdminEventDetailScreen';
 
 const Stack = createStackNavigator();
 
@@ -12,23 +13,36 @@ const EventsStack = () => {
     <Stack.Navigator
       screenOptions={{
         headerShown: true,
-        header: ({ route, navigation }) => (
-          <AdminHeader
-            title={route.name === 'AdminDashboard' ? 'Manage Events' : 'Edit Event'}
-            showBack={route.name === 'EditEvent'}
-            onBackPress={() => navigation.goBack()}
-          />
-        ),
+        header: ({ route, navigation }) => {
+          let title = 'ISoP Admin';
+          let showBack = false;
+
+          if (route.name === 'AdminDashboard') {
+            title = 'Manage Events';
+          } else if (route.name === 'AdminEventDetail') {
+            title = (route.params as any)?.eventTitle || 'Event Details';
+            showBack = true;
+          } else if (route.name === 'EditEvent') {
+            title = 'Edit Event';
+            showBack = true;
+          }
+
+          return (
+            <AdminHeader
+              title={title}
+              showBack={showBack}
+              onBackPress={() => navigation.goBack()}
+            />
+          );
+        },
       }}
     >
+      <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
       <Stack.Screen
-        name="AdminDashboard"
-        component={AdminDashboard}
+        name="AdminEventDetail"
+        component={AdminEventDetailScreen}
       />
-      <Stack.Screen
-        name="EditEvent"
-        component={EditEventScreen}
-      />
+      <Stack.Screen name="EditEvent" component={EditEventScreen} />
       <Stack.Screen
         name="FeedbackList"
         component={FeedbackListScreen}

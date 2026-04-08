@@ -119,7 +119,7 @@ const EventCard: React.FC<EventCardProps> = ({
           </View>
           <View style={styles.metaItem}>
             <MapPin size={12} color={colors.text.tertiary} />
-            <Text style={styles.metaText} numberOfLines={1}>
+            <Text style={styles.metaText}>
               {event.location}
             </Text>
           </View>
@@ -306,9 +306,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metaGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 6,
     marginBottom: 16,
   },
   metaItem: {

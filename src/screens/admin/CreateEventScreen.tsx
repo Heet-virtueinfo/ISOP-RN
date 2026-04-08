@@ -29,7 +29,7 @@ import {
   Clock,
 } from 'lucide-react-native';
 import { EventType, Speaker, AgendaItem } from '../../types';
-import { colors, spacing, typography } from '../../theme';
+import { colors, spacing, typography, radius } from '../../theme';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import EventTypePicker from '../../components/EventTypePicker';
@@ -41,7 +41,6 @@ import { firebaseAuth } from '../../config/firebase';
 
 const BentoShell = ({ children, icon: Icon, title, isValid }: any) => (
   <View style={styles.shell}>
-    {/* Floating Badge */}
     <View style={[styles.floatingBadge, isValid && styles.floatingBadgeValid]}>
       <Icon
         size={14}
@@ -67,20 +66,20 @@ const BentoShell = ({ children, icon: Icon, title, isValid }: any) => (
   </View>
 );
 
-const TimeNode = ({ label, value, onPress, isEnd = false }: any) => (
+const TimeNode = ({ label, value, onPress, isEnd = false, error }: any) => (
   <TouchableOpacity
-    style={styles.timeNode}
+    style={[styles.timeNode, error && styles.timeNodeError]}
     onPress={onPress}
     activeOpacity={0.7}
   >
     <View style={styles.nodeIndicator}>
-      <View style={[styles.nodeCircle, isEnd && styles.nodeCircleEnd]} />
+      <View style={[styles.nodeCircle, isEnd && styles.nodeCircleEnd, error && styles.nodeCircleError]} />
     </View>
     <View style={styles.nodeContent}>
-      <Text style={styles.nodeLabel}>{label}</Text>
+      <Text style={[styles.nodeLabel, error && styles.nodeLabelError]}>{label}</Text>
       <Text style={styles.nodeValue}>{value}</Text>
     </View>
-    <ChevronDown size={14} color={colors.text.tertiary} />
+    <ChevronDown size={14} color={error ? colors.status.error : colors.text.tertiary} />
   </TouchableOpacity>
 );
 
@@ -100,17 +99,15 @@ const CreateEventScreen = () => {
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [modalErrors, setModalErrors] = useState<Record<string, string>>({});
 
-  // New Features State
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
 
-  // Speaker Modal State
   const [speakerModalVisible, setSpeakerModalVisible] = useState(false);
   const [editingSpeaker, setEditingSpeaker] = useState<Speaker | null>(null);
   const [tempSpeaker, setTempSpeaker] = useState<Partial<Speaker>>({});
 
-  // Agenda Modal State
   const [agendaModalVisible, setAgendaModalVisible] = useState(false);
   const [editingAgenda, setEditingAgenda] = useState<AgendaItem | null>(null);
   const [tempAgenda, setTempAgenda] = useState<Partial<AgendaItem>>({});
@@ -120,26 +117,29 @@ const CreateEventScreen = () => {
   const [showItemEndPicker, setShowItemEndPicker] = useState(false);
 
   const isMediaValid = images.length > 0;
-  const isDetailsValid =
-    title.trim().length > 0 && description.trim().length > 0;
-  const isScheduleValid = location.trim().length > 0 && date !== null;
+  const isDetailsValid = title.trim().length > 0 && description.trim().length > 0;
+  const isScheduleValid = location.trim().length > 0 && date !== null && endDate !== null;
 
   const handleCreate = async () => {
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = 'Title is required';
     if (!description.trim()) newErrors.description = 'Description is required';
     if (!location.trim()) newErrors.location = 'Location is required';
+    if (!maxCapacityStr.trim()) newErrors.capacity = 'Capacity is required';
+    if (!type) newErrors.type = 'Event Type is required';
+    if (!date) newErrors.date = 'Start Time is required';
+    if (!endDate) newErrors.endDate = 'End Time is required';
     if (images.length === 0) newErrors.images = 'At least 1 image is required';
+    if (speakers.length === 0) newErrors.speakers = 'At least 1 speaker is required';
+    if (agenda.length === 0) newErrors.agenda = 'At least 1 agenda item is required';
 
-    // if (endDate && endDate < date) {
-    //   newErrors.endDate = 'End date must be after start date';
-    // }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      const firstError = Object.values(newErrors)[0];
       Toast.show({
         type: 'error',
-        text1: 'Validation Error',
-        text2: 'Please check the required fields.',
+        text1: 'Required Intel Missing',
+        text2: firstError,
       });
       return;
     }
@@ -184,7 +184,6 @@ const CreateEventScreen = () => {
         text2: 'The event has been successfully published.',
       });
 
-      // Reset all fields
       setTitle('');
       setDescription('');
       setLocation('');
@@ -209,30 +208,85 @@ const CreateEventScreen = () => {
     }
   };
 
+  const handleConfirmSpeaker = () => {
+    const newModalErrors: Record<string, string> = {};
+    if (!tempSpeaker.name?.trim()) newModalErrors.name = 'Full Name is required';
+    if (!tempSpeaker.role?.trim()) newModalErrors.role = 'Role is required';
+    if (!tempSpeaker.bio?.trim()) newModalErrors.bio = 'Bio is required';
+    if (!tempSpeaker.image) newModalErrors.image = 'Photo is required';
+
+    if (Object.keys(newModalErrors).length > 0) {
+      setModalErrors(newModalErrors);
+      return;
+    }
+
+    if (editingSpeaker) {
+      setSpeakers(prev =>
+        prev.map(s => (s.id === editingSpeaker.id ? { ...s, ...tempSpeaker as Speaker } : s)),
+      );
+    } else {
+      setSpeakers(prev => [
+        ...prev,
+        { ...tempSpeaker as Speaker, id: Math.random().toString(36).substr(2, 9) },
+      ]);
+    }
+    setSpeakerModalVisible(false);
+  };
+
+  const handleConfirmAgenda = () => {
+    const newModalErrors: Record<string, string> = {};
+    if (!tempAgenda.title?.trim()) newModalErrors.title = 'Title is required';
+    if (!tempAgenda.description?.trim()) newModalErrors.description = 'Description is required';
+
+    if (Object.keys(newModalErrors).length > 0) {
+      setModalErrors(newModalErrors);
+      return;
+    }
+
+    const item: AgendaItem = {
+      ...tempAgenda as AgendaItem,
+      id: editingAgenda?.id || Math.random().toString(36).substr(2, 9),
+      startTime: agendaStartTime,
+      endTime: agendaEndTime,
+    };
+    if (editingAgenda) {
+      setAgenda(prev =>
+        prev.map(a => (a.id === editingAgenda.id ? item : a)),
+      );
+    } else {
+      setAgenda(prev => [...prev, item]);
+    }
+    setAgendaModalVisible(false);
+  };
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Media Section Module */}
       <BentoShell icon={ImageIcon} title="MEDIA Bin" isValid={isMediaValid}>
         <View style={styles.innerMedia}>
           <ImagePickerGrid
             images={images}
-            onChange={setImages}
+            onChange={imgs => {
+               setImages(imgs);
+               setErrors(prev => ({ ...prev, images: '' }));
+            }}
             error={errors.images}
           />
         </View>
       </BentoShell>
 
-      {/* Basic Info Section Module */}
       <BentoShell icon={Layers} title="CORE INFO" isValid={isDetailsValid}>
         <View style={styles.innerContent}>
           <View style={styles.typePickerWrapper}>
             <EventTypePicker
               selectedType={type}
-              onSelect={setType}
+              onSelect={t => {
+                setType(t);
+                setErrors(prev => ({ ...prev, type: '' }));
+              }}
               error={errors.type}
             />
           </View>
@@ -266,14 +320,12 @@ const CreateEventScreen = () => {
         </View>
       </BentoShell>
 
-      {/* Timeline & Location Module */}
       <BentoShell
         icon={CalendarIcon}
         title="LOGISTICS"
         isValid={isScheduleValid}
       >
         <View style={styles.innerContent}>
-          {/* Timeline Rail */}
           <View style={styles.timelineRow}>
             <View style={styles.railLine} />
             <View style={styles.nodesContainer}>
@@ -281,17 +333,18 @@ const CreateEventScreen = () => {
                 label="START TIME"
                 value={formatEventDate(date)}
                 onPress={() => setOpenDatePicker(true)}
+                error={errors.date}
               />
               <TimeNode
                 label="END TIME"
-                value={endDate ? formatEventDate(endDate) : 'Optional'}
+                value={endDate ? formatEventDate(endDate) : 'Required'}
                 onPress={() => setOpenEndDatePicker(true)}
                 isEnd
+                error={errors.endDate}
               />
             </View>
           </View>
 
-          {/* Modal Picker for iOS / Dialog for Android */}
           {(openDatePicker || openEndDatePicker) &&
             (Platform.OS === 'ios' ? (
               <Modal
@@ -333,8 +386,10 @@ const CreateEventScreen = () => {
                       minimumDate={new Date()}
                       onChange={(event, selectedDate) => {
                         if (selectedDate) {
-                          if (openDatePicker) setDate(selectedDate);
-                          else {
+                          if (openDatePicker) {
+                             setDate(selectedDate);
+                             setErrors(prev => ({ ...prev, date: '' }));
+                          } else {
                             setEndDate(selectedDate);
                             setErrors(prev => ({ ...prev, endDate: '' }));
                           }
@@ -362,6 +417,7 @@ const CreateEventScreen = () => {
                   if (selectedDate) {
                     if (openDatePicker) {
                       setDate(selectedDate);
+                      setErrors(prev => ({ ...prev, date: '' }));
                       if (pickerMode === 'date') setPickerMode('time');
                       else {
                         setOpenDatePicker(false);
@@ -369,11 +425,11 @@ const CreateEventScreen = () => {
                       }
                     } else {
                       setEndDate(selectedDate);
+                      setErrors(prev => ({ ...prev, endDate: '' }));
                       if (pickerMode === 'date') setPickerMode('time');
                       else {
                         setOpenEndDatePicker(false);
                         setPickerMode('date');
-                        setErrors(prev => ({ ...prev, endDate: '' }));
                       }
                     }
                   }
@@ -399,13 +455,16 @@ const CreateEventScreen = () => {
             leftIcon={Users}
             keyboardType="numeric"
             value={maxCapacityStr}
-            onChangeText={setMaxCapacityStr}
+            onChangeText={text => {
+              setMaxCapacityStr(text);
+              setErrors(prev => ({ ...prev, capacity: '' }));
+            }}
+            error={errors.capacity}
             containerStyle={{ marginBottom: 0 }}
           />
         </View>
       </BentoShell>
 
-      {/* Speakers Module */}
       <BentoShell icon={User} title="SPEAKERS" isValid={speakers.length > 0}>
         <View style={styles.innerContent}>
           <View style={styles.listContainer}>
@@ -420,7 +479,9 @@ const CreateEventScreen = () => {
                     onPress={() => {
                       setEditingSpeaker(s);
                       setTempSpeaker(s);
+                      setModalErrors({});
                       setSpeakerModalVisible(true);
+                      setErrors(prev => ({ ...prev, speakers: '' }));
                     }}
                   >
                     <Edit2 size={16} color={colors.brand.primary} />
@@ -436,21 +497,23 @@ const CreateEventScreen = () => {
               </View>
             ))}
             <TouchableOpacity
-              style={styles.addItemBtn}
+              style={[styles.addItemBtn, errors.speakers && styles.addItemBtnError]}
               onPress={() => {
                 setEditingSpeaker(null);
                 setTempSpeaker({ name: '', role: '', bio: '', image: null });
+                setModalErrors({});
                 setSpeakerModalVisible(true);
+                setErrors(prev => ({ ...prev, speakers: '' }));
               }}
             >
-              <Plus size={18} color={colors.brand.primary} />
-              <Text style={styles.addItemText}>Add Speaker Profile</Text>
+              <Plus size={18} color={errors.speakers ? colors.status.error : colors.brand.primary} />
+              <Text style={[styles.addItemText, errors.speakers && styles.addItemTextError]}>Add Speaker Profile</Text>
             </TouchableOpacity>
+            {errors.speakers && <Text style={styles.errorTextSmall}>{errors.speakers}</Text>}
           </View>
         </View>
       </BentoShell>
 
-      {/* Agenda Module */}
       <BentoShell icon={Clock} title="AGENDA" isValid={agenda.length > 0}>
         <View style={styles.innerContent}>
           <View style={styles.listContainer}>
@@ -475,7 +538,9 @@ const CreateEventScreen = () => {
                         setTempAgenda(a);
                         setAgendaStartTime(new Date(a.startTime));
                         if (a.endTime) setAgendaEndTime(new Date(a.endTime));
+                        setModalErrors({});
                         setAgendaModalVisible(true);
+                        setErrors(prev => ({ ...prev, agenda: '' }));
                       }}
                     >
                       <Edit2 size={16} color={colors.brand.primary} />
@@ -491,18 +556,21 @@ const CreateEventScreen = () => {
                 </View>
               ))}
             <TouchableOpacity
-              style={styles.addItemBtn}
+              style={[styles.addItemBtn, errors.agenda && styles.addItemBtnError]}
               onPress={() => {
                 setEditingAgenda(null);
                 setTempAgenda({ title: '', description: '' });
                 setAgendaStartTime(new Date(date));
                 setAgendaEndTime(new Date(date));
+                setModalErrors({});
                 setAgendaModalVisible(true);
+                setErrors(prev => ({ ...prev, agenda: '' }));
               }}
             >
-              <Plus size={18} color={colors.brand.primary} />
-              <Text style={styles.addItemText}>Add Session Item</Text>
+              <Plus size={18} color={errors.agenda ? colors.status.error : colors.brand.primary} />
+              <Text style={[styles.addItemText, errors.agenda && styles.addItemTextError]}>Add Session Item</Text>
             </TouchableOpacity>
+            {errors.agenda && <Text style={styles.errorTextSmall}>{errors.agenda}</Text>}
           </View>
         </View>
       </BentoShell>
@@ -517,7 +585,7 @@ const CreateEventScreen = () => {
       {/* Speaker Modal */}
       <Modal visible={speakerModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { height: '80%' }]}>
+          <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}
@@ -526,14 +594,19 @@ const CreateEventScreen = () => {
                 <Text style={styles.modalDoneBtn}>Cancel</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={{ padding: 20 }}>
+            <ScrollView 
+              style={{ padding: 20 }}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.innerMedia}>
-                <Text style={styles.inputLabel}>Speaker Photo</Text>
+                <Text style={[styles.inputLabel, modalErrors.image && { color: colors.status.error }]}>Speaker Photo</Text>
                 <ImagePickerGrid
                   images={tempSpeaker.image ? [tempSpeaker.image] : []}
-                  onChange={imgs =>
-                    setTempSpeaker({ ...tempSpeaker, image: imgs[0] || null })
-                  }
+                  onChange={imgs => {
+                     setTempSpeaker({ ...tempSpeaker, image: imgs[0] || null });
+                     setModalErrors(prev => ({ ...prev, image: '' }));
+                  }}
                   maxImages={1}
                 />
               </View>
@@ -541,39 +614,39 @@ const CreateEventScreen = () => {
                 label="Full Name"
                 placeholder="e.g. Dr. John Smith"
                 value={tempSpeaker.name}
-                onChangeText={t => setTempSpeaker({ ...tempSpeaker, name: t })}
+                onChangeText={t => {
+                   setTempSpeaker({ ...tempSpeaker, name: t });
+                   setModalErrors(prev => ({ ...prev, name: '' }));
+                }}
+                error={modalErrors.name}
               />
               <InputField
                 label="Role / Title"
                 placeholder="e.g. Senior Researcher"
                 value={tempSpeaker.role}
-                onChangeText={t => setTempSpeaker({ ...tempSpeaker, role: t })}
+                onChangeText={t => {
+                   setTempSpeaker({ ...tempSpeaker, role: t });
+                   setModalErrors(prev => ({ ...prev, role: '' }));
+                }}
+                error={modalErrors.role}
               />
               <InputField
                 label="Mini Bio"
                 placeholder="Briefly describe the speaker..."
                 value={tempSpeaker.bio}
-                onChangeText={t => setTempSpeaker({ ...tempSpeaker, bio: t })}
+                onChangeText={t => {
+                   setTempSpeaker({ ...tempSpeaker, bio: t });
+                   setModalErrors(prev => ({ ...prev, bio: '' }));
+                }}
+                error={modalErrors.bio}
                 multiline
                 numberOfLines={3}
               />
+
               <Button
                 title="Confirm Speaker"
-                onPress={() => {
-                  if (!tempSpeaker.name) return;
-                  if (editingSpeaker) {
-                    setSpeakers(prev =>
-                      prev.map(s => (s.id === editingSpeaker.id ? { ...s, ...tempSpeaker as Speaker } : s)),
-                    );
-                  } else {
-                    setSpeakers(prev => [
-                      ...prev,
-                      { ...tempSpeaker as Speaker, id: Math.random().toString(36).substr(2, 9) },
-                    ]);
-                  }
-                  setSpeakerModalVisible(false);
-                }}
-                style={{ marginTop: 20 }}
+                onPress={handleConfirmSpeaker}
+                style={{ marginTop: 24 }}
               />
             </ScrollView>
           </View>
@@ -583,7 +656,7 @@ const CreateEventScreen = () => {
       {/* Agenda Modal */}
       <Modal visible={agendaModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { height: '80%' }]}>
+          <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingAgenda ? 'Edit Session' : 'Add Session'}
@@ -592,20 +665,30 @@ const CreateEventScreen = () => {
                 <Text style={styles.modalDoneBtn}>Cancel</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={{ padding: 20 }}>
+            <ScrollView 
+              style={{ padding: 20 }}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+            >
               <InputField
                 label="Session Title"
                 placeholder="e.g. Opening Keynote"
                 value={tempAgenda.title}
-                onChangeText={t => setTempAgenda({ ...tempAgenda, title: t })}
+                onChangeText={t => {
+                   setTempAgenda({ ...tempAgenda, title: t });
+                   setModalErrors(prev => ({ ...prev, title: '' }));
+                }}
+                error={modalErrors.title}
               />
               <InputField
                 label="Short Description"
                 placeholder="What will happen in this session?"
                 value={tempAgenda.description}
-                onChangeText={t =>
-                  setTempAgenda({ ...tempAgenda, description: t })
-                }
+                onChangeText={t => {
+                   setTempAgenda({ ...tempAgenda, description: t });
+                   setModalErrors(prev => ({ ...prev, description: '' }));
+                }}
+                error={modalErrors.description}
                 multiline
                 numberOfLines={2}
               />
@@ -628,48 +711,96 @@ const CreateEventScreen = () => {
 
               <Button
                 title="Confirm Session"
-                onPress={() => {
-                  if (!tempAgenda.title) return;
-                  const item: AgendaItem = {
-                    ...tempAgenda as AgendaItem,
-                    id: editingAgenda?.id || Math.random().toString(36).substr(2, 9),
-                    startTime: agendaStartTime,
-                    endTime: agendaEndTime,
-                  };
-                  if (editingAgenda) {
-                    setAgenda(prev =>
-                      prev.map(a => (a.id === editingAgenda.id ? item : a)),
-                    );
-                  } else {
-                    setAgenda(prev => [...prev, item]);
-                  }
-                  setAgendaModalVisible(false);
-                }}
-                style={{ marginTop: 20 }}
+                onPress={handleConfirmAgenda}
+                style={{ marginTop: 24 }}
               />
 
-              {showItemStartPicker && (
-                <DateTimePicker
-                  value={agendaStartTime}
-                  mode="datetime"
-                  display="default"
-                  onChange={(e, d) => {
-                    setShowItemStartPicker(false);
-                    if (d) setAgendaStartTime(d);
-                  }}
-                />
-              )}
-              {showItemEndPicker && (
-                <DateTimePicker
-                  value={agendaEndTime}
-                  mode="datetime"
-                  display="default"
-                  onChange={(e, d) => {
-                    setShowItemEndPicker(false);
-                    if (d) setAgendaEndTime(d);
-                  }}
-                />
-              )}
+              {/* Session Logistics (Unified Pattern) */}
+              {(showItemStartPicker || showItemEndPicker) &&
+                (Platform.OS === 'ios' ? (
+                  <Modal
+                    transparent
+                    animationType="slide"
+                    visible={showItemStartPicker || showItemEndPicker}
+                    onRequestClose={() => {
+                      setShowItemStartPicker(false);
+                      setShowItemEndPicker(false);
+                    }}
+                  >
+                    <TouchableWithoutFeedback
+                      onPress={() => {
+                        setShowItemStartPicker(false);
+                        setShowItemEndPicker(false);
+                      }}
+                    >
+                      <View style={styles.modalOverlay} />
+                    </TouchableWithoutFeedback>
+                    <View style={styles.modalContainer}>
+                      <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>
+                          {showItemStartPicker ? 'Session Start' : 'Session End'}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setShowItemStartPicker(false);
+                            setShowItemEndPicker(false);
+                          }}
+                        >
+                          <Text style={styles.modalDoneBtn}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.pickerWrapper}>
+                        <DateTimePicker
+                          value={showItemStartPicker ? agendaStartTime : agendaEndTime}
+                          mode="datetime"
+                          display="spinner"
+                          onChange={(event, selectedDate) => {
+                            if (selectedDate) {
+                              if (showItemStartPicker) {
+                                setAgendaStartTime(selectedDate);
+                              } else {
+                                setAgendaEndTime(selectedDate);
+                              }
+                            }
+                          }}
+                          textColor="black"
+                        />
+                      </View>
+                    </View>
+                  </Modal>
+                ) : (
+                  <DateTimePicker
+                    value={showItemStartPicker ? agendaStartTime : agendaEndTime}
+                    mode={pickerMode}
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      if (event.type === 'dismissed') {
+                        setShowItemStartPicker(false);
+                        setShowItemEndPicker(false);
+                        setPickerMode('date');
+                        return;
+                      }
+
+                      if (selectedDate) {
+                        if (showItemStartPicker) {
+                          setAgendaStartTime(selectedDate);
+                          if (pickerMode === 'date') setPickerMode('time');
+                          else {
+                            setShowItemStartPicker(false);
+                            setPickerMode('date');
+                          }
+                        } else {
+                          setAgendaEndTime(selectedDate);
+                          if (pickerMode === 'date') setPickerMode('time');
+                          else {
+                            setShowItemEndPicker(false);
+                            setPickerMode('date');
+                          }
+                        }
+                      }
+                    }}
+                  />
+                ))}
             </ScrollView>
           </View>
         </View>
@@ -786,6 +917,11 @@ const styles = StyleSheet.create({
     borderColor: colors.ui.dividerLight,
     zIndex: 2,
   },
+  timeNodeError: {
+    borderColor: colors.status.error,
+    backgroundColor: colors.status.error + '05',
+    borderWidth: 1.5,
+  },
   nodeIndicator: {
     width: 20,
     alignItems: 'center',
@@ -798,37 +934,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.primary,
     borderWidth: 3,
     borderColor: colors.layout.surface,
+    zIndex: 2,
   },
   nodeCircleEnd: {
     backgroundColor: colors.text.tertiary,
+  },
+  nodeCircleError: {
+    backgroundColor: colors.status.error,
   },
   nodeContent: {
     flex: 1,
   },
   nodeLabel: {
     fontFamily: typography.fontFamily,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
     color: colors.text.tertiary,
-    letterSpacing: 0.5,
     marginBottom: 2,
+  },
+  nodeLabelError: {
+    color: colors.status.error,
   },
   nodeValue: {
     fontFamily: typography.fontFamily,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.text.primary,
   },
   submitBtn: {
-    marginTop: spacing.sm,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: colors.brand.primary,
-    shadowColor: colors.brand.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 10,
+    marginTop: spacing.xl,
   },
   modalOverlay: {
     flex: 1,
@@ -836,45 +970,45 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
+    backgroundColor: colors.layout.surface,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    paddingBottom: 40,
-    backgroundColor: colors.layout.surface,
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.ui.dividerLight,
   },
   modalTitle: {
     fontFamily: typography.fontFamily,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.text.primary,
   },
   modalDoneBtn: {
     fontFamily: typography.fontFamily,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.brand.primary,
   },
   pickerWrapper: {
-    paddingTop: 10,
+    padding: 20,
+    alignItems: 'center',
   },
   listContainer: {
-    marginTop: 0,
+    marginTop: 8,
   },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.layout.background,
-    borderRadius: 16,
     padding: 16,
-    marginBottom: 8,
+    backgroundColor: colors.layout.background,
+    borderRadius: 20,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.ui.dividerLight,
   },
@@ -883,8 +1017,8 @@ const styles = StyleSheet.create({
   },
   listItemTitle: {
     fontFamily: typography.fontFamily,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.text.primary,
     marginBottom: 2,
   },
@@ -911,11 +1045,19 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: 'rgba(79, 70, 229, 0.05)',
   },
+  addItemBtnError: {
+    borderColor: colors.status.error,
+    backgroundColor: colors.status.error + '05',
+    borderStyle: 'solid',
+  },
   addItemText: {
     fontFamily: typography.fontFamily,
     fontSize: 13,
     fontWeight: '700',
     color: colors.brand.primary,
+  },
+  addItemTextError: {
+    color: colors.status.error,
   },
   inputLabel: {
     fontFamily: typography.fontFamily,
@@ -924,6 +1066,13 @@ const styles = StyleSheet.create({
     color: colors.brand.primary,
     marginBottom: 8,
     letterSpacing: 0.5,
+  },
+  errorTextSmall: {
+    color: colors.status.error,
+    fontSize: 11,
+    fontFamily: typography.fontFamily,
+    marginTop: 6,
+    marginLeft: 4,
   },
 });
 
