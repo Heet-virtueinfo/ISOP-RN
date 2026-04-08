@@ -12,15 +12,27 @@ export const createEvent = async (
   > & { createdBy: string },
 ) => {
   try {
-    // 1. Upload Images to Cloudinary if they are local paths
+    // 1. Upload Main Event Images
     const uploadedImages = await Promise.all(
       (data.images || []).map(async img => {
-        if (img.startsWith('http')) return img; // Already a URL
+        if (img.startsWith('http')) return img;
         return await uploadImageToCloudinary(img, 'ISOP/event');
       }),
     );
 
-    // Filter out any failed uploads
+    // 2. Upload Speaker Images
+    const finalSpeakers = await Promise.all(
+      (data.speakers || []).map(async speaker => {
+        if (!speaker.image || speaker.image.startsWith('http')) return speaker;
+        const uploadedUrl = await uploadImageToCloudinary(
+          speaker.image,
+          'ISOP/speakers',
+        );
+        return { ...speaker, image: uploadedUrl };
+      }),
+    );
+
+    // Filter out any failed uploads for main images
     const finalImages = uploadedImages.filter(
       (img): img is string => img !== null,
     );
@@ -30,6 +42,7 @@ export const createEvent = async (
       id: eventRef.id,
       ...data,
       images: finalImages,
+      speakers: finalSpeakers,
       enrolledCount: 0,
       createdAt: firestore.Timestamp.now(),
       updatedAt: firestore.Timestamp.now(),
@@ -146,7 +159,7 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
   try {
     let finalUpdates = { ...updates };
 
-    // Support image updates with upload
+    // 1. Support main image updates
     if (updates.images) {
       const uploadedImages = await Promise.all(
         updates.images.map(async img => {
@@ -159,7 +172,21 @@ export const updateEvent = async (id: string, updates: Partial<AppEvent>) => {
       );
     }
 
-    // 1. Update the event document itself
+    // 2. Support speaker image updates
+    if (updates.speakers) {
+      finalUpdates.speakers = await Promise.all(
+        updates.speakers.map(async speaker => {
+          if (!speaker.image || speaker.image.startsWith('http')) return speaker;
+          const uploadedUrl = await uploadImageToCloudinary(
+            speaker.image,
+            'ISOP/speakers',
+          );
+          return { ...speaker, image: uploadedUrl };
+        }),
+      );
+    }
+
+    // 3. Update the event document itself
     await firebaseFirestore
       .collection(COLLECTIONS.EVENTS)
       .doc(id)

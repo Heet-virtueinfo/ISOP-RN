@@ -5,6 +5,7 @@ export const COLLECTIONS = {
   CHAT_REQUESTS: 'chatRequests',
   CHATS: 'chats',
   MESSAGES: 'messages',
+  FEEDBACKS: 'feedbacks',
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

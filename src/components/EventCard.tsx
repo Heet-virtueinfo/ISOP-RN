@@ -7,7 +7,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { MapPin, Calendar, Users, Edit2, Trash2 } from 'lucide-react-native';
+import { MapPin, Calendar, Users, Edit2, Trash2, Star } from 'lucide-react-native';
 import { AppEvent } from '../types';
 import { colors, spacing, typography, radius } from '../theme';
 import {
@@ -123,6 +123,14 @@ const EventCard: React.FC<EventCardProps> = ({
               {event.location}
             </Text>
           </View>
+          {event.averageRating !== undefined && event.ratingCount !== undefined && event.ratingCount > 0 && (
+            <View style={styles.metaItem}>
+              <Star size={12} color="#FBBF24" fill="#FBBF24" />
+              <Text style={styles.metaText}>
+                {event.averageRating.toFixed(1)} ({event.ratingCount})
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Enrollment Strategy Bar */}

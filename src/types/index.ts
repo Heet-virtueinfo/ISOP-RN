@@ -14,6 +14,22 @@ export interface UserProfile {
 
 export type EventType = 'conference' | 'webinar' | 'training' | 'meeting';
 
+export interface Speaker {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  image?: string | null;
+}
+
+export interface AgendaItem {
+  id: string;
+  startTime: any;
+  endTime?: any;
+  title: string;
+  description?: string;
+}
+
 export interface AppEvent {
   id: string;
   title: string;
@@ -26,6 +42,10 @@ export interface AppEvent {
   enrolledCount: number;
   maxCapacity?: number;
   createdBy: string; // Admin UID
+  speakers?: Speaker[];
+  agenda?: AgendaItem[];
+  averageRating?: number;
+  ratingCount?: number;
   createdAt: any;
   updatedAt: any;
 }
@@ -75,4 +95,15 @@ export interface Message {
   text: string;
   createdAt: any;
   read: boolean;
+}
+
+export interface Feedback {
+  id: string;
+  eventId: string;
+  uid: string;
+  userName: string;
+  userImage?: string | null;
+  rating: number;
+  comment: string;
+  createdAt: any;
 }

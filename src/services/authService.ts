@@ -98,3 +98,13 @@ export const loginUser = async (email: string, password: string) => {
 export const logoutUser = async () => {
   return await firebaseAuth.signOut();
 };
+
+export const resetPassword = async (email: string) => {
+  try {
+    await firebaseAuth.sendPasswordResetEmail(email);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Reset Password Error:', error);
+    throw error;
+  }
+};
