@@ -97,9 +97,8 @@ const ChatRequestsScreen = () => {
             await apiService.sendNotification({
               fcmToken: senderProfile.fcmToken,
               title: 'Request Accepted!',
-              body: `${
-                request.toName || 'Someone'
-              } accepted your chat request. Start the conversation!`,
+              body: `${request.toName || 'Someone'
+                } accepted your chat request. Start the conversation!`,
               data: {
                 screen: 'Chat',
                 chatId: request.id,
@@ -153,9 +152,8 @@ const ChatRequestsScreen = () => {
             await apiService.sendNotification({
               fcmToken: senderProfile.fcmToken,
               title: 'Request Declined',
-              body: `${
-                request.toName || 'Someone'
-              } declined your chat request.`,
+              body: `${request.toName || 'Someone'
+                } declined your chat request.`,
               data: {
                 screen: 'Participants', // Updated target screen
                 eventId: request.eventId,
@@ -181,19 +179,19 @@ const ChatRequestsScreen = () => {
     const name = isIncoming
       ? item.fromName
       : isAccepted
-      ? item.fromUid === user?.uid
-        ? item.toName
-        : item.fromName
-      : item.toName;
+        ? item.fromUid === user?.uid
+          ? item.toName
+          : item.fromName
+        : item.toName;
     const image = isIncoming
       ? item.fromImage
       : isSent
-      ? item.toImage
-      : isAccepted
-      ? item.fromUid === user?.uid
         ? item.toImage
-        : item.fromImage
-      : item.toImage;
+        : isAccepted
+          ? item.fromUid === user?.uid
+            ? item.toImage
+            : item.fromImage
+          : item.toImage;
 
     return (
       <View style={styles.cardWrapper}>
@@ -346,8 +344,8 @@ const ChatRequestsScreen = () => {
             activeTab === 'incoming'
               ? incoming
               : activeTab === 'sent'
-              ? sent
-              : accepted
+                ? sent
+                : accepted
           }
           keyExtractor={item => item.id}
           renderItem={renderRequestItem}
@@ -367,8 +365,8 @@ const ChatRequestsScreen = () => {
                   {activeTab === 'incoming'
                     ? 'No one has reached out yet. Why not start the conversation?'
                     : activeTab === 'sent'
-                    ? 'Your sent requests will appear here. Start reaching out to peers!'
-                    : 'Collaborations and established connections will sync here.'}
+                      ? 'Your sent requests will appear here. Start reaching out to peers!'
+                      : 'Collaborations and established connections will sync here.'}
                 </Text>
               </View>
             ) : null

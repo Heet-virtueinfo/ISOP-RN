@@ -12,6 +12,7 @@ import {
   BookMarked,
   ArrowRight,
   Sparkles,
+  Newspaper,
 } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -87,6 +88,7 @@ const HomeScreen = () => {
 
   const navigateToEvents = () => navigation.navigate('EventList');
   const navigateToMyEvents = () => navigation.navigate('MyEventsTab');
+  const navigateToNews = () => navigation.navigate('NewsScreen');
 
   if (loading) {
     return (
@@ -148,6 +150,24 @@ const HomeScreen = () => {
                 {totalEventsCount}
               </Text>
               <Text style={styles.statLabel}>Active Events</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.statsContainer, { marginTop: -15 }]}>
+          <TouchableOpacity
+            style={[
+              styles.statBox,
+              { backgroundColor: 'rgba(59, 130, 246, 0.05)' },
+            ]}
+            onPress={navigateToNews}
+          >
+            <Newspaper size={20} color="#3B82F6" />
+            <View>
+              <Text style={[styles.statValue, { color: '#3B82F6', fontSize: 16 }]}>
+                Hub
+              </Text>
+              <Text style={styles.statLabel}>News & Alerts</Text>
             </View>
           </TouchableOpacity>
         </View>
