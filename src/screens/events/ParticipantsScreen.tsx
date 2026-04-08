@@ -87,7 +87,6 @@ const ParticipantsScreen = () => {
             <ParticipantCard
               participant={item}
               currentUser={userProfile!}
-              eventTitle={eventTitle}
               onChatPress={handleChatPress}
             />
           )}

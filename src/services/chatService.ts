@@ -1,4 +1,18 @@
-import firestore from '@react-native-firebase/firestore';
+import {
+  doc,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  writeBatch,
+  Timestamp,
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
 import { firebaseFirestore } from '../config/firebase';
 import { ChatRequest, Chat, Message, UserProfile, Enrollment } from '../types';
 import { COLLECTIONS } from '../constants/collections';
@@ -9,7 +23,6 @@ export const sendChatRequest = async (
   fromProfile: UserProfile,
   toParticipant: Enrollment,
   eventId: string,
-  eventTitle: string,
 ) => {
   try {
     const fromUid = fromProfile.uid;
@@ -24,12 +37,16 @@ export const sendChatRequest = async (
       return { success: false, error: 'Request already exists' };
     }
 
+    // Fetch event title from source of truth
+    const eventDoc = await getDoc(doc(firebaseFirestore, COLLECTIONS.EVENTS, eventId));
+    const eventTitle = eventDoc.exists()
+      ? (eventDoc.data() as any).title
+      : 'an event';
+
     const requestId =
       existingRequest?.id ||
-      firebaseFirestore.collection(COLLECTIONS.CHAT_REQUESTS).doc().id;
-    const requestRef = firebaseFirestore
-      .collection(COLLECTIONS.CHAT_REQUESTS)
-      .doc(requestId);
+      doc(collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS)).id;
+    const requestRef = doc(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS, requestId);
     const chatRequest: ChatRequest = {
       id: requestRef.id,
       fromUid,
@@ -39,21 +56,17 @@ export const sendChatRequest = async (
       toName: toParticipant.displayName,
       toImage: toParticipant.profileImage || null,
       eventId,
-      eventTitle,
       participants: [fromUid, toUid], // For single query listening
       status: 'pending',
-      createdAt: firestore.Timestamp.now(),
-      updatedAt: firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
     };
 
     await requestRef.set(chatRequest);
 
     // [NOTIFICATION] Send push notification to recipient
     try {
-      const recipientDoc = await firebaseFirestore
-        .collection(COLLECTIONS.USERS)
-        .doc(toUid)
-        .get();
+      const recipientDoc = await getDoc(doc(firebaseFirestore, COLLECTIONS.USERS, toUid));
 
       if (recipientDoc.exists()) {
         const recipientProfile = recipientDoc.data() as UserProfile;
@@ -88,20 +101,25 @@ export const getIncomingRequests = (
   uid: string,
   callback: (requests: ChatRequest[]) => void,
 ) => {
-  return firebaseFirestore
-    .collection(COLLECTIONS.CHAT_REQUESTS)
-    .where('toUid', '==', uid)
-    .where('status', '==', 'pending')
-    .orderBy('createdAt', 'desc')
-    .onSnapshot(
-      snapshot => {
-        const requests = snapshot.docs.map(doc => doc.data() as ChatRequest);
-        callback(requests);
-      },
-      error => {
-        console.error('Get Incoming Requests Error:', error);
-      },
-    );
+  const q = query(
+    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+    where('toUid', '==', uid),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'desc'),
+  );
+  return onSnapshot(
+    q,
+    snapshot => {
+      const requests = snapshot.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      );
+      callback(requests);
+    },
+    error => {
+      console.error('Get Incoming Requests Error:', error);
+    },
+  );
 };
 
 // GET SENT REQUESTS
@@ -109,20 +127,25 @@ export const getSentRequests = (
   uid: string,
   callback: (requests: ChatRequest[]) => void,
 ) => {
-  return firebaseFirestore
-    .collection(COLLECTIONS.CHAT_REQUESTS)
-    .where('fromUid', '==', uid)
-    .where('status', '==', 'pending')
-    .orderBy('createdAt', 'desc')
-    .onSnapshot(
-      snapshot => {
-        const requests = snapshot.docs.map(doc => doc.data() as ChatRequest);
-        callback(requests);
-      },
-      error => {
-        console.error('Get Sent Requests Error:', error);
-      },
-    );
+  const q = query(
+    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+    where('fromUid', '==', uid),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'desc'),
+  );
+  return onSnapshot(
+    q,
+    snapshot => {
+      const requests = snapshot.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      );
+      callback(requests);
+    },
+    error => {
+      console.error('Get Sent Requests Error:', error);
+    },
+  );
 };
 
 // GET CHAT REQUEST STATUS (To check existing connection)
@@ -131,27 +154,38 @@ export const getChatRequestStatus = async (
   uid2: string,
 ): Promise<ChatRequest | null> => {
   try {
-    const shot1 = await firebaseFirestore
-      .collection(COLLECTIONS.CHAT_REQUESTS)
-      .where('fromUid', '==', uid1)
-      .where('toUid', '==', uid2)
-      .get();
-      
-    const shot2 = await firebaseFirestore
-      .collection(COLLECTIONS.CHAT_REQUESTS)
-      .where('fromUid', '==', uid2)
-      .where('toUid', '==', uid1)
-      .get();
+    const shot1 = await getDocs(
+      query(
+        collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+        where('fromUid', '==', uid1),
+        where('toUid', '==', uid2),
+      ),
+    );
+
+    const shot2 = await getDocs(
+      query(
+        collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+        where('fromUid', '==', uid2),
+        where('toUid', '==', uid1),
+      ),
+    );
 
     const requests = [
-      ...shot1.docs.map(doc => doc.data() as ChatRequest),
-      ...shot2.docs.map(doc => doc.data() as ChatRequest)
+      ...shot1.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      ),
+      ...shot2.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      ),
     ];
 
-    const bestRequest = 
+    const bestRequest =
       requests.find(r => r.status === 'accepted') ||
       requests.find(r => r.status === 'pending') ||
-      requests[0] || null;
+      requests[0] ||
+      null;
 
     return bestRequest;
   } catch (error) {
@@ -171,36 +205,45 @@ export const listenToChatRequestStatus = (
 
   const handleCombined = () => {
     const combined = [...sentData, ...receivedData];
-    const bestRequest = 
-        combined.find(r => r.status === 'accepted') ||
-        combined.find(r => r.status === 'pending') ||
-        combined[0] || null;
+    const bestRequest =
+      combined.find(r => r.status === 'accepted') ||
+      combined.find(r => r.status === 'pending') ||
+      combined[0] ||
+      null;
     callback(bestRequest);
   };
 
-  const unsub1 = firebaseFirestore
-    .collection(COLLECTIONS.CHAT_REQUESTS)
-    .where('fromUid', '==', uid1)
-    .where('toUid', '==', uid2)
-    .onSnapshot(
-      s => {
-        sentData = s.docs.map(doc => doc.data() as ChatRequest);
-        handleCombined();
-      },
-      error => console.error('Listen Chat Request Status Error:', error)
-    );
+  const unsub1 = onSnapshot(
+    query(
+      collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+      where('fromUid', '==', uid1),
+      where('toUid', '==', uid2),
+    ),
+    s => {
+      sentData = s.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      );
+      handleCombined();
+    },
+    error => console.error('Listen Chat Request Status Error:', error),
+  );
 
-  const unsub2 = firebaseFirestore
-    .collection(COLLECTIONS.CHAT_REQUESTS)
-    .where('fromUid', '==', uid2)
-    .where('toUid', '==', uid1)
-    .onSnapshot(
-      s => {
-        receivedData = s.docs.map(doc => doc.data() as ChatRequest);
-        handleCombined();
-      },
-      error => console.error('Listen Chat Request Status Error:', error)
-    );
+  const unsub2 = onSnapshot(
+    query(
+      collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+      where('fromUid', '==', uid2),
+      where('toUid', '==', uid1),
+    ),
+    s => {
+      receivedData = s.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      );
+      handleCombined();
+    },
+    error => console.error('Listen Chat Request Status Error:', error),
+  );
 
   return () => {
     unsub1();
@@ -211,12 +254,8 @@ export const listenToChatRequestStatus = (
 // ACCEPT CHAT REQUEST
 export const acceptChatRequest = async (request: ChatRequest) => {
   try {
-    const requestRef = firebaseFirestore
-      .collection(COLLECTIONS.CHAT_REQUESTS)
-      .doc(request.id);
-    const chatRef = firebaseFirestore
-      .collection(COLLECTIONS.CHATS)
-      .doc(request.id);
+    const requestRef = doc(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS, request.id);
+    const chatRef = doc(firebaseFirestore, COLLECTIONS.CHATS, request.id);
 
     const chat: Chat = {
       id: request.id,
@@ -229,13 +268,13 @@ export const acceptChatRequest = async (request: ChatRequest) => {
         [request.fromUid]: request.fromImage || null,
         [request.toUid]: request.toImage || null,
       },
-      createdAt: firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
     };
 
-    const batch = firebaseFirestore.batch();
+    const batch = writeBatch(firebaseFirestore);
     batch.update(requestRef, {
       status: 'accepted',
-      updatedAt: firestore.Timestamp.now(),
+      updatedAt: Timestamp.now(),
     });
     batch.set(chatRef, chat);
 
@@ -250,10 +289,10 @@ export const acceptChatRequest = async (request: ChatRequest) => {
 // DECLINE CHAT REQUEST
 export const declineChatRequest = async (requestId: string) => {
   try {
-    await firebaseFirestore
-      .collection(COLLECTIONS.CHAT_REQUESTS)
-      .doc(requestId)
-      .update({ status: 'declined', updatedAt: firestore.Timestamp.now() });
+    await updateDoc(doc(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS, requestId), {
+      status: 'declined',
+      updatedAt: Timestamp.now(),
+    });
     return { success: true };
   } catch (error) {
     console.error('Decline Chat Request Error:', error);
@@ -266,15 +305,17 @@ export const getAcceptedRequests = (
   uid: string,
   callback: (requests: ChatRequest[]) => void,
 ) => {
-  const sentAcceptedRef = firebaseFirestore
-    .collection(COLLECTIONS.CHAT_REQUESTS)
-    .where('fromUid', '==', uid)
-    .where('status', '==', 'accepted');
+  const sentAcceptedRef = query(
+    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+    where('fromUid', '==', uid),
+    where('status', '==', 'accepted'),
+  );
 
-  const receivedAcceptedRef = firebaseFirestore
-    .collection(COLLECTIONS.CHAT_REQUESTS)
-    .where('toUid', '==', uid)
-    .where('status', '==', 'accepted');
+  const receivedAcceptedRef = query(
+    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
+    where('toUid', '==', uid),
+    where('status', '==', 'accepted'),
+  );
 
   let sentData: ChatRequest[] = [];
   let receivedData: ChatRequest[] = [];
@@ -299,17 +340,25 @@ export const getAcceptedRequests = (
     callback(unique);
   };
 
-  const unsub1 = sentAcceptedRef.onSnapshot(
+  const unsub1 = onSnapshot(
+    sentAcceptedRef,
     s => {
-      sentData = s.docs.map(doc => doc.data() as ChatRequest);
+      sentData = s.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      );
       handleCombined();
     },
     err => console.error('Sent Accepted Listener Error:', err),
   );
 
-  const unsub2 = receivedAcceptedRef.onSnapshot(
+  const unsub2 = onSnapshot(
+    receivedAcceptedRef,
     s => {
-      receivedData = s.docs.map(doc => doc.data() as ChatRequest);
+      receivedData = s.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as ChatRequest,
+      );
       handleCombined();
     },
     err => console.error('Received Accepted Listener Error:', err),
@@ -323,19 +372,23 @@ export const getAcceptedRequests = (
 
 // GET MY CHATS
 export const getMyChats = (uid: string, callback: (chats: Chat[]) => void) => {
-  return firebaseFirestore
-    .collection(COLLECTIONS.CHATS)
-    .where('participants', 'array-contains', uid)
-    .orderBy('lastMessageAt', 'desc')
-    .onSnapshot(
-      snapshot => {
-        const chats = snapshot.docs.map(doc => doc.data() as Chat);
-        callback(chats);
-      },
-      error => {
-        console.error('Get My Chats Error:', error);
-      },
-    );
+  const q = query(
+    collection(firebaseFirestore, COLLECTIONS.CHATS),
+    where('participants', 'array-contains', uid),
+    orderBy('lastMessageAt', 'desc'),
+  );
+  return onSnapshot(
+    q,
+    snapshot => {
+      const chats = snapshot.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) => doc.data() as Chat,
+      );
+      callback(chats);
+    },
+    error => {
+      console.error('Get My Chats Error:', error);
+    },
+  );
 };
 
 // SEND MESSAGE
@@ -345,26 +398,23 @@ export const sendMessage = async (
   text: string,
 ) => {
   try {
-    const messagesRef = firebaseFirestore
-      .collection(COLLECTIONS.CHATS)
-      .doc(chatId)
-      .collection(COLLECTIONS.MESSAGES);
-    const chatRef = firebaseFirestore.collection(COLLECTIONS.CHATS).doc(chatId);
+    const chatRef = doc(firebaseFirestore, COLLECTIONS.CHATS, chatId);
+    const messagesRef = collection(chatRef, COLLECTIONS.MESSAGES);
 
-    const messageRef = messagesRef.doc();
+    const messageRef = doc(messagesRef);
     const newMessage: Message = {
       id: messageRef.id,
       senderId,
       text,
-      createdAt: firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
       read: false,
     };
 
-    const batch = firebaseFirestore.batch();
+    const batch = writeBatch(firebaseFirestore);
     batch.set(messageRef, newMessage);
     batch.update(chatRef, {
       lastMessage: text,
-      lastMessageAt: firestore.Timestamp.now(),
+      lastMessageAt: Timestamp.now(),
     });
 
     await batch.commit();
@@ -380,38 +430,42 @@ export const getMessages = (
   chatId: string,
   callback: (messages: Message[]) => void,
 ) => {
-  return firebaseFirestore
-    .collection(COLLECTIONS.CHATS)
-    .doc(chatId)
-    .collection(COLLECTIONS.MESSAGES)
-    .orderBy('createdAt', 'desc') // Inverted list, hence desc for newest at bottom
-    .onSnapshot(
-      snapshot => {
-        const messages = snapshot.docs.map(doc => doc.data() as Message);
-        callback(messages);
-      },
-      error => {
-        console.error('Get Messages Error:', error);
-      },
-    );
+  const q = query(
+    collection(firebaseFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
+    orderBy('createdAt', 'desc'),
+  );
+  return onSnapshot(
+    q,
+    snapshot => {
+      const messages = snapshot.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as Message,
+      );
+      callback(messages);
+    },
+    error => {
+      console.error('Get Messages Error:', error);
+    },
+  );
 };
 
 // MARK MESSAGES AS READ
 export const markMessagesRead = async (chatId: string, uid: string) => {
   try {
-    const unreadSnapshot = await firebaseFirestore
-      .collection(COLLECTIONS.CHATS)
-      .doc(chatId)
-      .collection(COLLECTIONS.MESSAGES)
-      .where('senderId', '!=', uid)
-      .where('read', '==', false)
-      .get();
+    const q = query(
+      collection(firebaseFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
+      where('senderId', '!=', uid),
+      where('read', '==', false),
+    );
+    const unreadSnapshot = await getDocs(q);
 
     if (!unreadSnapshot.empty) {
-      const batch = firebaseFirestore.batch();
-      unreadSnapshot.docs.forEach(doc => {
-        batch.update(doc.ref, { read: true });
-      });
+      const batch = writeBatch(firebaseFirestore);
+      unreadSnapshot.docs.forEach(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) => {
+          batch.update(doc.ref, { read: true });
+        },
+      );
       await batch.commit();
     }
   } catch (error) {

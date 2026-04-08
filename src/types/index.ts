@@ -32,8 +32,6 @@ export interface AppEvent {
 export interface Enrollment {
   id: string;
   eventId: string;
-  eventTitle: string;
-  eventDate: any;
   uid: string;
   displayName: string;
   email: string;
@@ -52,7 +50,6 @@ export interface ChatRequest {
   toName: string;
   toImage?: string | null;
   eventId: string;
-  eventTitle: string;
   participants: string[]; // [fromUid, toUid] for efficient querying
   status: ChatRequestStatus;
   createdAt: any;

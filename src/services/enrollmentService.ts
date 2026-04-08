@@ -1,4 +1,16 @@
-import firestore from '@react-native-firebase/firestore';
+import {
+  doc,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  getDocs,
+  writeBatch,
+  Timestamp,
+  increment,
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
 import { firebaseFirestore } from '../config/firebase';
 import { Enrollment, AppEvent, UserProfile } from '../types';
 import { COLLECTIONS } from '../constants/collections';
@@ -9,30 +21,26 @@ export const enrollInEvent = async (
   userProfile: UserProfile,
 ) => {
   try {
-    const enrollmentRef = firebaseFirestore
-      .collection(COLLECTIONS.ENROLLMENTS)
-      .doc();
-    const eventRef = firebaseFirestore
-      .collection(COLLECTIONS.EVENTS)
-      .doc(event.id);
+    const enrollmentRef = doc(
+      collection(firebaseFirestore, COLLECTIONS.ENROLLMENTS),
+    );
+    const eventRef = doc(firebaseFirestore, COLLECTIONS.EVENTS, event.id);
 
     const enrollment: Enrollment = {
       id: enrollmentRef.id,
       eventId: event.id,
-      eventTitle: event.title,
-      eventDate: event.date,
       uid: userProfile.uid,
       displayName: userProfile.displayName,
       email: userProfile.email,
       profileImage: userProfile.profileImage || null,
-      enrolledAt: firestore.Timestamp.now(),
+      enrolledAt: Timestamp.now(),
     };
 
-    const batch = firebaseFirestore.batch();
+    const batch = writeBatch(firebaseFirestore);
     batch.set(enrollmentRef, enrollment);
     batch.update(eventRef, {
-      enrolledCount: firestore.FieldValue.increment(1),
-      updatedAt: firestore.Timestamp.now(),
+      enrolledCount: increment(1),
+      updatedAt: Timestamp.now(),
     });
 
     await batch.commit();
@@ -49,18 +57,18 @@ export const unenrollFromEvent = async (
   eventId: string,
 ) => {
   try {
-    const enrollmentRef = firebaseFirestore
-      .collection(COLLECTIONS.ENROLLMENTS)
-      .doc(enrollmentId);
-    const eventRef = firebaseFirestore
-      .collection(COLLECTIONS.EVENTS)
-      .doc(eventId);
+    const enrollmentRef = doc(
+      firebaseFirestore,
+      COLLECTIONS.ENROLLMENTS,
+      enrollmentId,
+    );
+    const eventRef = doc(firebaseFirestore, COLLECTIONS.EVENTS, eventId);
 
-    const batch = firebaseFirestore.batch();
+    const batch = writeBatch(firebaseFirestore);
     batch.delete(enrollmentRef);
     batch.update(eventRef, {
-      enrolledCount: firestore.FieldValue.increment(-1),
-      updatedAt: firestore.Timestamp.now(),
+      enrolledCount: increment(-1),
+      updatedAt: Timestamp.now(),
     });
 
     await batch.commit();
@@ -77,12 +85,12 @@ export const checkEnrollment = async (
   uid: string,
 ): Promise<Enrollment | null> => {
   try {
-    const snapshot = await firebaseFirestore
-      .collection(COLLECTIONS.ENROLLMENTS)
-      .where('eventId', '==', eventId)
-      .where('uid', '==', uid)
-      .limit(1)
-      .get();
+    const q = query(
+      collection(firebaseFirestore, COLLECTIONS.ENROLLMENTS),
+      where('eventId', '==', eventId),
+      where('uid', '==', uid),
+    );
+    const snapshot = await getDocs(q);
 
     if (!snapshot.empty) {
       return snapshot.docs[0].data() as Enrollment;
@@ -99,19 +107,24 @@ export const getEventParticipants = (
   eventId: string,
   callback: (participants: Enrollment[]) => void,
 ) => {
-  return firebaseFirestore
-    .collection(COLLECTIONS.ENROLLMENTS)
-    .where('eventId', '==', eventId)
-    .orderBy('enrolledAt', 'desc')
-    .onSnapshot(
-      snapshot => {
-        const participants = snapshot.docs.map(doc => doc.data() as Enrollment);
-        callback(participants);
-      },
-      error => {
-        console.error('Get Event Participants Error:', error);
-      },
-    );
+  const q = query(
+    collection(firebaseFirestore, COLLECTIONS.ENROLLMENTS),
+    where('eventId', '==', eventId),
+    orderBy('enrolledAt', 'desc'),
+  );
+  return onSnapshot(
+    q,
+    snapshot => {
+      const participants = snapshot.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as Enrollment,
+      );
+      callback(participants);
+    },
+    error => {
+      console.error('Get Event Participants Error:', error);
+    },
+  );
 };
 
 // GET USER ENROLLMENTS (Real-time)
@@ -119,17 +132,22 @@ export const getUserEnrollments = (
   uid: string,
   callback: (enrollments: Enrollment[]) => void,
 ) => {
-  return firebaseFirestore
-    .collection(COLLECTIONS.ENROLLMENTS)
-    .where('uid', '==', uid)
-    .orderBy('eventDate', 'asc')
-    .onSnapshot(
-      snapshot => {
-        const enrollments = snapshot.docs.map(doc => doc.data() as Enrollment);
-        callback(enrollments);
-      },
-      error => {
-        console.error('Get User Enrollments Error:', error);
-      },
-    );
+  const q = query(
+    collection(firebaseFirestore, COLLECTIONS.ENROLLMENTS),
+    where('uid', '==', uid),
+    orderBy('enrolledAt', 'desc'),
+  );
+  return onSnapshot(
+    q,
+    snapshot => {
+      const enrollments = snapshot.docs.map(
+        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+          doc.data() as Enrollment,
+      );
+      callback(enrollments);
+    },
+    error => {
+      console.error('Get User Enrollments Error:', error);
+    },
+  );
 };

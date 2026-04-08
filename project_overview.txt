@@ -1,0 +1,27 @@
+ISoP (International Society of Pharmacovigilance) - Project Overview
+
+1. CORE IDENTITY
+ISoP is a premium, executive-level platform for a global community of Pharmacovigilance professionals. It acts as a secure hub for medical safety experts to connect, attend specialized events, and network in real-time.
+
+2. APP FLOW SUMMARY
+- Admin Side (Spatial Command Center):
+  * Strategic Bento Overview (Stats: Total Events, Active Pulse, Total Impact).
+  * Event Lifecycle Management (Create/Edit/Delete).
+  * Member Directory & System Management.
+- User Side (Member Hub):
+  * Personalized Home (Greeting, Quick Stats, Upcoming Events Carousel).
+  * Event Discovery (List & Detailed View, Enrollment/Unenrollment).
+  * Professional Networking (Participants List, Chat Requests, 1:1 Real-time Messaging).
+
+3. DESIGN SYSTEM & THEME (Premium Executive Aesthetic)
+- Primary Color Palette:
+  * Deep Blue (#1E3A8A) - Authority, Trust, Professionalism.
+  * Cyan (#0EA5E9) - Interaction & Connectivity.
+  * Teal (#14B8A6) - Dynamic Highlights.
+  * Slate Neutrals (#F8FAFC, #0F172A) - Clean, high-fidelity surfaces.
+- Visual Language:
+  * Modular "Bento Box" layouts.
+  * Immersive shadows and soft rounded corners (Radius: 12px to 32px).
+  * Lucide-style iconography (Globe, Shield, Activity Pulse, Waves).
+
+

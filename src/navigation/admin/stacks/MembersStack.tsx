@@ -10,7 +10,7 @@ const MembersStack = () => {
     <Stack.Navigator
       screenOptions={{
         headerShown: true,
-        header: () => <AdminHeader title="Members" />,
+        header: () => <AdminHeader title="Global Directory" />,
       }}
     >
       <Stack.Screen 

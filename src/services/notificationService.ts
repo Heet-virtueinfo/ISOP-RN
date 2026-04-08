@@ -1,3 +1,4 @@
+import { doc, updateDoc, Timestamp } from '@react-native-firebase/firestore';
 import { firebaseMessaging, firebaseFirestore } from '../config/firebase';
 import { COLLECTIONS } from '../constants/collections';
 import { PermissionsAndroid, Platform } from 'react-native';
@@ -52,9 +53,9 @@ class NotificationService {
       // Only update if we have a token AND it's different from the existing one
       if (newToken && uid && newToken !== existingToken) {
         console.log('[NotificationService] New token detected. Updating Firestore...');
-        await firebaseFirestore.collection(COLLECTIONS.USERS).doc(uid).update({
+        await updateDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), {
           fcmToken: newToken,
-          updatedAt: new Date(),
+          updatedAt: Timestamp.now(),
         });
       } else {
         console.log('[NotificationService] Token matches existing one. Skipping update.');
@@ -69,9 +70,9 @@ class NotificationService {
     return firebaseMessaging.onTokenRefresh(async token => {
       console.log('FCM Token Refreshed:', token);
       if (uid) {
-        await firebaseFirestore.collection(COLLECTIONS.USERS).doc(uid).update({
+        await updateDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), {
           fcmToken: token,
-          updatedAt: new Date(),
+          updatedAt: Timestamp.now(),
         });
       }
     });

@@ -1,4 +1,9 @@
-import firestore from '@react-native-firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  Timestamp,
+} from '@react-native-firebase/firestore';
 import { firebaseAuth, firebaseFirestore, ADMIN_UID } from '../config/firebase';
 import { UserProfile, UserRole } from '../types';
 import { COLLECTIONS } from '../constants/collections';
@@ -18,7 +23,6 @@ export const registerUser = async (data: {
   profileImage?: string | null;
 }) => {
   try {
-    // 1. Upload Image if present
     let uploadedImageUrl = null;
     if (data.profileImage) {
       uploadedImageUrl = await uploadImageToCloudinary(
@@ -27,7 +31,6 @@ export const registerUser = async (data: {
       );
     }
 
-    // 2. Create Auth Account
     const userCredential = await firebaseAuth.createUserWithEmailAndPassword(
       data.email,
       data.password,
@@ -36,14 +39,13 @@ export const registerUser = async (data: {
     const uid = userCredential.user.uid;
     const role: UserRole = checkIsAdmin(uid) ? 'admin' : 'user';
 
-    // 3. Create Firestore Profile
     const profile: UserProfile = {
       uid,
       email: data.email,
       displayName: data.fullName,
       role,
-      createdAt: firestore.Timestamp.now(),
-      updatedAt: firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
       ...(data.mobile && {
         phoneNumber: `${data.countryCode}${data.mobile}`,
       }),
@@ -52,7 +54,7 @@ export const registerUser = async (data: {
       }),
     };
 
-    await firebaseFirestore.collection(COLLECTIONS.USERS).doc(uid).set(profile);
+    await setDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), profile);
     return { success: true, user: profile };
   } catch (error: any) {
     console.error('Registration Error:', error);
@@ -68,16 +70,13 @@ export const loginUser = async (email: string, password: string) => {
     );
     const uid = userCredential.user.uid;
 
-    // Fetch Profile
-    const userDoc = await firebaseFirestore
-      .collection(COLLECTIONS.USERS)
-      .doc(uid)
-      .get();
+    const userDoc = await getDoc(
+      doc(firebaseFirestore, COLLECTIONS.USERS, uid),
+    );
+
     if (userDoc.exists()) {
       return { success: true, user: userDoc.data() as UserProfile };
     }
-
-    // Fallback if doc doesn't exist (e.g. manually created auth user)
     const role: UserRole = checkIsAdmin(uid) ? 'admin' : 'user';
     return {
       success: true,

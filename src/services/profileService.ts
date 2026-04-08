@@ -1,4 +1,4 @@
-import firestore from '@react-native-firebase/firestore';
+import { doc, updateDoc, Timestamp } from '@react-native-firebase/firestore';
 import { firebaseFirestore } from '../config/firebase';
 import { COLLECTIONS } from '../constants/collections';
 import { uploadImageToCloudinary } from './uploadService';
@@ -16,15 +16,12 @@ export const updateUserProfile = async (uid: string, data: any) => {
         finalData.profileImage = imageUrl;
       }
     }
-
-    const userRef = firebaseFirestore.collection(COLLECTIONS.USERS).doc(uid);
-
     const updateData = {
       ...finalData,
-      updatedAt: firestore.Timestamp.now(),
+      updatedAt: Timestamp.now(),
     };
 
-    await userRef.update(updateData);
+    await updateDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), updateData);
     return { success: true };
   } catch (error) {
     console.error('Update User Profile Error:', error);

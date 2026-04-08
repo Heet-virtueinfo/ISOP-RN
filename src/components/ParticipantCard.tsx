@@ -9,14 +9,12 @@ import CustomLoader from './CustomLoader';
 interface ParticipantCardProps {
   participant: Enrollment;
   currentUser: UserProfile;
-  eventTitle: string;
   onChatPress: (chatId: string, name: string, image: string | null) => void;
 }
 
 const ParticipantCard = ({
   participant,
   currentUser,
-  eventTitle,
   onChatPress,
 }: ParticipantCardProps) => {
   const [request, setRequest] = useState<ChatRequest | null>(null);
@@ -50,7 +48,6 @@ const ParticipantCard = ({
         currentUser,
         participant,
         participant.eventId,
-        eventTitle,
       );
       if (result.success && result.chatRequest) {
         setRequest(result.chatRequest);

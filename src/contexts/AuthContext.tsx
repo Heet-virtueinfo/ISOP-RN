@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { doc, getDoc, onSnapshot } from '@react-native-firebase/firestore';
 import { firebaseAuth, firebaseFirestore } from '../config/firebase';
 import { UserProfile, UserRole } from '../types';
 import { COLLECTIONS } from '../constants/collections';
@@ -29,12 +30,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchProfile = async (uid: string) => {
     try {
-      const doc = await firebaseFirestore
-        .collection(COLLECTIONS.USERS)
-        .doc(uid)
-        .get();
-      if (doc.exists()) {
-        const data = doc.data() as UserProfile;
+      const snapshot = await getDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid));
+      if (snapshot.exists()) {
+        const data = snapshot.data() as UserProfile;
         setUserProfile(data);
         await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
       } else {
@@ -68,13 +66,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           if (profileUnsubscribe) profileUnsubscribe();
 
-          profileUnsubscribe = firebaseFirestore
-            .collection(COLLECTIONS.USERS)
-            .doc(firebaseUser.uid)
-            .onSnapshot(
-              async doc => {
-                if (doc.exists()) {
-                  const data = doc.data() as UserProfile;
+          profileUnsubscribe = onSnapshot(
+            doc(firebaseFirestore, COLLECTIONS.USERS, firebaseUser.uid),
+            async snapshot => {
+              if (snapshot.exists()) {
+                const data = snapshot.data() as UserProfile;
                   setUserProfile(data);
                   await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
                   if (data.role === 'user' && !fcmInitialized.current) {

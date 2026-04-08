@@ -10,15 +10,29 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { Search, X, Filter, Users, Mail, Phone, Calendar } from 'lucide-react-native';
+import {
+  Search,
+  X,
+  Filter,
+  Users,
+  Mail,
+  Phone,
+  Calendar,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radius } from '../../theme';
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  doc,
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
 import { firebaseFirestore } from '../../config/firebase';
 import { COLLECTIONS } from '../../constants/collections';
-import { Enrollment, UserProfile } from '../../types';
+import { Enrollment, UserProfile, AppEvent } from '../../types';
 import CustomLoader from '../../components/CustomLoader';
-
-// ── Types ────────────────────────────────────────────────────────────────────
 
 interface MemberEntry {
   uid: string;
@@ -26,10 +40,8 @@ interface MemberEntry {
   email: string;
   profileImage?: string | null;
   phoneNumber?: string;
-  events: { eventId: string; eventTitle: string; enrolledAt: any }[];
+  events: { eventId: string; enrolledAt: any }[];
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const getInitials = (name: string) =>
   name
@@ -39,28 +51,27 @@ const getInitials = (name: string) =>
     .toUpperCase()
     .substring(0, 2);
 
-const formatDate = (ts: any): string => {
-  if (!ts) return '';
-  try {
-    const date = typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts);
-    return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch {
-    return '';
-  }
-};
-
-// ── MemberCard ───────────────────────────────────────────────────────────────
-
-const MemberCard = ({ member }: { member: MemberEntry }) => (
+const MemberCard = ({
+  member,
+  eventsMap,
+}: {
+  member: MemberEntry;
+  eventsMap: Record<string, AppEvent>;
+}) => (
   <View style={cardStyles.container}>
     {/* Avatar + Name row */}
     <View style={cardStyles.topRow}>
       <View style={cardStyles.avatarWrap}>
         {member.profileImage ? (
-          <Image source={{ uri: member.profileImage }} style={cardStyles.avatar} />
+          <Image
+            source={{ uri: member.profileImage }}
+            style={cardStyles.avatar}
+          />
         ) : (
           <View style={[cardStyles.avatar, cardStyles.initialsAvatar]}>
-            <Text style={cardStyles.initialsText}>{getInitials(member.displayName)}</Text>
+            <Text style={cardStyles.initialsText}>
+              {getInitials(member.displayName)}
+            </Text>
           </View>
         )}
       </View>
@@ -96,9 +107,13 @@ const MemberCard = ({ member }: { member: MemberEntry }) => (
     <View style={cardStyles.eventsWrap}>
       {member.events.map(ev => (
         <View key={ev.eventId} style={cardStyles.eventChip}>
-          <Calendar size={10} color={colors.brand.primary} style={{ marginRight: 4 }} />
+          <Calendar
+            size={10}
+            color={colors.brand.primary}
+            style={{ marginRight: 4 }}
+          />
           <Text style={cardStyles.eventChipText} numberOfLines={1}>
-            {ev.eventTitle}
+            {eventsMap[ev.eventId]?.title || 'Unknown Event'}
           </Text>
         </View>
       ))}
@@ -115,7 +130,12 @@ const cardStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.layout.divider,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
       android: { elevation: 2 },
     }),
   },
@@ -195,38 +215,58 @@ const cardStyles = StyleSheet.create({
   },
 });
 
-// ── MembersScreen ─────────────────────────────────────────────────────────────
-
 const MembersScreen = () => {
   const insets = useSafeAreaInsets();
 
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
+  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>(
+    {},
+  );
+  const [eventsMap, setEventsMap] = useState<Record<string, AppEvent>>({});
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
-  const [selectedEvent, setSelectedEvent] = useState<string | null>(null); // eventTitle
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
 
-  // ── Real-time enrollments listener ────────────────────────────────────────
   useEffect(() => {
-    const unsub = firebaseFirestore
-      .collection(COLLECTIONS.ENROLLMENTS)
-      .orderBy('enrolledAt', 'desc')
-      .onSnapshot(
-        snap => {
-          const data = snap.docs.map(d => d.data() as Enrollment);
-          setEnrollments(data);
-          setLoading(false);
-        },
-        err => {
-          console.error('MembersScreen enrollments error:', err);
-          setLoading(false);
-        },
-      );
+    const q = query(
+      collection(firebaseFirestore, COLLECTIONS.ENROLLMENTS),
+      orderBy('enrolledAt', 'desc'),
+    );
+    const unsub = onSnapshot(
+      q,
+      snap => {
+        const data = snap.docs.map(
+          (d: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
+            d.data() as Enrollment,
+        );
+        setEnrollments(data);
+        setLoading(false);
+      },
+      err => {
+        console.error('MembersScreen enrollments error:', err);
+        setLoading(false);
+      },
+    );
     return () => unsub();
   }, []);
 
-  // ── Fetch user profiles for unique UIDs ───────────────────────────────────
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(firebaseFirestore, COLLECTIONS.EVENTS),
+      snap => {
+        const map: Record<string, AppEvent> = {};
+        snap.docs.forEach((d: FirebaseFirestoreTypes.QueryDocumentSnapshot) => {
+          const event = d.data() as AppEvent;
+          map[event.id] = event;
+        });
+        setEventsMap(map);
+      },
+      err => console.error('MembersScreen events error:', err),
+    );
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     const uniqueUids = [...new Set(enrollments.map(e => e.uid))];
     if (uniqueUids.length === 0) return;
@@ -234,24 +274,24 @@ const MembersScreen = () => {
     const unsubscribers: (() => void)[] = [];
 
     uniqueUids.forEach(uid => {
-      const unsub = firebaseFirestore
-        .collection(COLLECTIONS.USERS)
-        .doc(uid)
-        .onSnapshot(
-          doc => {
-            if (doc.exists()) {
-              setUserProfiles(prev => ({ ...prev, [uid]: doc.data() as UserProfile }));
-            }
-          },
-          err => console.error('Profile fetch error:', err),
-        );
+      const unsub = onSnapshot(
+        doc(firebaseFirestore, COLLECTIONS.USERS, uid),
+        snapshot => {
+          if (snapshot.exists()) {
+            setUserProfiles(prev => ({
+              ...prev,
+              [uid]: snapshot.data() as UserProfile,
+            }));
+          }
+        },
+        err => console.error('Profile fetch error:', err),
+      );
       unsubscribers.push(unsub);
     });
 
     return () => unsubscribers.forEach(u => u());
   }, [enrollments.map(e => e.uid).join(',')]);
 
-  // ── Build grouped member list ─────────────────────────────────────────────
   const members = useMemo<MemberEntry[]>(() => {
     const map = new Map<string, MemberEntry>();
 
@@ -267,12 +307,10 @@ const MembersScreen = () => {
           events: [],
         });
       }
-      // Avoid duplicate events for same user
       const entry = map.get(en.uid)!;
       if (!entry.events.some(e => e.eventId === en.eventId)) {
         entry.events.push({
           eventId: en.eventId,
-          eventTitle: en.eventTitle,
           enrolledAt: en.enrolledAt,
         });
       }
@@ -283,19 +321,22 @@ const MembersScreen = () => {
     );
   }, [enrollments, userProfiles]);
 
-  // ── Unique event titles for filter chips ─────────────────────────────────
   const eventTitles = useMemo<string[]>(() => {
     const set = new Set<string>();
-    enrollments.forEach(e => set.add(e.eventTitle));
+    enrollments.forEach(e => {
+      const title = eventsMap[e.eventId]?.title;
+      if (title) set.add(title);
+    });
     return Array.from(set).sort();
-  }, [enrollments]);
+  }, [enrollments, eventsMap]);
 
-  // ── Filtered members ──────────────────────────────────────────────────────
   const filteredMembers = useMemo(() => {
     let list = members;
 
     if (selectedEvent) {
-      list = list.filter(m => m.events.some(e => e.eventTitle === selectedEvent));
+      list = list.filter(m =>
+        m.events.some(e => eventsMap[e.eventId]?.title === selectedEvent),
+      );
     }
 
     if (search.trim()) {
@@ -311,17 +352,18 @@ const MembersScreen = () => {
     return list;
   }, [members, search, selectedEvent]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <View style={styles.root}>
-      {/* ── Header ─────────────────────────────────────────── */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
+      <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.headerTitle}>Members</Text>
             <Text style={styles.headerSub}>
-              {loading ? 'Loading…' : `${members.length} registered member${members.length !== 1 ? 's' : ''}`}
+              {loading
+                ? 'Loading…'
+                : `${members.length} registered member${
+                    members.length !== 1 ? 's' : ''
+                  }`}
             </Text>
           </View>
           <View style={styles.headerBadge}>
@@ -344,14 +386,16 @@ const MembersScreen = () => {
             returnKeyType="search"
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <TouchableOpacity
+              onPress={() => setSearch('')}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            >
               <X size={15} color={colors.text.tertiary} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* ── Event filter chips ──────────────────────────────── */}
       {eventTitles.length > 0 && (
         <View style={styles.filterSection}>
           <View style={styles.filterLabelRow}>
@@ -365,10 +409,18 @@ const MembersScreen = () => {
           >
             {/* "All" chip */}
             <TouchableOpacity
-              style={[styles.filterChip, !selectedEvent && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                !selectedEvent && styles.filterChipActive,
+              ]}
               onPress={() => setSelectedEvent(null)}
             >
-              <Text style={[styles.filterChipText, !selectedEvent && styles.filterChipTextActive]}>
+              <Text
+                style={[
+                  styles.filterChipText,
+                  !selectedEvent && styles.filterChipTextActive,
+                ]}
+              >
                 All
               </Text>
             </TouchableOpacity>
@@ -376,8 +428,13 @@ const MembersScreen = () => {
             {eventTitles.map(title => (
               <TouchableOpacity
                 key={title}
-                style={[styles.filterChip, selectedEvent === title && styles.filterChipActive]}
-                onPress={() => setSelectedEvent(prev => (prev === title ? null : title))}
+                style={[
+                  styles.filterChip,
+                  selectedEvent === title && styles.filterChipActive,
+                ]}
+                onPress={() =>
+                  setSelectedEvent(prev => (prev === title ? null : title))
+                }
               >
                 <Text
                   style={[
@@ -394,21 +451,28 @@ const MembersScreen = () => {
         </View>
       )}
 
-      {/* ── List ────────────────────────────────────────────── */}
       {loading ? (
-        <CustomLoader message="Loading members…" overlay={false} style={{ flex: 1 }} />
+        <CustomLoader
+          message="Loading members…"
+          overlay={false}
+          style={{ flex: 1 }}
+        />
       ) : (
         <FlatList
           data={filteredMembers}
           keyExtractor={item => item.uid}
-          renderItem={({ item }) => <MemberCard member={item} />}
+          renderItem={({ item }) => (
+            <MemberCard member={item} eventsMap={eventsMap} />
+          )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Users size={48} color={colors.text.tertiary} />
               <Text style={styles.emptyTitle}>
-                {search || selectedEvent ? 'No results found' : 'No members yet'}
+                {search || selectedEvent
+                  ? 'No results found'
+                  : 'No members yet'}
               </Text>
               <Text style={styles.emptyText}>
                 {search || selectedEvent
@@ -423,25 +487,18 @@ const MembersScreen = () => {
   );
 };
 
-// ── Screen styles ─────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.layout.background,
   },
-
-  // Header
   header: {
     backgroundColor: colors.layout.surface,
     paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm, // Compact but balanced top padding
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.layout.divider,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
-      android: { elevation: 4 },
-    }),
   },
   headerTop: {
     flexDirection: 'row',
@@ -479,8 +536,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.brand.primary,
   },
-
-  // Search
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -500,8 +555,6 @@ const styles = StyleSheet.create({
     padding: 0,
     margin: 0,
   },
-
-  // Event filter
   filterSection: {
     backgroundColor: colors.layout.surface,
     paddingTop: spacing.sm,
@@ -550,14 +603,10 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: '#FFFFFF',
   },
-
-  // List
   listContent: {
     padding: spacing.md,
     paddingBottom: spacing.xxl,
   },
-
-  // Empty state
   empty: {
     flex: 1,
     alignItems: 'center',
