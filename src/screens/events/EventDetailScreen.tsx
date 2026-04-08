@@ -366,13 +366,15 @@ const EventDetailScreen = () => {
           {/* Quick Actions row */}
           {!isPastEvent && (
             <View style={styles.quickActions}>
-              <TouchableOpacity
-                style={styles.quickActionBtn}
-                onPress={saveToCalendar}
-              >
-                <CalendarPlus size={16} color={colors.brand.primary} />
-                <Text style={styles.quickActionText}>Save to Calendar</Text>
-              </TouchableOpacity>
+              {enrollment && (
+                <TouchableOpacity
+                  style={styles.quickActionBtn}
+                  onPress={saveToCalendar}
+                >
+                  <CalendarPlus size={16} color={colors.brand.primary} />
+                  <Text style={styles.quickActionText}>Save to Calendar</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.quickActionBtn}
                 onPress={handleShare}

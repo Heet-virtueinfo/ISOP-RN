@@ -1,18 +1,20 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { TouchableOpacity } from 'react-native';
-import { Calendar, Users, Settings, PlusCircle } from 'lucide-react-native';
+import { Calendar, Users, Settings, PlusCircle, Newspaper } from 'lucide-react-native';
 import { colors, typography } from '../../theme';
 import EventsStack from './stacks/EventsStack';
 import AddEventStack from './stacks/AddEventStack';
 import MembersStack from './stacks/MembersStack';
 import SettingsStack from './stacks/SettingsStack';
+import NewsStack from './stacks/NewsStack';
 
 export type AdminTabsParamList = {
   EventsTab: undefined;
   AddEventTab: undefined;
   MembersTab: undefined;
   SettingsTab: undefined;
+  NewsTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<AdminTabsParamList>();
@@ -70,6 +72,16 @@ const AdminTabs = () => {
         options={{
           tabBarLabel: 'Members',
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="NewsTab"
+        component={NewsStack}
+        options={{
+          tabBarLabel: 'News',
+          tabBarIcon: ({ color, size }) => (
+            <Newspaper color={color} size={size} />
+          ),
         }}
       />
       <Tab.Screen

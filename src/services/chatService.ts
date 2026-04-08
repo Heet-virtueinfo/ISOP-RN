@@ -74,9 +74,8 @@ export const sendChatRequest = async (
           await apiService.sendNotification({
             fcmToken: recipientProfile.fcmToken,
             title: 'New Chat Request!',
-            body: `${
-              fromProfile.displayName || 'Someone'
-            } wants to connect regarding ${eventTitle}`,
+            body: `${fromProfile.displayName || 'Someone'
+              } wants to connect regarding ${eventTitle}`,
             data: {
               screen: 'RequestsTab', // Deep link to requests screen
               chatId: chatRequest.id,

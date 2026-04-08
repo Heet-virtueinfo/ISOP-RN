@@ -104,3 +104,18 @@ export interface Feedback {
   comment: string;
   createdAt: any;
 }
+
+export type NewsType = 'news' | 'alert';
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  content: string;
+  type: NewsType;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  createdBy: string; // User ID / Admin ID
+  createdAt: any;
+  updatedAt: any;
+}
+
