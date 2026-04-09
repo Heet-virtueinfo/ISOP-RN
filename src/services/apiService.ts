@@ -1,4 +1,4 @@
-const BACKEND_URL = 'https://65ca-122-170-172-226.ngrok-free.app';
+const BACKEND_URL = 'https://ebf3-122-170-29-141.ngrok-free.app';
 
 interface NotificationPayload {
   fcmToken?: string | string[];

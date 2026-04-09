@@ -215,9 +215,7 @@ const AdminEventDetailScreen = () => {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.metaNodeLabel}>LOCATION</Text>
-                <Text style={styles.metaNodeValue}>
-                  {event.location}
-                </Text>
+                <Text style={styles.metaNodeValue}>{event.location}</Text>
               </View>
             </View>
           </View>
@@ -306,10 +304,14 @@ const AdminEventDetailScreen = () => {
                       </View>
 
                       {/* Content Card */}
-                      <View style={[
-                        styles.agendaCard, 
-                        index === (event.agenda?.length || 0) - 1 && { marginBottom: 0 }
-                      ]}>
+                      <View
+                        style={[
+                          styles.agendaCard,
+                          index === (event.agenda?.length || 0) - 1 && {
+                            marginBottom: 0,
+                          },
+                        ]}
+                      >
                         <View style={styles.agendaCardHeader}>
                           <Text style={styles.agendaTimeText}>
                             {new Date(
