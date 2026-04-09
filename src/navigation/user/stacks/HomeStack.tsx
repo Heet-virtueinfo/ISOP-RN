@@ -6,6 +6,7 @@ import EventDetailScreen from '../../../screens/events/EventDetailScreen';
 import ParticipantsScreen from '../../../screens/events/ParticipantsScreen';
 import FeedbackListScreen from '../../../screens/events/FeedbackListScreen';
 import NewsScreen from '../../../screens/home/NewsScreen';
+import LibraryScreen from '../../../screens/resources/LibraryScreen';
 
 const Stack = createStackNavigator();
 
@@ -17,6 +18,7 @@ const HomeStack = () => (
     <Stack.Screen name="Participants" component={ParticipantsScreen} />
     <Stack.Screen name="FeedbackList" component={FeedbackListScreen} />
     <Stack.Screen name="NewsScreen" component={NewsScreen} />
+    <Stack.Screen name="LibraryScreen" component={LibraryScreen} />
   </Stack.Navigator>
 );
 

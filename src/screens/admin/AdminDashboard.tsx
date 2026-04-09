@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Shield, Activity, TrendingUp, LayoutGrid } from 'lucide-react-native';
+import { Shield, Activity, TrendingUp, LayoutGrid, Library, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 import { getEvents, deleteEvent } from '../../services/eventService';
 import { AppEvent } from '../../types';
@@ -155,6 +155,26 @@ const AdminDashboard = () => {
             </View>
           </View>
         </View>
+
+        {/* Quick Actions */}
+        <View style={styles.sectionHeader}>
+          <LayoutGrid size={14} color={colors.brand.primary} />
+          <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('AdminLibrary')}
+        >
+          <View style={styles.quickActionIconBox}>
+            <Library size={20} color="#8B5CF6" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.quickActionTitle}>Resource Library</Text>
+            <Text style={styles.quickActionSub}>Guidelines &amp; training docs</Text>
+          </View>
+          <ChevronRight size={18} color={colors.text.tertiary} />
+        </TouchableOpacity>
 
         <View style={styles.inventoryHeader}>
           <View style={styles.inventoryTitleRow}>
@@ -362,6 +382,45 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   emptyText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 12,
+    color: colors.text.tertiary,
+  },
+  quickActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.layout.surface,
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  quickActionIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#8B5CF615',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickActionTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  quickActionSub: {
     fontFamily: typography.fontFamily,
     fontSize: 12,
     color: colors.text.tertiary,

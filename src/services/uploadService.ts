@@ -67,3 +67,66 @@ export const uploadImageToCloudinary = async (
     return null;
   }
 };
+
+export const uploadDocumentToCloudinary = async (
+  localFileUri: string,
+  fileName: string,
+  mimeType: string,
+  folder?: string,
+): Promise<string | null> => {
+  if (!localFileUri) return null;
+
+  const data = new FormData();
+  data.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+  data.append('cloud_name', CLOUDINARY_CONFIG.CLOUD_NAME);
+
+  if (folder) {
+    data.append('folder', folder);
+  }
+
+  const cleanUri =
+    Platform.OS === 'android'
+      ? localFileUri.startsWith('file://') ||
+        localFileUri.startsWith('content://')
+        ? localFileUri
+        : `file://${localFileUri}`
+      : localFileUri;
+
+  const fileToUpload = {
+    uri: cleanUri,
+    type: mimeType,
+    name: fileName,
+  };
+
+  data.append('file', fileToUpload as any);
+  // Using resource_type: auto allows Cloudinary to treat the PDF as a media asset
+  // which is often more accessible than the 'raw' resource type.
+  data.append('resource_type', 'auto');
+
+  try {
+    const response = await fetch(CLOUDINARY_CONFIG.API_URL, {
+      method: 'POST',
+      body: data,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const result = await response.json();
+
+    if (result.secure_url) {
+      console.log('Document uploaded! URL:', result.secure_url);
+      return result.secure_url;
+    } else {
+      console.error(
+        'Cloudinary Document Upload Error:',
+        result.error?.message || 'Unknown error',
+      );
+      return null;
+    }
+  } catch (error) {
+    console.error('Document upload failed:', error);
+    return null;
+  }
+};
