@@ -5,7 +5,12 @@
   "license": "MIT",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "build": "echo 'No build step required for this backend'",
+    "gen-base64": "cat service-account.json | base64"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "cors": "^2.8.6",
