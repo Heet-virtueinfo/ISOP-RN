@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Sparkles,
   Newspaper,
+  Library,
 } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -89,6 +90,7 @@ const HomeScreen = () => {
   const navigateToEvents = () => navigation.navigate('EventList');
   const navigateToMyEvents = () => navigation.navigate('MyEventsTab');
   const navigateToNews = () => navigation.navigate('NewsScreen');
+  const navigateToLibrary = () => navigation.navigate('LibraryScreen');
 
   if (loading) {
     return (
@@ -154,11 +156,11 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.statsContainer, { marginTop: -15 }]}>
+        <View style={[styles.statsContainer, { marginTop: -15, flexDirection: 'row', gap: spacing.md }]}>
           <TouchableOpacity
             style={[
               styles.statBox,
-              { backgroundColor: 'rgba(59, 130, 246, 0.05)' },
+              { backgroundColor: 'rgba(59, 130, 246, 0.05)', flex: 1 },
             ]}
             onPress={navigateToNews}
           >
@@ -168,6 +170,22 @@ const HomeScreen = () => {
                 Hub
               </Text>
               <Text style={styles.statLabel}>News & Alerts</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.statBox,
+              { backgroundColor: 'rgba(139, 92, 246, 0.05)', flex: 1 },
+            ]}
+            onPress={navigateToLibrary}
+          >
+            <Library size={20} color="#8B5CF6" />
+            <View>
+              <Text style={[styles.statValue, { color: '#8B5CF6', fontSize: 16 }]}>
+                Library
+              </Text>
+              <Text style={styles.statLabel}>Resources</Text>
             </View>
           </TouchableOpacity>
         </View>

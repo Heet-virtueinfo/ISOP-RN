@@ -61,7 +61,7 @@ const NewsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="News Hub" />
+      <UserHeader title="News Hub" showBack={true} onBackPress={() => navigation.goBack()} />
 
       {/* Modern Filter Segment */}
       <View style={styles.navContainer}>

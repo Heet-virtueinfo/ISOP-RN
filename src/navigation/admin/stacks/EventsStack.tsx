@@ -5,6 +5,7 @@ import EditEventScreen from '../../../screens/admin/EditEventScreen';
 import FeedbackListScreen from '../../../screens/events/FeedbackListScreen';
 import AdminHeader from '../../../components/AdminHeader';
 import AdminEventDetailScreen from '../../../screens/admin/AdminEventDetailScreen';
+import AdminLibraryScreen from '../../../screens/admin/AdminLibraryScreen';
 
 const Stack = createStackNavigator();
 
@@ -46,6 +47,11 @@ const EventsStack = () => {
       <Stack.Screen
         name="FeedbackList"
         component={FeedbackListScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AdminLibrary"
+        component={AdminLibraryScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

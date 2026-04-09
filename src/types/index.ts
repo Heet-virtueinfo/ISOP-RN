@@ -119,3 +119,18 @@ export interface NewsArticle {
   updatedAt: any;
 }
 
+export type ResourceCategory = 'guideline' | 'training' | 'presentation' | 'other';
+export type ResourceType = 'pdf' | 'video' | 'link';
+
+export interface ResourceItem {
+  id: string;
+  title: string;
+  description: string;
+  category: ResourceCategory;
+  type: ResourceType;
+  url: string;
+  createdBy: string;
+  createdAt: any;
+}
+
+
