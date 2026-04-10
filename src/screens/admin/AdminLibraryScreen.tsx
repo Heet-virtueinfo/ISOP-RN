@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,23 @@ import {
   Platform,
   Alert,
   Modal,
+  StatusBar,
 } from 'react-native';
-import { Plus, Trash2, Send, File, Link2, X } from 'lucide-react-native';
+import { 
+  Plus, 
+  Trash2, 
+  Send, 
+  File, 
+  Link2, 
+  X, 
+  Search, 
+  Layers, 
+  HardDrive, 
+  FileText,
+  Globe,
+  PlusCircle,
+  ArrowRight
+} from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 // @ts-ignore
@@ -31,6 +46,8 @@ import ResourceCard from '../../components/ResourceCard';
 import UserHeader from '../../components/UserHeader';
 import Button from '../../components/Button';
 import DeleteResourceModal from '../../components/modals/DeleteResourceModal';
+import BentoFormTile from '../../components/BentoFormTile';
+import InputField from '../../components/InputField';
 
 type InputMode = 'url' | 'file';
 
@@ -40,6 +57,7 @@ const AdminLibraryScreen = () => {
 
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -73,6 +91,29 @@ const AdminLibraryScreen = () => {
     return () => unsubscribe();
   }, []);
 
+  // Intelligence Pulse Stats
+  const stats = useMemo(() => {
+    return {
+      total: resources.length,
+      pdfs: resources.filter(r => r.type === 'pdf').length,
+      links: resources.filter(r => r.type === 'link' || r.type === 'video').length,
+      training: resources.filter(r => r.category === 'training').length,
+    };
+  }, [resources]);
+
+  const filteredResources = useMemo(() => {
+    let result = resources;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(r => 
+        r.title.toLowerCase().includes(q) || 
+        r.category.toLowerCase().includes(q) ||
+        (r.description && r.description.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [resources, searchQuery]);
+
   const handlePickDocument = async () => {
     try {
       const result = await pick({
@@ -97,7 +138,6 @@ const AdminLibraryScreen = () => {
         size: file.size ?? undefined,
       });
 
-      // Auto-detect resource type from mime type
       if (file.type?.includes('pdf')) {
         setResourceType('pdf');
       } else {
@@ -116,7 +156,7 @@ const AdminLibraryScreen = () => {
   };
 
   const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '';
+    if (!bytes) return 'Scalable';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -124,29 +164,7 @@ const AdminLibraryScreen = () => {
 
   const handlePublish = async () => {
     if (!title.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: 'Title is required.'
-      });
-      return;
-    }
-
-    if (inputMode === 'url' && !url.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: 'URL is required.'
-      });
-      return;
-    }
-
-    if (inputMode === 'file' && !pickedFile && !editingId) {
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: 'Please pick a file to upload.'
-      });
+      Toast.show({ type: 'error', text1: 'Required', text2: 'Asset title is missing.' });
       return;
     }
 
@@ -165,11 +183,7 @@ const AdminLibraryScreen = () => {
         setUploadProgress(false);
 
         if (!uploadedUrl) {
-          Toast.show({
-            type: 'error',
-            text1: 'Upload Failed',
-            text2: 'Could not upload the file. Please try again.'
-          });
+          Toast.show({ type: 'error', text1: 'Upload Failed', text2: 'Cloud uplink failed.' });
           setActionLoading(false);
           return;
         }
@@ -184,11 +198,7 @@ const AdminLibraryScreen = () => {
           category,
           type: resourceType,
         });
-        Toast.show({
-          type: 'success',
-          text1: 'Updated',
-          text2: 'Resource updated successfully!'
-        });
+        Toast.show({ type: 'success', text1: 'Asset Updated', text2: 'Library intelligence synchronized.' });
       } else {
         await addResourceItem({
           title,
@@ -198,21 +208,12 @@ const AdminLibraryScreen = () => {
           type: resourceType,
           createdBy: userProfile?.uid || 'Admin',
         });
-        Toast.show({
-          type: 'success',
-          text1: 'Published',
-          text2: 'Resource published successfully!'
-        });
+        Toast.show({ type: 'success', text1: 'Asset Published', text2: 'New intelligence added to library.' });
       }
 
       handleReset();
     } catch (error) {
-      console.error('Publish error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: `Failed to ${editingId ? 'update' : 'publish'} resource.`
-      });
+      Toast.show({ type: 'error', text1: 'Operation Failed', text2: 'Firebase interaction error.' });
     } finally {
       setActionLoading(false);
       setUploadProgress(false);
@@ -242,20 +243,11 @@ const AdminLibraryScreen = () => {
     setIsDeleting(true);
     try {
       await deleteResourceItem(resourceToDelete.id);
-      Toast.show({
-        type: 'success',
-        text1: 'Deleted',
-        text2: 'Resource deleted successfully.',
-      });
+      Toast.show({ type: 'success', text1: 'Asset Purged', text2: 'Resource removed from ecosystem.' });
       setIsDeleteModalVisible(false);
       setResourceToDelete(null);
     } catch (error) {
-      console.error('Delete error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to delete resource.',
-      });
+      Toast.show({ type: 'error', text1: 'Purge Failed', text2: 'Resource remains in repository.' });
     } finally {
       setIsDeleting(false);
     }
@@ -268,7 +260,7 @@ const AdminLibraryScreen = () => {
     setUrl(item.url || '');
     setCategory(item.category);
     setResourceType(item.type);
-    setInputMode(item.url?.includes('cloudinary') ? 'file' : 'url'); // Basic heuristic
+    setInputMode(item.url?.includes('cloudinary') ? 'file' : 'url');
     setIsCreating(true);
   };
 
@@ -282,9 +274,12 @@ const AdminLibraryScreen = () => {
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Resource' : 'Add Resource'}</Text>
+            <View>
+              <Text style={styles.modalTitle}>{editingId ? 'Configure Asset' : 'Ingest Resource'}</Text>
+              <Text style={styles.modalSub}>{editingId ? 'Refining existing library intelligence' : 'Adding strategic data to ecosystem'}</Text>
+            </View>
             <TouchableOpacity onPress={handleReset} style={styles.closeBtn}>
-              <X size={24} color={colors.text.primary} />
+              <X size={20} color={colors.text.primary} />
             </TouchableOpacity>
           </View>
 
@@ -296,120 +291,107 @@ const AdminLibraryScreen = () => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.formContent}
             >
-              {/* Category selector */}
-              <Text style={styles.label}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-                {(['guideline', 'training', 'presentation', 'other'] as ResourceCategory[]).map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.pill, category === cat && styles.pillActive]}
-                    onPress={() => setCategory(cat)}
-                  >
-                    <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <BentoFormTile icon={Layers} title="CORE CONTEXT" isValid={title.length > 2}>
+                <InputField
+                  label="Asset Title"
+                  placeholder="e.g. Clinical Protocol 2024"
+                  value={title}
+                  onChangeText={setTitle}
+                />
+                <InputField
+                  label="Intelligence Summary"
+                  placeholder="Key takeaways and summary..."
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  numberOfLines={3}
+                />
 
-              {/* Title */}
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={styles.input}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Document title..."
-                placeholderTextColor={colors.text.tertiary}
-              />
-
-              {/* Description */}
-              <Text style={styles.label}>Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Short description..."
-                placeholderTextColor={colors.text.tertiary}
-                multiline
-                textAlignVertical="top"
-              />
-
-              {/* Mode Toggle */}
-              <Text style={styles.label}>Source</Text>
-              <View style={styles.modeToggleRow}>
-                <TouchableOpacity
-                  style={[styles.modeToggleBtn, inputMode === 'file' && styles.modeToggleBtnActive]}
-                  onPress={() => setInputMode('file')}
-                >
-                  <File size={16} color={inputMode === 'file' ? 'white' : colors.text.tertiary} />
-                  <Text style={[styles.modeToggleText, inputMode === 'file' && styles.modeToggleTextActive]}>Upload File</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modeToggleBtn, inputMode === 'url' && styles.modeToggleBtnActive]}
-                  onPress={() => setInputMode('url')}
-                >
-                  <Link2 size={16} color={inputMode === 'url' ? 'white' : colors.text.tertiary} />
-                  <Text style={[styles.modeToggleText, inputMode === 'url' && styles.modeToggleTextActive]}>Enter URL</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* File Upload Area */}
-              {inputMode === 'file' && (
-                pickedFile ? (
-                  <View style={styles.filePickedCard}>
-                    <File size={24} color={colors.brand.primary} />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.filePickedName} numberOfLines={1}>{pickedFile.name}</Text>
-                      <Text style={styles.filePickedSize}>{formatFileSize(pickedFile.size)}</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => setPickedFile(null)} style={styles.filePickedRemove}>
-                      <X size={18} color={colors.status.error} />
+                <Text style={styles.innerLabel}>Classification</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
+                  {(['guideline', 'training', 'presentation', 'other'] as ResourceCategory[]).map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.pill, category === cat && styles.pillActive]}
+                      onPress={() => setCategory(cat)}
+                    >
+                      <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
+                        {cat.toUpperCase()}
+                      </Text>
                     </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={styles.filePickerBtn} onPress={handlePickDocument}>
-                    <File size={28} color={colors.brand.primary} />
-                    <Text style={styles.filePickerTitle}>Tap to pick a document</Text>
-                    <Text style={styles.filePickerSub}>PDF, Word (.doc/.docx), Excel (.xls/.xlsx), PowerPoint, TXT</Text>
-                  </TouchableOpacity>
-                )
-              )}
+                  ))}
+                </ScrollView>
+              </BentoFormTile>
 
-              {/* URL Input */}
-              {inputMode === 'url' && (
-                <>
-                  <Text style={styles.label}>Resource URL *</Text>
-                  <TextInput
-                    style={styles.input}
+              <BentoFormTile icon={HardDrive} title="DATA SOURCE" isValid={inputMode === 'file' ? !!pickedFile || !!editingId : !!url}>
+                <View style={styles.modeToggleRow}>
+                  <TouchableOpacity
+                    style={[styles.modeToggleBtn, inputMode === 'file' && styles.modeToggleBtnActive]}
+                    onPress={() => setInputMode('file')}
+                  >
+                    <File size={16} color={inputMode === 'file' ? 'white' : colors.text.tertiary} />
+                    <Text style={[styles.modeToggleText, inputMode === 'file' && styles.modeToggleTextActive]}>Uplink File</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modeToggleBtn, inputMode === 'url' && styles.modeToggleBtnActive]}
+                    onPress={() => setInputMode('url')}
+                  >
+                    <Link2 size={16} color={inputMode === 'url' ? 'white' : colors.text.tertiary} />
+                    <Text style={[styles.modeToggleText, inputMode === 'url' && styles.modeToggleTextActive]}>External Link</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {inputMode === 'file' ? (
+                  pickedFile ? (
+                    <View style={styles.fileCard}>
+                      <View style={styles.fileIconBox}>
+                        <FileText size={20} color={colors.brand.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.fileName} numberOfLines={1}>{pickedFile.name}</Text>
+                        <Text style={styles.fileMeta}>{formatFileSize(pickedFile.size)} • Cloud Secured</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => setPickedFile(null)} style={styles.fileRemove}>
+                        <X size={16} color={colors.status.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.uploadArea} onPress={handlePickDocument}>
+                      <View style={styles.uploadIconWrap}>
+                        <PlusCircle size={28} color={colors.brand.primary} />
+                      </View>
+                      <Text style={styles.uploadTitle}>Initialize Document Ingest</Text>
+                      <Text style={styles.uploadSub}>PDF, DOC, XLS, PPT (Max 10MB)</Text>
+                    </TouchableOpacity>
+                  )
+                ) : (
+                  <InputField
+                    label="Resource URL"
+                    placeholder="https://isop.org/resource-node..."
                     value={url}
                     onChangeText={setUrl}
-                    placeholder="https://..."
-                    placeholderTextColor={colors.text.tertiary}
                     autoCapitalize="none"
                     keyboardType="url"
+                    leftIcon={Globe}
                   />
-                </>
-              )}
+                )}
+              </BentoFormTile>
 
               {uploadProgress && (
-                <View style={styles.uploadingBanner}>
+                <View style={styles.uplinkBanner}>
                   <CustomLoader size={16} overlay={false} color={colors.brand.primary} />
-                  <Text style={styles.uploadingText}>Uploading to cloud...</Text>
+                  <Text style={styles.uplinkText}>Synchronizing with Cloud Repository...</Text>
                 </View>
               )}
 
-              <View style={styles.formActions}>
-                <View style={{ flex: 1 }}>
-                  <Button title="Cancel" onPress={handleReset} variant="outline" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    title={editingId ? "Update" : "Publish"}
-                    onPress={handlePublish}
-                    leftIcon={Send}
-                    loading={actionLoading}
-                  />
-                </View>
+              <View style={styles.footerActions}>
+                <Button 
+                  title={editingId ? "Update Intelligence" : "Broadcast Asset"} 
+                  onPress={handlePublish} 
+                  loading={actionLoading}
+                  leftIcon={Send}
+                  style={styles.publishBtn}
+                />
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -419,63 +401,111 @@ const AdminLibraryScreen = () => {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.container}>
-        <UserHeader
-          title="Manage Library"
-          showBack={true}
-          onBackPress={() => navigation.goBack()}
-          showActions={false}
-        />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <UserHeader
+        title="Intelligence Base"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+        showActions={false}
+      />
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreating(true)}>
-            <Plus size={20} color="white" />
-            <Text style={styles.createBtnText}>Add Resource</Text>
-          </TouchableOpacity>
-
-          {loading ? (
-            <CustomLoader message="Loading library..." overlay={false} style={{ marginTop: 40 }} />
-          ) : resources.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No resources added yet.</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Intelligence Hub Dashboard */}
+        <View style={styles.hubContainer}>
+          <View style={styles.hubHeader}>
+            <View>
+              <Text style={styles.hubTitle}>Intelligence Pulse</Text>
+              <Text style={styles.hubSub}>{stats.total} Strategic Assets Online</Text>
             </View>
-          ) : (
-            <View style={styles.listContainer}>
-              {resources.map(item => (
-                <ResourceCard
-                  key={item.id}
-                  resource={item}
-                  isAdmin={true}
-                  onEdit={() => handleEdit(item)}
-                  onDelete={() => handleDelete(item)}
-                />
-              ))}
+            <TouchableOpacity style={styles.hubAdd} onPress={() => setIsCreating(true)}>
+              <Plus size={18} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricCard}>
+              <View style={[styles.metricIcon, { backgroundColor: colors.status.error + '10' }]}>
+                <FileText size={18} color={colors.status.error} />
+              </View>
+              <Text style={styles.metricValue}>{stats.pdfs}</Text>
+              <Text style={styles.metricLabel}>PDF Docs</Text>
             </View>
-          )}
-        </ScrollView>
+            <View style={styles.metricCard}>
+              <View style={[styles.metricIcon, { backgroundColor: colors.brand.secondary + '10' }]}>
+                <Globe size={18} color={colors.brand.secondary} />
+              </View>
+              <Text style={styles.metricValue}>{stats.links}</Text>
+              <Text style={styles.metricLabel}>External</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <View style={[styles.metricIcon, { backgroundColor: colors.status.success + '10' }]}>
+                <Layers size={18} color={colors.status.success} />
+              </View>
+              <Text style={styles.metricValue}>{stats.training}</Text>
+              <Text style={styles.metricLabel}>Training</Text>
+            </View>
+          </View>
 
-        {renderCreateForm()}
+          <View style={styles.searchBar}>
+            <Search size={18} color={colors.text.tertiary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search intelligence base..."
+              placeholderTextColor={colors.text.tertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={16} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-        <DeleteResourceModal
-          visible={isDeleteModalVisible}
-          onClose={() => {
-            setIsDeleteModalVisible(false);
-            setResourceToDelete(null);
-          }}
-          onConfirm={confirmDelete}
-          resource={resourceToDelete}
-          loading={isDeleting}
-        />
-      </View>
-    </KeyboardAvoidingView>
+        {loading ? (
+          <CustomLoader message="Decrypting repository..." overlay={false} style={{ marginTop: 40 }} />
+        ) : filteredResources.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconBox}>
+              <HardDrive size={40} color={colors.layout.divider} />
+            </View>
+            <Text style={styles.emptyText}>Intelligence repository empty.</Text>
+            <Text style={styles.emptySub}>No assets match your current parameters.</Text>
+          </View>
+        ) : (
+          <View style={styles.resourceList}>
+            {filteredResources.map(item => (
+              <ResourceCard
+                key={item.id}
+                resource={item}
+                isAdmin={true}
+                onEdit={() => handleEdit(item)}
+                onDelete={() => handleDelete(item)}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {renderCreateForm()}
+
+      <DeleteResourceModal
+        visible={isDeleteModalVisible}
+        onClose={() => {
+          setIsDeleteModalVisible(false);
+          setResourceToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        resource={resourceToDelete}
+        loading={isDeleting}
+      />
+    </View>
   );
 };
 
@@ -485,216 +515,354 @@ const styles = StyleSheet.create({
     backgroundColor: colors.layout.background,
   },
   scrollContent: {
-    padding: spacing.xl,
+    padding: spacing.lg,
     paddingBottom: spacing.xxl,
   },
-  createBtn: {
+  hubContainer: {
+    backgroundColor: 'white',
+    borderRadius: 32,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#64748b',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  hubHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  hubTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.text.primary,
+    letterSpacing: -0.5,
+    fontFamily: typography.fontFamily,
+  },
+  hubSub: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+    marginTop: 2,
+    fontFamily: typography.fontFamily,
+  },
+  hubAdd: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: colors.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.brand.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: colors.layout.background,
+    borderRadius: 20,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.5)',
+  },
+  metricIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text.primary,
+    fontFamily: typography.fontFamily,
+  },
+  metricLabel: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brand.primary,
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
-    marginBottom: spacing.xl,
-    gap: 8,
+    backgroundColor: colors.layout.background,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    height: 52,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+    gap: 12,
   },
-  createBtnText: {
-    fontFamily: typography.fontFamily,
-    fontSize: 16,
-    fontWeight: '700',
-    color: 'white',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: spacing.xxl,
-  },
-  emptyText: {
-    color: colors.text.tertiary,
-    fontFamily: typography.fontFamily,
+  searchInput: {
+    flex: 1,
     fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+    fontFamily: typography.fontFamily,
+    padding: 0,
   },
-  listContainer: {
+  resourceList: {
     gap: spacing.md,
   },
-  label: {
-    fontFamily: typography.fontFamily,
-    fontSize: 13,
-    fontWeight: '700',
+  emptyContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyIconBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 30,
+    backgroundColor: colors.layout.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '800',
     color: colors.text.primary,
-    marginBottom: spacing.xs,
+    fontFamily: typography.fontFamily,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.layout.background,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    height: '92%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.layout.divider,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.text.primary,
+    fontFamily: typography.fontFamily,
+    letterSpacing: -0.5,
+  },
+  modalSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+    marginTop: 2,
+    fontFamily: typography.fontFamily,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.layout.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+  },
+  formContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl * 3,
+  },
+  innerLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.md,
     marginTop: spacing.md,
+    marginLeft: 4,
+  },
+  catScroll: {
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: colors.palette.slate.bg,
-    marginRight: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.ui.inputBorder,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: 'white',
+    marginRight: 10,
+    borderWidth: 1.5,
+    borderColor: colors.layout.divider,
   },
   pillActive: {
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.brand.primary + '08',
     borderColor: colors.brand.primary,
   },
   pillText: {
-    fontFamily: typography.fontFamily,
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text.secondary,
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.text.tertiary,
   },
   pillTextActive: {
-    color: 'white',
-  },
-  input: {
-    backgroundColor: colors.palette.slate.bg,
-    borderWidth: 1,
-    borderColor: colors.ui.inputBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontFamily: typography.fontFamily,
-    fontSize: 14,
-    color: colors.text.primary,
-  },
-  textArea: {
-    height: 80,
-    paddingTop: spacing.md,
+    color: colors.brand.primary,
   },
   modeToggleRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
+    gap: 12,
+    marginBottom: spacing.lg,
   },
   modeToggleBtn: {
     flex: 1,
     flexDirection: 'row',
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.ui.inputBorder,
-    backgroundColor: colors.palette.slate.bg,
+    gap: 8,
+    borderRadius: 16,
+    backgroundColor: 'white',
+    borderWidth: 1.5,
+    borderColor: colors.layout.divider,
   },
   modeToggleBtnActive: {
     backgroundColor: colors.brand.primary,
     borderColor: colors.brand.primary,
   },
   modeToggleText: {
-    fontFamily: typography.fontFamily,
     fontSize: 13,
     fontWeight: '700',
     color: colors.text.tertiary,
+    fontFamily: typography.fontFamily,
   },
   modeToggleTextActive: {
     color: 'white',
   },
-  filePickerBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  uploadArea: {
+    height: 160,
+    borderRadius: 24,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.brand.primary,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    marginTop: spacing.sm,
-    backgroundColor: 'rgba(79, 70, 229, 0.03)',
-    gap: 8,
+    borderColor: colors.brand.primary + '20',
+    backgroundColor: colors.brand.primary + '03',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
   },
-  filePickerTitle: {
-    fontFamily: typography.fontFamily,
+  uploadIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: colors.brand.primary + '08',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.brand.primary,
-  },
-  filePickerSub: {
     fontFamily: typography.fontFamily,
-    fontSize: 12,
+  },
+  uploadSub: {
+    fontSize: 11,
     color: colors.text.tertiary,
-    textAlign: 'center',
-  },
-  filePickedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(79, 70, 229, 0.05)',
-    borderWidth: 1,
-    borderColor: colors.brand.primary,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.sm,
-  },
-  filePickedName: {
-    fontFamily: typography.fontFamily,
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  filePickedSize: {
-    fontFamily: typography.fontFamily,
-    fontSize: 12,
-    color: colors.text.tertiary,
-    marginTop: 2,
-  },
-  filePickedRemove: {
-    padding: 4,
-  },
-  uploadingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(79, 70, 229, 0.06)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    marginTop: spacing.md,
-  },
-  uploadingText: {
-    fontFamily: typography.fontFamily,
-    fontSize: 13,
-    color: colors.brand.primary,
     fontWeight: '600',
+    fontFamily: typography.fontFamily,
   },
-  formActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.xl,
-    marginBottom: spacing.xxl,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.layout.background,
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
-    height: '90%',
-  },
-  modalHeader: {
+  fileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.layout.divider,
+    backgroundColor: 'white',
+    padding: spacing.md,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.brand.primary + '20',
   },
-  modalTitle: {
-    fontFamily: typography.fontFamily,
-    fontSize: 20,
+  fileIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.brand.primary + '08',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  fileName: {
+    fontSize: 14,
     fontWeight: '800',
     color: colors.text.primary,
+    fontFamily: typography.fontFamily,
   },
-  closeBtn: {
-    padding: 4,
+  fileMeta: {
+    fontSize: 11,
+    color: colors.text.tertiary,
+    marginTop: 2,
+    fontWeight: '600',
+    fontFamily: typography.fontFamily,
   },
-  formContent: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl * 2,
+  fileRemove: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.status.error + '08',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uplinkBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.brand.primary + '08',
+    padding: 16,
+    borderRadius: 20,
+    marginVertical: spacing.md,
+  },
+  uplinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.brand.primary,
+    fontFamily: typography.fontFamily,
+  },
+  footerActions: {
+    marginTop: spacing.xl,
+  },
+  publishBtn: {
+    height: 60,
+    borderRadius: 20,
   },
 });
 
