@@ -1,4 +1,4 @@
-const BACKEND_URL = 'https://ebf3-122-170-29-141.ngrok-free.app';
+const BACKEND_URL = 'https://isop-rn.onrender.com';
 
 interface NotificationPayload {
   fcmToken?: string | string[];
