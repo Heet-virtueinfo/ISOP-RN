@@ -47,14 +47,27 @@ const TimeNode = ({ label, value, onPress, isEnd = false, error }: any) => (
     activeOpacity={0.7}
   >
     <View style={styles.nodeIndicator}>
-      <View style={[styles.nodeCircle, isEnd && styles.nodeCircleEnd, error && styles.nodeCircleError]} />
+      <View
+        style={[
+          styles.nodeCircle,
+          isEnd && styles.nodeCircleEnd,
+          error && styles.nodeCircleError,
+        ]}
+      />
     </View>
     <View style={styles.nodeContent}>
-      <Text style={[styles.nodeLabel, error && styles.nodeLabelError]}>{label}</Text>
-      <Text style={styles.nodeValue} numberOfLines={1}>{value}</Text>
+      <Text style={[styles.nodeLabel, error && styles.nodeLabelError]}>
+        {label}
+      </Text>
+      <Text style={styles.nodeValue} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
     <View style={styles.nodeAction}>
-      <ChevronDown size={14} color={error ? colors.status.error : colors.text.tertiary} />
+      <ChevronDown
+        size={14}
+        color={error ? colors.status.error : colors.text.tertiary}
+      />
     </View>
   </TouchableOpacity>
 );
@@ -94,12 +107,20 @@ const CreateEventScreen = () => {
 
   // Validation Flags for Bento Dashboard
   const isMediaValid = images.length > 0;
-  const isDetailsValid = title.trim().length > 2 && description.trim().length > 10;
-  const isLogisticsValid = location.trim().length > 0 && date !== null && endDate !== null;
+  const isDetailsValid =
+    title.trim().length > 2 && description.trim().length > 10;
+  const isLogisticsValid =
+    location.trim().length > 0 && date !== null && endDate !== null;
   const isTalentValid = speakers.length > 0;
   const isRoadmapValid = agenda.length > 0;
 
-  const totalProgress = [isMediaValid, isDetailsValid, isLogisticsValid, isTalentValid, isRoadmapValid].filter(Boolean).length;
+  const totalProgress = [
+    isMediaValid,
+    isDetailsValid,
+    isLogisticsValid,
+    isTalentValid,
+    isRoadmapValid,
+  ].filter(Boolean).length;
   const progressPercent = (totalProgress / 5) * 100;
 
   const handleCreate = async () => {
@@ -112,8 +133,10 @@ const CreateEventScreen = () => {
     if (!date) newErrors.date = 'Start Time is required';
     if (!endDate) newErrors.endDate = 'End Time is required';
     if (images.length === 0) newErrors.images = 'At least 1 image is required';
-    if (speakers.length === 0) newErrors.speakers = 'At least 1 speaker is required';
-    if (agenda.length === 0) newErrors.agenda = 'At least 1 agenda item is required';
+    if (speakers.length === 0)
+      newErrors.speakers = 'At least 1 speaker is required';
+    if (agenda.length === 0)
+      newErrors.agenda = 'At least 1 agenda item is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -180,7 +203,8 @@ const CreateEventScreen = () => {
 
   const handleConfirmSpeaker = () => {
     const newModalErrors: Record<string, string> = {};
-    if (!tempSpeaker.name?.trim()) newModalErrors.name = 'Full Name is required';
+    if (!tempSpeaker.name?.trim())
+      newModalErrors.name = 'Full Name is required';
     if (!tempSpeaker.role?.trim()) newModalErrors.role = 'Role is required';
     if (!tempSpeaker.bio?.trim()) newModalErrors.bio = 'Bio is required';
     if (!tempSpeaker.image) newModalErrors.image = 'Photo is required';
@@ -192,12 +216,19 @@ const CreateEventScreen = () => {
 
     if (editingSpeaker) {
       setSpeakers(prev =>
-        prev.map(s => (s.id === editingSpeaker.id ? { ...s, ...tempSpeaker as Speaker } : s)),
+        prev.map(s =>
+          s.id === editingSpeaker.id
+            ? { ...s, ...(tempSpeaker as Speaker) }
+            : s,
+        ),
       );
     } else {
       setSpeakers(prev => [
         ...prev,
-        { ...tempSpeaker as Speaker, id: Math.random().toString(36).substr(2, 9) },
+        {
+          ...(tempSpeaker as Speaker),
+          id: Math.random().toString(36).substr(2, 9),
+        },
       ]);
     }
     setSpeakerModalVisible(false);
@@ -206,7 +237,8 @@ const CreateEventScreen = () => {
   const handleConfirmAgenda = () => {
     const newModalErrors: Record<string, string> = {};
     if (!tempAgenda.title?.trim()) newModalErrors.title = 'Title is required';
-    if (!tempAgenda.description?.trim()) newModalErrors.description = 'Description is required';
+    if (!tempAgenda.description?.trim())
+      newModalErrors.description = 'Description is required';
 
     if (Object.keys(newModalErrors).length > 0) {
       setModalErrors(newModalErrors);
@@ -214,15 +246,13 @@ const CreateEventScreen = () => {
     }
 
     const item: AgendaItem = {
-      ...tempAgenda as AgendaItem,
+      ...(tempAgenda as AgendaItem),
       id: editingAgenda?.id || Math.random().toString(36).substr(2, 9),
       startTime: agendaStartTime,
       endTime: agendaEndTime,
     };
     if (editingAgenda) {
-      setAgenda(prev =>
-        prev.map(a => (a.id === editingAgenda.id ? item : a)),
-      );
+      setAgenda(prev => prev.map(a => (a.id === editingAgenda.id ? item : a)));
     } else {
       setAgenda(prev => [...prev, item]);
     }
@@ -240,38 +270,80 @@ const CreateEventScreen = () => {
           <View style={styles.dashboardHeader}>
             <View>
               <Text style={styles.dashboardTitle}>Event Configuration</Text>
-              <Text style={styles.dashboardSub}>Phase {totalProgress} of 5 Complete</Text>
+              <Text style={styles.dashboardSub}>
+                Phase {totalProgress} of 5 Complete
+              </Text>
             </View>
             <View style={styles.progressCircle}>
-              <Text style={styles.progressText}>{Math.round(progressPercent)}%</Text>
+              <Text style={styles.progressText}>
+                {Math.round(progressPercent)}%
+              </Text>
             </View>
           </View>
 
           <View style={styles.indicatorRow}>
-            <View style={[styles.indicator, isMediaValid && styles.indicatorValid]}>
-              <ImageIcon size={14} color={isMediaValid ? 'white' : colors.text.tertiary} />
+            <View
+              style={[styles.indicator, isMediaValid && styles.indicatorValid]}
+            >
+              <ImageIcon
+                size={14}
+                color={isMediaValid ? 'white' : colors.text.tertiary}
+              />
             </View>
             <View style={styles.indicatorLine} />
-            <View style={[styles.indicator, isDetailsValid && styles.indicatorValid]}>
-              <Layers size={14} color={isDetailsValid ? 'white' : colors.text.tertiary} />
+            <View
+              style={[
+                styles.indicator,
+                isDetailsValid && styles.indicatorValid,
+              ]}
+            >
+              <Layers
+                size={14}
+                color={isDetailsValid ? 'white' : colors.text.tertiary}
+              />
             </View>
             <View style={styles.indicatorLine} />
-            <View style={[styles.indicator, isLogisticsValid && styles.indicatorValid]}>
-              <CalendarIcon size={14} color={isLogisticsValid ? 'white' : colors.text.tertiary} />
+            <View
+              style={[
+                styles.indicator,
+                isLogisticsValid && styles.indicatorValid,
+              ]}
+            >
+              <CalendarIcon
+                size={14}
+                color={isLogisticsValid ? 'white' : colors.text.tertiary}
+              />
             </View>
             <View style={styles.indicatorLine} />
-            <View style={[styles.indicator, isTalentValid && styles.indicatorValid]}>
-              <User size={14} color={isTalentValid ? 'white' : colors.text.tertiary} />
+            <View
+              style={[styles.indicator, isTalentValid && styles.indicatorValid]}
+            >
+              <User
+                size={14}
+                color={isTalentValid ? 'white' : colors.text.tertiary}
+              />
             </View>
             <View style={styles.indicatorLine} />
-            <View style={[styles.indicator, isRoadmapValid && styles.indicatorValid]}>
-              <Clock size={14} color={isRoadmapValid ? 'white' : colors.text.tertiary} />
+            <View
+              style={[
+                styles.indicator,
+                isRoadmapValid && styles.indicatorValid,
+              ]}
+            >
+              <Clock
+                size={14}
+                color={isRoadmapValid ? 'white' : colors.text.tertiary}
+              />
             </View>
           </View>
         </View>
 
         {/* Media Center */}
-        <BentoFormTile icon={ImageIcon} title="MEDIA HUB" isValid={isMediaValid}>
+        <BentoFormTile
+          icon={ImageIcon}
+          title="MEDIA HUB"
+          isValid={isMediaValid}
+        >
           <View style={styles.innerMedia}>
             <ImagePickerGrid
               images={images}
@@ -311,10 +383,10 @@ const CreateEventScreen = () => {
         </BentoFormTile>
 
         <View style={styles.dualGrid}>
-          <BentoFormTile 
-            icon={Type} 
-            title="TYPE" 
-            isValid={!!type} 
+          <BentoFormTile
+            icon={Type}
+            title="TYPE"
+            isValid={!!type}
             fullWidth={false}
           >
             <EventTypePicker
@@ -325,10 +397,10 @@ const CreateEventScreen = () => {
             />
           </BentoFormTile>
 
-          <BentoFormTile 
-            icon={Users} 
-            title="CAPACITY" 
-            isValid={!!maxCapacityStr} 
+          <BentoFormTile
+            icon={Users}
+            title="CAPACITY"
+            isValid={!!maxCapacityStr}
             fullWidth={false}
           >
             <InputField
@@ -342,7 +414,11 @@ const CreateEventScreen = () => {
           </BentoFormTile>
         </View>
 
-        <BentoFormTile icon={MapPin} title="LOCATION" isValid={location.length > 0}>
+        <BentoFormTile
+          icon={MapPin}
+          title="LOCATION"
+          isValid={location.length > 0}
+        >
           <InputField
             placeholder="Venue name or Virtual link"
             value={location}
@@ -378,21 +454,27 @@ const CreateEventScreen = () => {
         {/* Talent Section */}
         <BentoFormTile icon={User} title="TALENT" isValid={isTalentValid}>
           <View style={styles.listContainer}>
-            {speakers.map((s) => (
+            {speakers.map(s => (
               <View key={s.id} style={styles.listItem}>
                 <View style={styles.listContent}>
                   <Text style={styles.listItemTitle}>{s.name}</Text>
                   <Text style={styles.listItemSub}>{s.role}</Text>
                 </View>
                 <View style={styles.listActions}>
-                  <TouchableOpacity onPress={() => {
-                    setEditingSpeaker(s);
-                    setTempSpeaker(s);
-                    setSpeakerModalVisible(true);
-                  }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEditingSpeaker(s);
+                      setTempSpeaker(s);
+                      setSpeakerModalVisible(true);
+                    }}
+                  >
                     <Edit2 size={16} color={colors.brand.primary} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setSpeakers(prev => prev.filter(i => i.id !== s.id))}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setSpeakers(prev => prev.filter(i => i.id !== s.id))
+                    }
+                  >
                     <Trash2 size={16} color={colors.status.error} />
                   </TouchableOpacity>
                 </View>
@@ -415,27 +497,41 @@ const CreateEventScreen = () => {
         {/* Roadmap (Agenda) */}
         <BentoFormTile icon={Clock} title="ROADMAP" isValid={isRoadmapValid}>
           <View style={styles.listContainer}>
-            {agenda.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).map((a) => (
-              <View key={a.id} style={styles.listItem}>
-                <View style={styles.listContent}>
-                  <Text style={styles.listItemTitle}>{a.title}</Text>
-                  <Text style={styles.listItemSub}>{formatEventDate(a.startTime)}</Text>
+            {agenda
+              .sort(
+                (a, b) =>
+                  new Date(a.startTime).getTime() -
+                  new Date(b.startTime).getTime(),
+              )
+              .map(a => (
+                <View key={a.id} style={styles.listItem}>
+                  <View style={styles.listContent}>
+                    <Text style={styles.listItemTitle}>{a.title}</Text>
+                    <Text style={styles.listItemSub}>
+                      {formatEventDate(a.startTime)}
+                    </Text>
+                  </View>
+                  <View style={styles.listActions}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditingAgenda(a);
+                        setTempAgenda(a);
+                        setAgendaStartTime(new Date(a.startTime));
+                        setAgendaModalVisible(true);
+                      }}
+                    >
+                      <Edit2 size={16} color={colors.brand.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() =>
+                        setAgenda(prev => prev.filter(i => i.id !== a.id))
+                      }
+                    >
+                      <Trash2 size={16} color={colors.status.error} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={styles.listActions}>
-                  <TouchableOpacity onPress={() => {
-                    setEditingAgenda(a);
-                    setTempAgenda(a);
-                    setAgendaStartTime(new Date(a.startTime));
-                    setAgendaModalVisible(true);
-                  }}>
-                    <Edit2 size={16} color={colors.brand.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setAgenda(prev => prev.filter(i => i.id !== a.id))}>
-                    <Trash2 size={16} color={colors.status.error} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+              ))}
             <TouchableOpacity
               style={styles.addItemBtn}
               onPress={() => {
@@ -466,16 +562,28 @@ const CreateEventScreen = () => {
       </View>
 
       {/* DateTime Pickers (Unified Logic) */}
-      {(openDatePicker || openEndDatePicker) && (
-        Platform.OS === 'ios' ? (
+      {(openDatePicker || openEndDatePicker) &&
+        (Platform.OS === 'ios' ? (
           <Modal transparent animationType="slide">
-            <TouchableWithoutFeedback onPress={() => { setOpenDatePicker(false); setOpenEndDatePicker(false); }}>
+            <TouchableWithoutFeedback
+              onPress={() => {
+                setOpenDatePicker(false);
+                setOpenEndDatePicker(false);
+              }}
+            >
               <View style={styles.modalOverlay} />
             </TouchableWithoutFeedback>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{openDatePicker ? 'Start Time' : 'End Time'}</Text>
-                <TouchableOpacity onPress={() => { setOpenDatePicker(false); setOpenEndDatePicker(false); }}>
+                <Text style={styles.modalTitle}>
+                  {openDatePicker ? 'Start Time' : 'End Time'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setOpenDatePicker(false);
+                    setOpenEndDatePicker(false);
+                  }}
+                >
                   <Text style={styles.modalDoneBtn}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -509,37 +617,51 @@ const CreateEventScreen = () => {
                 if (openDatePicker) {
                   setDate(d);
                   if (pickerMode === 'date') setPickerMode('time');
-                  else { setOpenDatePicker(false); setPickerMode('date'); }
+                  else {
+                    setOpenDatePicker(false);
+                    setPickerMode('date');
+                  }
                 } else {
                   setEndDate(d);
                   if (pickerMode === 'date') setPickerMode('time');
-                  else { setOpenEndDatePicker(false); setPickerMode('date'); }
+                  else {
+                    setOpenEndDatePicker(false);
+                    setPickerMode('date');
+                  }
                 }
               }
             }}
           />
-        )
-      )}
+        ))}
 
       {/* Speaker Modal */}
       <Modal visible={speakerModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => setSpeakerModalVisible(false)}>
+          <TouchableWithoutFeedback
+            onPress={() => setSpeakerModalVisible(false)}
+          >
             <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}</Text>
+              <Text style={styles.modalTitle}>
+                {editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}
+              </Text>
               <TouchableOpacity onPress={() => setSpeakerModalVisible(false)}>
                 <Text style={styles.modalDoneBtn}>Cancel</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ padding: 20 }}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.innerMedia}>
                 <Text style={styles.inputLabel}>Speaker Photo</Text>
                 <ImagePickerGrid
                   images={tempSpeaker.image ? [tempSpeaker.image] : []}
-                  onChange={imgs => setTempSpeaker({ ...tempSpeaker, image: imgs[0] || null })}
+                  onChange={imgs =>
+                    setTempSpeaker({ ...tempSpeaker, image: imgs[0] || null })
+                  }
                   maxImages={1}
                 />
               </View>
@@ -566,7 +688,11 @@ const CreateEventScreen = () => {
                 multiline
                 numberOfLines={3}
               />
-              <Button title="Confirm Speaker" onPress={handleConfirmSpeaker} style={{ marginTop: 20 }} />
+              <Button
+                title="Confirm Speaker"
+                onPress={handleConfirmSpeaker}
+                style={{ marginTop: 20 }}
+              />
             </ScrollView>
           </View>
         </View>
@@ -575,12 +701,16 @@ const CreateEventScreen = () => {
       {/* Agenda Modal */}
       <Modal visible={agendaModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => setAgendaModalVisible(false)}>
+          <TouchableWithoutFeedback
+            onPress={() => setAgendaModalVisible(false)}
+          >
             <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingAgenda ? 'Edit Session' : 'Add Session'}</Text>
+              <Text style={styles.modalTitle}>
+                {editingAgenda ? 'Edit Session' : 'Add Session'}
+              </Text>
               <TouchableOpacity onPress={() => setAgendaModalVisible(false)}>
                 <Text style={styles.modalDoneBtn}>Cancel</Text>
               </TouchableOpacity>
@@ -597,21 +727,54 @@ const CreateEventScreen = () => {
                 label="Short Description"
                 placeholder="What will happen..."
                 value={tempAgenda.description}
-                onChangeText={t => setTempAgenda({ ...tempAgenda, description: t })}
+                onChangeText={t =>
+                  setTempAgenda({ ...tempAgenda, description: t })
+                }
                 error={modalErrors.description}
                 multiline
                 numberOfLines={2}
               />
               <View style={styles.timelineRow}>
                 <View style={styles.nodesContainer}>
-                  <TimeNode label="SESSION START" value={formatEventDate(agendaStartTime)} onPress={() => setShowItemStartPicker(true)} />
-                  <TimeNode label="SESSION END" value={formatEventDate(agendaEndTime)} onPress={() => setShowItemEndPicker(true)} isEnd />
+                  <TimeNode
+                    label="SESSION START"
+                    value={formatEventDate(agendaStartTime)}
+                    onPress={() => setShowItemStartPicker(true)}
+                  />
+                  <TimeNode
+                    label="SESSION END"
+                    value={formatEventDate(agendaEndTime)}
+                    onPress={() => setShowItemEndPicker(true)}
+                    isEnd
+                  />
                 </View>
               </View>
-              <Button title="Confirm Session" onPress={handleConfirmAgenda} style={{ marginTop: 24 }} />
+              <Button
+                title="Confirm Session"
+                onPress={handleConfirmAgenda}
+                style={{ marginTop: 24 }}
+              />
 
-              {showItemStartPicker && <DateTimePicker value={agendaStartTime} mode="datetime" onChange={(e, d) => { setShowItemStartPicker(false); if (d) setAgendaStartTime(d); }} />}
-              {showItemEndPicker && <DateTimePicker value={agendaEndTime} mode="datetime" onChange={(e, d) => { setShowItemEndPicker(false); if (d) setAgendaEndTime(d); }} />}
+              {showItemStartPicker && (
+                <DateTimePicker
+                  value={agendaStartTime}
+                  mode="datetime"
+                  onChange={(e, d) => {
+                    setShowItemStartPicker(false);
+                    if (d) setAgendaStartTime(d);
+                  }}
+                />
+              )}
+              {showItemEndPicker && (
+                <DateTimePicker
+                  value={agendaEndTime}
+                  mode="datetime"
+                  onChange={(e, d) => {
+                    setShowItemEndPicker(false);
+                    if (d) setAgendaEndTime(d);
+                  }}
+                />
+              )}
             </ScrollView>
           </View>
         </View>
@@ -789,7 +952,7 @@ const styles = StyleSheet.create({
   dualGrid: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xl,
   },
   listContainer: {
     gap: spacing.md,
@@ -841,15 +1004,22 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: 'white',
     padding: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.layout.divider,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 10 },
-      android: { elevation: 12 }
-    })
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+      },
+      android: { elevation: 12 },
+    }),
   },
   stickySubmitBtn: {
     borderRadius: 20,

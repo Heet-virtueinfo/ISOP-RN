@@ -1,4 +1,15 @@
 import { doc, updateDoc, Timestamp } from '@react-native-firebase/firestore';
+import {
+  onMessage,
+  onTokenRefresh,
+  setBackgroundMessageHandler,
+  getInitialNotification,
+  onNotificationOpenedApp,
+  requestPermission,
+  getToken,
+  registerDeviceForRemoteMessages,
+  isDeviceRegisteredForRemoteMessages,
+} from '@react-native-firebase/messaging';
 import { firebaseMessaging, firebaseFirestore } from '../config/firebase';
 import { COLLECTIONS } from '../constants/collections';
 import { PermissionsAndroid, Platform } from 'react-native';
@@ -14,7 +25,7 @@ class NotificationService {
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } else if (Platform.OS === 'ios') {
-        const authStatus = await firebaseMessaging.requestPermission();
+        const authStatus = await requestPermission(firebaseMessaging);
         const enabled = authStatus === 1 || authStatus === 2;
         return enabled;
       }
@@ -29,12 +40,12 @@ class NotificationService {
     try {
       if (
         Platform.OS === 'ios' &&
-        !firebaseMessaging.isDeviceRegisteredForRemoteMessages
+        !isDeviceRegisteredForRemoteMessages(firebaseMessaging)
       ) {
-        await firebaseMessaging.registerDeviceForRemoteMessages();
+        await registerDeviceForRemoteMessages(firebaseMessaging);
       }
 
-      const token = await firebaseMessaging.getToken();
+      const token = await getToken(firebaseMessaging);
       if (token) {
         console.log('FCM Token:', token);
         return token;
@@ -67,7 +78,7 @@ class NotificationService {
 
 
   onTokenRefresh(uid: string) {
-    return firebaseMessaging.onTokenRefresh(async token => {
+    return onTokenRefresh(firebaseMessaging, async token => {
       console.log('FCM Token Refreshed:', token);
       if (uid) {
         await updateDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), {
@@ -90,7 +101,7 @@ class NotificationService {
 
   setupForegroundHandler() {
     // 1. Listen for FCM messages
-    const unsubscribeFCM = firebaseMessaging.onMessage(async remoteMessage => {
+    const unsubscribeFCM = onMessage(firebaseMessaging, async remoteMessage => {
       console.log('A new FCM message arrived (Foreground)!', remoteMessage);
 
       if (remoteMessage.notification) {
@@ -142,7 +153,7 @@ class NotificationService {
   }
 
   setBackgroundMessageHandler() {
-    firebaseMessaging.setBackgroundMessageHandler(async remoteMessage => {
+    setBackgroundMessageHandler(firebaseMessaging, async remoteMessage => {
       console.log('Message handled in the background!', remoteMessage);
     });
   }
@@ -152,7 +163,7 @@ class NotificationService {
   ) {
     // 1. If app was opened from a "quit" state via FCM
     const initialNotification =
-      await firebaseMessaging.getInitialNotification();
+      await getInitialNotification(firebaseMessaging);
     if (initialNotification) {
       console.log('Opened from quit state (FCM):', initialNotification);
       this.processNotificationData(initialNotification, callback);
@@ -169,7 +180,7 @@ class NotificationService {
     }
 
     // 3. If app was in background
-    return firebaseMessaging.onNotificationOpenedApp(remoteMessage => {
+    return onNotificationOpenedApp(firebaseMessaging, remoteMessage => {
       console.log('Opened from background (FCM):', remoteMessage);
       this.processNotificationData(remoteMessage, callback);
     });

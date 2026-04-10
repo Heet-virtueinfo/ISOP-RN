@@ -4,10 +4,15 @@ import {
   setDoc,
   Timestamp,
 } from '@react-native-firebase/firestore';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+} from '@react-native-firebase/auth';
 import { firebaseAuth, firebaseFirestore, ADMIN_UID } from '../config/firebase';
 import { UserProfile, UserRole } from '../types';
 import { COLLECTIONS } from '../constants/collections';
-
 import { uploadImageToCloudinary } from './uploadService';
 
 export const checkIsAdmin = (uid: string): boolean => {
@@ -31,7 +36,8 @@ export const registerUser = async (data: {
       );
     }
 
-    const userCredential = await firebaseAuth.createUserWithEmailAndPassword(
+    const userCredential = await createUserWithEmailAndPassword(
+      firebaseAuth,
       data.email,
       data.password,
     );
@@ -64,7 +70,8 @@ export const registerUser = async (data: {
 
 export const loginUser = async (email: string, password: string) => {
   try {
-    const userCredential = await firebaseAuth.signInWithEmailAndPassword(
+    const userCredential = await signInWithEmailAndPassword(
+      firebaseAuth,
       email,
       password,
     );
@@ -95,12 +102,12 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 export const logoutUser = async () => {
-  return await firebaseAuth.signOut();
+  return await signOut(firebaseAuth);
 };
 
 export const resetPassword = async (email: string) => {
   try {
-    await firebaseAuth.sendPasswordResetEmail(email);
+    await sendPasswordResetEmail(firebaseAuth, email);
     return { success: true };
   } catch (error: any) {
     console.error('Reset Password Error:', error);

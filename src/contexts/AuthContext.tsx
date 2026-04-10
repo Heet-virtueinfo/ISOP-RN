@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, getDoc, onSnapshot } from '@react-native-firebase/firestore';
+import { onAuthStateChanged, signOut } from '@react-native-firebase/auth';
 import { firebaseAuth, firebaseFirestore } from '../config/firebase';
 import { UserProfile, UserRole } from '../types';
 import { COLLECTIONS } from '../constants/collections';
@@ -55,7 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     let tokenRefreshUnsubscribe: (() => void) | null = null;
 
-    const authUnsubscribe = firebaseAuth.onAuthStateChanged(
+    const authUnsubscribe = onAuthStateChanged(
+      firebaseAuth,
       async firebaseUser => {
         setUser(firebaseUser);
 
@@ -137,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = async () => {
     try {
       setLoading(true);
-      await firebaseAuth.signOut();
+      await signOut(firebaseAuth);
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
