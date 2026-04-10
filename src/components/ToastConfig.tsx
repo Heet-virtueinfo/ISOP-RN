@@ -53,4 +53,52 @@ export const toastConfig: ToastConfig = {
       }}
     />
   ),
+  info: (props) => (
+    <BaseToast
+      {...props}
+      style={{
+        borderLeftColor: colors.status.info,
+        height: 60,
+        borderLeftWidth: 6,
+        backgroundColor: colors.layout.surface,
+        borderRadius: 12,
+      }}
+      contentContainerStyle={{ paddingHorizontal: spacing.md }}
+      text1Style={{
+        fontSize: typography.sizes.sm,
+        fontWeight: typography.weights.bold,
+        fontFamily: typography.fontFamily,
+        color: colors.text.primary,
+      }}
+      text2Style={{
+        fontSize: typography.sizes.xs,
+        fontFamily: typography.fontFamily,
+        color: colors.text.secondary,
+      }}
+    />
+  ),
+  warning: (props) => (
+    <BaseToast
+      {...props}
+      style={{
+        borderLeftColor: colors.status.warning,
+        height: 60,
+        borderLeftWidth: 6,
+        backgroundColor: colors.layout.surface,
+        borderRadius: 12,
+      }}
+      contentContainerStyle={{ paddingHorizontal: spacing.md }}
+      text1Style={{
+        fontSize: typography.sizes.sm,
+        fontWeight: typography.weights.bold,
+        fontFamily: typography.fontFamily,
+        color: colors.text.primary,
+      }}
+      text2Style={{
+        fontSize: typography.sizes.xs,
+        fontFamily: typography.fontFamily,
+        color: colors.text.secondary,
+      }}
+    />
+  ),
 };

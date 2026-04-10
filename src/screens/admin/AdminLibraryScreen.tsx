@@ -9,8 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 import { Plus, Trash2, Send, File, Link2, X } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 // @ts-ignore
 import { pick, types, isCancel } from '@react-native-documents/picker';
@@ -28,6 +30,7 @@ import CustomLoader from '../../components/CustomLoader';
 import ResourceCard from '../../components/ResourceCard';
 import UserHeader from '../../components/UserHeader';
 import Button from '../../components/Button';
+import DeleteResourceModal from '../../components/modals/DeleteResourceModal';
 
 type InputMode = 'url' | 'file';
 
@@ -56,6 +59,11 @@ const AdminLibraryScreen = () => {
   } | null>(null);
   const [uploadProgress, setUploadProgress] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Deletion state
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [resourceToDelete, setResourceToDelete] = useState<ResourceItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const unsubscribe = listenToResources(data => {
@@ -98,7 +106,11 @@ const AdminLibraryScreen = () => {
     } catch (err: any) {
       if (!isCancel(err)) {
         console.error('Document picker error:', err);
-        Alert.alert('Error', 'Failed to pick document.');
+        Toast.show({
+          type: 'error',
+          text1: 'Pick Failed',
+          text2: 'Failed to pick document.'
+        });
       }
     }
   };
@@ -112,17 +124,29 @@ const AdminLibraryScreen = () => {
 
   const handlePublish = async () => {
     if (!title.trim()) {
-      Alert.alert('Validation', 'Title is required.');
+      Toast.show({
+        type: 'error',
+        text1: 'Validation Error',
+        text2: 'Title is required.'
+      });
       return;
     }
 
     if (inputMode === 'url' && !url.trim()) {
-      Alert.alert('Validation', 'URL is required.');
+      Toast.show({
+        type: 'error',
+        text1: 'Validation Error',
+        text2: 'URL is required.'
+      });
       return;
     }
 
-    if (inputMode === 'file' && !pickedFile) {
-      Alert.alert('Validation', 'Please pick a file to upload.');
+    if (inputMode === 'file' && !pickedFile && !editingId) {
+      Toast.show({
+        type: 'error',
+        text1: 'Validation Error',
+        text2: 'Please pick a file to upload.'
+      });
       return;
     }
 
@@ -141,7 +165,11 @@ const AdminLibraryScreen = () => {
         setUploadProgress(false);
 
         if (!uploadedUrl) {
-          Alert.alert('Upload Failed', 'Could not upload the file. Please try again.');
+          Toast.show({
+            type: 'error',
+            text1: 'Upload Failed',
+            text2: 'Could not upload the file. Please try again.'
+          });
           setActionLoading(false);
           return;
         }
@@ -156,7 +184,11 @@ const AdminLibraryScreen = () => {
           category,
           type: resourceType,
         });
-        Alert.alert('Success', 'Resource updated successfully!');
+        Toast.show({
+          type: 'success',
+          text1: 'Updated',
+          text2: 'Resource updated successfully!'
+        });
       } else {
         await addResourceItem({
           title,
@@ -166,13 +198,21 @@ const AdminLibraryScreen = () => {
           type: resourceType,
           createdBy: userProfile?.uid || 'Admin',
         });
-        Alert.alert('Success', 'Resource published successfully!');
+        Toast.show({
+          type: 'success',
+          text1: 'Published',
+          text2: 'Resource published successfully!'
+        });
       }
 
       handleReset();
     } catch (error) {
       console.error('Publish error:', error);
-      Alert.alert('Error', `Failed to ${editingId ? 'update' : 'publish'} resource.`);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: `Failed to ${editingId ? 'update' : 'publish'} resource.`
+      });
     } finally {
       setActionLoading(false);
       setUploadProgress(false);
@@ -191,25 +231,34 @@ const AdminLibraryScreen = () => {
     setEditingId(null);
   };
 
-  const handleDelete = (id: string, itemTitle: string) => {
-    Alert.alert(
-      'Delete Resource',
-      `Are you sure you want to delete "${itemTitle}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteResourceItem(id);
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete resource.');
-            }
-          },
-        },
-      ]
-    );
+  const handleDelete = (resource: ResourceItem) => {
+    setResourceToDelete(resource);
+    setIsDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!resourceToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteResourceItem(resourceToDelete.id);
+      Toast.show({
+        type: 'success',
+        text1: 'Deleted',
+        text2: 'Resource deleted successfully.',
+      });
+      setIsDeleteModalVisible(false);
+      setResourceToDelete(null);
+    } catch (error) {
+      console.error('Delete error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete resource.',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleEdit = (item: ResourceItem) => {
@@ -221,129 +270,152 @@ const AdminLibraryScreen = () => {
     setResourceType(item.type);
     setInputMode(item.url?.includes('cloudinary') ? 'file' : 'url'); // Basic heuristic
     setIsCreating(true);
-    // Scroll to top is handled by the ScrollView being pushed by form
   };
 
   const renderCreateForm = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>{editingId ? 'Edit Resource' : 'Add Resource'}</Text>
-
-      {/* Category selector */}
-      <Text style={styles.label}>Category</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-        {(['guideline', 'training', 'presentation', 'other'] as ResourceCategory[]).map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.pill, category === cat && styles.pillActive]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Title */}
-      <Text style={styles.label}>Title *</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Document title..."
-        placeholderTextColor={colors.text.tertiary}
-      />
-
-      {/* Description */}
-      <Text style={styles.label}>Description</Text>
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Short description..."
-        placeholderTextColor={colors.text.tertiary}
-        multiline
-        textAlignVertical="top"
-      />
-
-      {/* Mode Toggle */}
-      <Text style={styles.label}>Source</Text>
-      <View style={styles.modeToggleRow}>
-        <TouchableOpacity
-          style={[styles.modeToggleBtn, inputMode === 'file' && styles.modeToggleBtnActive]}
-          onPress={() => setInputMode('file')}
-        >
-          <File size={16} color={inputMode === 'file' ? 'white' : colors.text.tertiary} />
-          <Text style={[styles.modeToggleText, inputMode === 'file' && styles.modeToggleTextActive]}>Upload File</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modeToggleBtn, inputMode === 'url' && styles.modeToggleBtnActive]}
-          onPress={() => setInputMode('url')}
-        >
-          <Link2 size={16} color={inputMode === 'url' ? 'white' : colors.text.tertiary} />
-          <Text style={[styles.modeToggleText, inputMode === 'url' && styles.modeToggleTextActive]}>Enter URL</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* File Upload Area */}
-      {inputMode === 'file' && (
-        pickedFile ? (
-          <View style={styles.filePickedCard}>
-            <File size={24} color={colors.brand.primary} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.filePickedName} numberOfLines={1}>{pickedFile.name}</Text>
-              <Text style={styles.filePickedSize}>{formatFileSize(pickedFile.size)}</Text>
-            </View>
-            <TouchableOpacity onPress={() => setPickedFile(null)} style={styles.filePickedRemove}>
-              <X size={18} color={colors.status.error} />
+    <Modal
+      visible={isCreating}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleReset}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{editingId ? 'Edit Resource' : 'Add Resource'}</Text>
+            <TouchableOpacity onPress={handleReset} style={styles.closeBtn}>
+              <X size={24} color={colors.text.primary} />
             </TouchableOpacity>
           </View>
-        ) : (
-          <TouchableOpacity style={styles.filePickerBtn} onPress={handlePickDocument}>
-            <File size={28} color={colors.brand.primary} />
-            <Text style={styles.filePickerTitle}>Tap to pick a document</Text>
-            <Text style={styles.filePickerSub}>PDF, Word (.doc/.docx), Excel (.xls/.xlsx), PowerPoint, TXT</Text>
-          </TouchableOpacity>
-        )
-      )}
 
-      {/* URL Input */}
-      {inputMode === 'url' && (
-        <>
-          <Text style={styles.label}>Resource URL *</Text>
-          <TextInput
-            style={styles.input}
-            value={url}
-            onChangeText={setUrl}
-            placeholder="https://..."
-            placeholderTextColor={colors.text.tertiary}
-            autoCapitalize="none"
-            keyboardType="url"
-          />
-        </>
-      )}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1 }}
+          >
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.formContent}
+            >
+              {/* Category selector */}
+              <Text style={styles.label}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                {(['guideline', 'training', 'presentation', 'other'] as ResourceCategory[]).map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.pill, category === cat && styles.pillActive]}
+                    onPress={() => setCategory(cat)}
+                  >
+                    <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
-      {uploadProgress && (
-        <View style={styles.uploadingBanner}>
-          <CustomLoader size={16} overlay={false} color={colors.brand.primary} />
-          <Text style={styles.uploadingText}>Uploading to cloud...</Text>
-        </View>
-      )}
+              {/* Title */}
+              <Text style={styles.label}>Title *</Text>
+              <TextInput
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Document title..."
+                placeholderTextColor={colors.text.tertiary}
+              />
 
-      <View style={styles.formActions}>
-        <View style={{ flex: 1 }}>
-          <Button title="Cancel" onPress={handleReset} variant="outline" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Button
-            title={editingId ? "Update" : "Publish"}
-            onPress={handlePublish}
-            leftIcon={Send}
-            loading={actionLoading}
-          />
+              {/* Description */}
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Short description..."
+                placeholderTextColor={colors.text.tertiary}
+                multiline
+                textAlignVertical="top"
+              />
+
+              {/* Mode Toggle */}
+              <Text style={styles.label}>Source</Text>
+              <View style={styles.modeToggleRow}>
+                <TouchableOpacity
+                  style={[styles.modeToggleBtn, inputMode === 'file' && styles.modeToggleBtnActive]}
+                  onPress={() => setInputMode('file')}
+                >
+                  <File size={16} color={inputMode === 'file' ? 'white' : colors.text.tertiary} />
+                  <Text style={[styles.modeToggleText, inputMode === 'file' && styles.modeToggleTextActive]}>Upload File</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modeToggleBtn, inputMode === 'url' && styles.modeToggleBtnActive]}
+                  onPress={() => setInputMode('url')}
+                >
+                  <Link2 size={16} color={inputMode === 'url' ? 'white' : colors.text.tertiary} />
+                  <Text style={[styles.modeToggleText, inputMode === 'url' && styles.modeToggleTextActive]}>Enter URL</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* File Upload Area */}
+              {inputMode === 'file' && (
+                pickedFile ? (
+                  <View style={styles.filePickedCard}>
+                    <File size={24} color={colors.brand.primary} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={styles.filePickedName} numberOfLines={1}>{pickedFile.name}</Text>
+                      <Text style={styles.filePickedSize}>{formatFileSize(pickedFile.size)}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setPickedFile(null)} style={styles.filePickedRemove}>
+                      <X size={18} color={colors.status.error} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.filePickerBtn} onPress={handlePickDocument}>
+                    <File size={28} color={colors.brand.primary} />
+                    <Text style={styles.filePickerTitle}>Tap to pick a document</Text>
+                    <Text style={styles.filePickerSub}>PDF, Word (.doc/.docx), Excel (.xls/.xlsx), PowerPoint, TXT</Text>
+                  </TouchableOpacity>
+                )
+              )}
+
+              {/* URL Input */}
+              {inputMode === 'url' && (
+                <>
+                  <Text style={styles.label}>Resource URL *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={url}
+                    onChangeText={setUrl}
+                    placeholder="https://..."
+                    placeholderTextColor={colors.text.tertiary}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                </>
+              )}
+
+              {uploadProgress && (
+                <View style={styles.uploadingBanner}>
+                  <CustomLoader size={16} overlay={false} color={colors.brand.primary} />
+                  <Text style={styles.uploadingText}>Uploading to cloud...</Text>
+                </View>
+              )}
+
+              <View style={styles.formActions}>
+                <View style={{ flex: 1 }}>
+                  <Button title="Cancel" onPress={handleReset} variant="outline" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title={editingId ? "Update" : "Publish"}
+                    onPress={handlePublish}
+                    leftIcon={Send}
+                    loading={actionLoading}
+                  />
+                </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 
   return (
@@ -364,37 +436,44 @@ const AdminLibraryScreen = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {isCreating ? (
-            renderCreateForm()
-          ) : (
-            <>
-              <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreating(true)}>
-                <Plus size={20} color="white" />
-                <Text style={styles.createBtnText}>Add Resource</Text>
-              </TouchableOpacity>
+          <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreating(true)}>
+            <Plus size={20} color="white" />
+            <Text style={styles.createBtnText}>Add Resource</Text>
+          </TouchableOpacity>
 
-              {loading ? (
-                <CustomLoader message="Loading library..." overlay={false} style={{ marginTop: 40 }} />
-              ) : resources.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No resources added yet.</Text>
-                </View>
-              ) : (
-                <View style={styles.listContainer}>
-                  {resources.map(item => (
-                    <ResourceCard
-                      key={item.id}
-                      resource={item}
-                      isAdmin={true}
-                      onEdit={() => handleEdit(item)}
-                      onDelete={() => handleDelete(item.id, item.title)}
-                    />
-                  ))}
-                </View>
-              )}
-            </>
+          {loading ? (
+            <CustomLoader message="Loading library..." overlay={false} style={{ marginTop: 40 }} />
+          ) : resources.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No resources added yet.</Text>
+            </View>
+          ) : (
+            <View style={styles.listContainer}>
+              {resources.map(item => (
+                <ResourceCard
+                  key={item.id}
+                  resource={item}
+                  isAdmin={true}
+                  onEdit={() => handleEdit(item)}
+                  onDelete={() => handleDelete(item)}
+                />
+              ))}
+            </View>
           )}
         </ScrollView>
+
+        {renderCreateForm()}
+
+        <DeleteResourceModal
+          visible={isDeleteModalVisible}
+          onClose={() => {
+            setIsDeleteModalVisible(false);
+            setResourceToDelete(null);
+          }}
+          onConfirm={confirmDelete}
+          resource={resourceToDelete}
+          loading={isDeleting}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -437,20 +516,6 @@ const styles = StyleSheet.create({
   listContainer: {
     gap: spacing.md,
   },
-  formContainer: {
-    backgroundColor: colors.layout.surface,
-    padding: spacing.xl,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.layout.divider,
-  },
-  formTitle: {
-    fontFamily: typography.fontFamily,
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text.primary,
-    marginBottom: spacing.lg,
-  },
   label: {
     fontFamily: typography.fontFamily,
     fontSize: 13,
@@ -466,7 +531,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.palette.slate.bg,
     marginRight: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.ui.inputBorderLight,
+    borderColor: colors.ui.inputBorder,
   },
   pillActive: {
     backgroundColor: colors.brand.primary,
@@ -511,7 +576,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.layout.divider,
+    borderColor: colors.ui.inputBorder,
     backgroundColor: colors.palette.slate.bg,
   },
   modeToggleBtnActive: {
@@ -596,6 +661,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     marginTop: spacing.xl,
+    marginBottom: spacing.xxl,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.layout.background,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    height: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.layout.divider,
+  },
+  modalTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text.primary,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  formContent: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl * 2,
   },
 });
 
