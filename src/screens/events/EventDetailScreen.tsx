@@ -26,6 +26,7 @@ import {
   MessageSquare,
   Star as StarIcon,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { listenToEvent } from '../../services/eventService';
@@ -36,7 +37,10 @@ import {
 } from '../../services/enrollmentService';
 import { AppEvent, Enrollment, Feedback } from '../../types';
 import { getEventImage } from '../../utils/eventHelpers';
-import { submitFeedback, checkUserFeedback } from '../../services/feedbackService';
+import {
+  submitFeedback,
+  checkUserFeedback,
+} from '../../services/feedbackService';
 import CustomLoader from '../../components/CustomLoader';
 import Button from '../../components/Button';
 import Toast from 'react-native-toast-message';
@@ -47,12 +51,12 @@ import LeaveFeedbackModal from '../../components/modals/LeaveFeedbackModal';
 import StarRating from '../../components/StarRating';
 import { Speaker } from '../../types';
 
-
 const EventDetailScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { userProfile } = useAuth();
   const { eventId } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [event, setEvent] = useState<AppEvent | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -65,7 +69,6 @@ const EventDetailScreen = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [userFeedback, setUserFeedback] = useState<Feedback | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
-
 
   useEffect(() => {
     if (!eventId) return;
@@ -82,7 +85,10 @@ const EventDetailScreen = () => {
         const enrollmentData = await checkEnrollment(eventId, userProfile.uid);
         setEnrollment(enrollmentData);
         if (enrollmentData) {
-          const feedbackData = await checkUserFeedback(eventId, userProfile.uid);
+          const feedbackData = await checkUserFeedback(
+            eventId,
+            userProfile.uid,
+          );
           setUserFeedback(feedbackData);
         }
       }
@@ -105,7 +111,11 @@ const EventDetailScreen = () => {
       return;
     }
 
-    if (!enrollment && event.maxCapacity && event.enrolledCount >= event.maxCapacity) {
+    if (
+      !enrollment &&
+      event.maxCapacity &&
+      event.enrolledCount >= event.maxCapacity
+    ) {
       Toast.show({
         type: 'error',
         text1: 'Event is Full',
@@ -174,11 +184,19 @@ const EventDetailScreen = () => {
       typeof timestamp.toDate === 'function'
         ? timestamp.toDate()
         : new Date(timestamp);
-    return date.toLocaleDateString('en-US', {
+    
+    const dateStr = date.toLocaleDateString('en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     });
+
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+
+    return `${dateStr} • ${timeStr}`;
   };
 
   const handleShare = async () => {
@@ -207,13 +225,21 @@ const EventDetailScreen = () => {
   const saveToCalendar = () => {
     if (!event) return;
     // Basic Google Calendar link generation
-    const start = event.date.toDate ? event.date.toDate() : new Date(event.date);
-    const end = event.endDate?.toDate ? event.endDate.toDate() : new Date(start.getTime() + 3600000);
+    const start = event.date.toDate
+      ? event.date.toDate()
+      : new Date(event.date);
+    const end = event.endDate?.toDate
+      ? event.endDate.toDate()
+      : new Date(start.getTime() + 3600000);
 
-    const isoStart = start.toISOString().replace(/-|:|\.\d\d\d/g, "");
-    const isoEnd = end.toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const isoStart = start.toISOString().replace(/-|:|\.\d\d\d/g, '');
+    const isoEnd = end.toISOString().replace(/-|:|\.\d\d\d/g, '');
 
-    const googleUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${isoStart}/${isoEnd}&details=${encodeURIComponent(event.description)}&location=${encodeURIComponent(event.location)}`;
+    const googleUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+      event.title,
+    )}&dates=${isoStart}/${isoEnd}&details=${encodeURIComponent(
+      event.description,
+    )}&location=${encodeURIComponent(event.location)}`;
 
     Linking.openURL(googleUrl);
   };
@@ -239,7 +265,6 @@ const EventDetailScreen = () => {
       return null;
     }
   };
-
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
@@ -297,13 +322,22 @@ const EventDetailScreen = () => {
             resizeMode="cover"
           />
           <TouchableOpacity
-            style={styles.backBtn}
+            style={[
+              styles.backBtn,
+              { top: Platform.OS === 'ios' ? Math.max(insets.top, 20) : 20 },
+            ]}
             onPress={() => navigation.goBack()}
           >
             <ChevronLeft size={24} color={colors.text.primary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
+          <TouchableOpacity
+            style={[
+              styles.shareBtn,
+              { top: Platform.OS === 'ios' ? Math.max(insets.top, 20) : 20 },
+            ]}
+            onPress={handleShare}
+          >
             <Share2 size={20} color={colors.text.primary} />
           </TouchableOpacity>
 
@@ -316,16 +350,19 @@ const EventDetailScreen = () => {
         <View style={styles.infoArea}>
           <Text style={styles.title}>{event.title}</Text>
 
-          {event.averageRating !== undefined && event.ratingCount !== undefined && event.ratingCount > 0 && (
-            <View style={styles.ratingBadge}>
-              <StarIcon size={16} color="#FBBF24" fill="#FBBF24" />
-              <Text style={styles.ratingBadgeText}>
-                {event.averageRating.toFixed(1)} ({event.ratingCount} {event.ratingCount === 1 ? 'Review' : 'Reviews'})
-              </Text>
-            </View>
-          )}
+          {event.averageRating !== undefined &&
+            event.ratingCount !== undefined &&
+            event.ratingCount > 0 && (
+              <View style={styles.ratingBadge}>
+                <StarIcon size={16} color="#FBBF24" fill="#FBBF24" />
+                <Text style={styles.ratingBadgeText}>
+                  {event.averageRating.toFixed(1)} ({event.ratingCount}{' '}
+                  {event.ratingCount === 1 ? 'Review' : 'Reviews'})
+                </Text>
+              </View>
+            )}
 
-          <View style={styles.metaRow}>
+          <View style={styles.metaGrid}>
             <View style={styles.metaItem}>
               <View
                 style={[
@@ -333,9 +370,9 @@ const EventDetailScreen = () => {
                   { backgroundColor: 'rgba(79, 70, 229, 0.1)' },
                 ]}
               >
-                <Calendar size={16} color={colors.brand.primary} />
+                <Calendar size={18} color={colors.palette.indigo.accent} />
               </View>
-              <View>
+              <View style={styles.metaContent}>
                 <Text style={styles.metaLabel}>Date & Time</Text>
                 <Text style={styles.metaValue}>{formatDate(event.date)}</Text>
               </View>
@@ -352,9 +389,9 @@ const EventDetailScreen = () => {
                   { backgroundColor: 'rgba(16, 185, 129, 0.1)' },
                 ]}
               >
-                <MapPin size={16} color="#10B981" />
+                <MapPin size={18} color={colors.status.success} />
               </View>
-              <View>
+              <View style={styles.metaContent}>
                 <Text style={styles.metaLabel}>Location</Text>
                 <Text style={[styles.metaValue, styles.linkText]}>
                   {event.location}
@@ -435,7 +472,9 @@ const EventDetailScreen = () => {
                         style={styles.speakerImage}
                       />
                     ) : (
-                      <View style={[styles.speakerImage, styles.speakerPlaceholder]}>
+                      <View
+                        style={[styles.speakerImage, styles.speakerPlaceholder]}
+                      >
                         <User size={30} color={colors.text.tertiary} />
                       </View>
                     )}
@@ -452,7 +491,6 @@ const EventDetailScreen = () => {
                     </View>
                   </TouchableOpacity>
                 ))}
-
               </ScrollView>
             </View>
           )}
@@ -474,28 +512,33 @@ const EventDetailScreen = () => {
                     return timeA.getTime() - timeB.getTime();
                   })
                   .map((item, index) => {
-                    const duration = calculateDuration(item.startTime, item.endTime);
+                    const duration = calculateDuration(
+                      item.startTime,
+                      item.endTime,
+                    );
                     return (
                       <View key={item.id} style={styles.agendaItem}>
                         <View style={styles.agendaTimeColumn}>
                           <Text style={styles.agendaTime}>
                             {formatTime(item.startTime)}
                           </Text>
-                          <View
-                            style={[
-                              styles.agendaLine,
-                              // index === (event.agenda?.length || 0) - 1 && {
-                              //   backgroundColor: 'transparent',
-                              // },
-                            ]}
-                          />
                         </View>
+
+                        <View style={styles.timelineColumn}>
+                          <View style={styles.agendaDot} />
+                          {index !== (event.agenda?.length || 0) - 1 && (
+                            <View style={styles.agendaLine} />
+                          )}
+                        </View>
+
                         <View style={styles.agendaContent}>
                           <View style={styles.agendaTitleRow}>
                             <Text style={styles.agendaTitle}>{item.title}</Text>
                             {duration && (
                               <View style={styles.durationBadge}>
-                                <Text style={styles.durationText}>{duration}</Text>
+                                <Text style={styles.durationText}>
+                                  {duration}
+                                </Text>
                               </View>
                             )}
                           </View>
@@ -508,7 +551,6 @@ const EventDetailScreen = () => {
                       </View>
                     );
                   })}
-
               </View>
             </View>
           )}
@@ -521,9 +563,13 @@ const EventDetailScreen = () => {
                 <View style={styles.completedBanner}>
                   <CheckCircle2 size={20} color={colors.text.tertiary} />
                   <View style={styles.completedBannerText}>
-                    <Text style={styles.completedBannerTitle}>This Event Has Ended</Text>
+                    <Text style={styles.completedBannerTitle}>
+                      This Event Has Ended
+                    </Text>
                     <Text style={styles.completedBannerSub}>
-                      {enrollment ? 'You participated in this event.' : 'This event is no longer accepting enrollments.'}
+                      {enrollment
+                        ? 'You participated in this event.'
+                        : 'This event is no longer accepting enrollments.'}
                     </Text>
                   </View>
                 </View>
@@ -541,7 +587,9 @@ const EventDetailScreen = () => {
                     <Text style={styles.myFeedbackTitle}>Your Review</Text>
                     <StarRating rating={userFeedback.rating} size={14} />
                     {userFeedback.comment ? (
-                      <Text style={styles.myFeedbackComment}>{userFeedback.comment}</Text>
+                      <Text style={styles.myFeedbackComment}>
+                        {userFeedback.comment}
+                      </Text>
                     ) : null}
                   </View>
                 )}
@@ -549,13 +597,20 @@ const EventDetailScreen = () => {
                 {event.ratingCount !== undefined && event.ratingCount > 0 && (
                   <TouchableOpacity
                     style={styles.viewReviewsBtn}
-                    onPress={() => navigation.navigate('FeedbackList', { eventId, eventTitle: event.title })}
+                    onPress={() =>
+                      navigation.navigate('FeedbackList', {
+                        eventId,
+                        eventTitle: event.title,
+                      })
+                    }
                   >
                     <MessageSquare size={18} color={colors.brand.primary} />
-                    <Text style={styles.viewReviewsText}>View All Reviews ({event.ratingCount})</Text>
+                    <Text style={styles.viewReviewsText}>
+                      View All Reviews ({event.ratingCount})
+                    </Text>
                   </TouchableOpacity>
                 )}
-                
+
                 {enrollment && (
                   <TouchableOpacity
                     style={[styles.participantsBtn, { marginTop: 12 }]}
@@ -580,8 +635,8 @@ const EventDetailScreen = () => {
                     enrollment
                       ? 'Unenroll From Event'
                       : isFull
-                        ? 'Sold Out'
-                        : 'Enroll Now'
+                      ? 'Sold Out'
+                      : 'Enroll Now'
                   }
                   onPress={handleEnrollmentPress}
                   loading={actionLoading}
@@ -637,7 +692,7 @@ const EventDetailScreen = () => {
         onClose={() => setShowSpeakerModal(false)}
         speaker={selectedSpeaker}
       />
-      
+
       <LeaveFeedbackModal
         visible={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
@@ -648,7 +703,6 @@ const EventDetailScreen = () => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -673,7 +727,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 30 : 20,
     left: 20,
     width: 40,
     height: 40,
@@ -693,7 +746,6 @@ const styles = StyleSheet.create({
   },
   shareBtn: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 30 : 20,
     right: 20,
     width: 40,
     height: 40,
@@ -741,33 +793,44 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     lineHeight: 32,
   },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  metaGrid: {
+    gap: spacing.lg,
     marginBottom: spacing.xl,
   },
   metaItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: 14,
+    backgroundColor: colors.layout.surface,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
   },
   metaIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 2,
+  },
+  metaContent: {
+    flex: 1,
   },
   metaLabel: {
     fontSize: 10,
     color: colors.text.tertiary,
-    fontWeight: '600',
+    fontWeight: '800',
     textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
   },
   metaValue: {
     fontSize: 14,
     fontWeight: '700',
     color: colors.text.primary,
+    lineHeight: 20,
   },
   linkText: {
     color: colors.brand.primary,
@@ -887,7 +950,7 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginBottom: 2,
   },
-    completedBannerSub: {
+  completedBannerSub: {
     fontFamily: typography.fontFamily,
     fontSize: 12,
     color: colors.text.tertiary,
@@ -1011,68 +1074,81 @@ const styles = StyleSheet.create({
   },
   agendaContainer: {
     marginTop: spacing.xs,
-    backgroundColor: colors.layout.surface,
-    padding: spacing.md,
+    backgroundColor: '#F8FAFC', // Slightly different background to separate from infoArea
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.layout.divider,
   },
   agendaItem: {
     flexDirection: 'row',
+    marginBottom: 0,
   },
   agendaTimeColumn: {
-    flexDirection: "row",
-    paddingTop: 2,
-    justifyContent: "space-between",
-    gap: 5,
+    width: 65,
+    paddingTop: 4,
   },
   agendaTime: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: colors.brand.primary,
-    marginBottom: 4,
+    textAlign: 'right',
+  },
+  timelineColumn: {
+    width: 30,
+    alignItems: 'center',
+  },
+  agendaDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.brand.primary,
+    zIndex: 2,
+    marginTop: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   agendaLine: {
-    width: 5,
-    backgroundColor: colors.brand.primary,
-    marginHorizontal: 5,
-    borderRadius: 5,
-    opacity: 0.3,
+    width: 2,
+    flex: 1,
+    backgroundColor: colors.layout.divider,
+    marginVertical: 4,
   },
   agendaContent: {
     flex: 1,
     paddingLeft: spacing.xs,
+    paddingBottom: spacing.lg,
   },
   agendaTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   agendaTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.text.primary,
     flex: 1,
     marginRight: 8,
   },
   durationBadge: {
-    backgroundColor: colors.layout.surfaceElevated,
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.layout.divider,
+    borderRadius: 12,
   },
   durationText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: colors.text.tertiary,
+    fontWeight: '700',
+    color: colors.brand.primary,
   },
   agendaDesc: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.text.secondary,
-    lineHeight: 18,
+    lineHeight: 20,
+    fontFamily: typography.fontFamily,
   },
 });
 
