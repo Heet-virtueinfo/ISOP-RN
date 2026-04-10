@@ -1,14 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Shield, Activity, TrendingUp, LayoutGrid, Library, ChevronRight } from 'lucide-react-native';
-import { colors, spacing, typography } from '../../theme';
+import {
+  Shield,
+  Activity,
+  TrendingUp,
+  LayoutGrid,
+  Library,
+  ChevronRight,
+  Users,
+  BookOpen,
+  Megaphone,
+  PlusCircle,
+  FilePlus,
+  UserPlus,
+  FileText
+} from 'lucide-react-native';
+import { colors, spacing, typography, radius } from '../../theme';
 import { getEvents, deleteEvent } from '../../services/eventService';
 import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
 import DeleteEventModal from '../../components/modals/DeleteEventModal';
 import Toast from 'react-native-toast-message';
+import { firebaseFirestore } from '../../config/firebase';
+import { collection, onSnapshot, query, limit } from '@react-native-firebase/firestore';
+import { COLLECTIONS } from '../../constants/collections';
 
 const getSafeTime = (timestamp: any) => {
   if (!timestamp) return 0;
@@ -39,18 +56,39 @@ const AdminDashboard = () => {
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Ecosystem Stats
+  const [memberCount, setMemberCount] = useState(0);
+  const [resourceCount, setResourceCount] = useState(0);
+  const [newsCount, setNewsCount] = useState(0);
+
   useEffect(() => {
-    let unsubscribe: () => void;
+    // 1. Core Event Listener
+    const unsubEvents = getEvents(eventsList => {
+      setEvents(eventsList);
+      setLoading(false);
+    });
 
-    const setupListener = () => {
-      unsubscribe = getEvents(eventsList => {
-        setEvents(eventsList);
-        setLoading(false);
-      });
+    // 2. Members Pulse
+    const unsubUsers = onSnapshot(collection(firebaseFirestore, COLLECTIONS.USERS), snap => {
+      setMemberCount(snap.size);
+    });
+
+    // 3. Knowledge Assets
+    const unsubResources = onSnapshot(collection(firebaseFirestore, COLLECTIONS.RESOURCES), snap => {
+      setResourceCount(snap.size);
+    });
+
+    // 4. Media Impact
+    const unsubNews = onSnapshot(collection(firebaseFirestore, COLLECTIONS.NEWS), snap => {
+      setNewsCount(snap.size);
+    });
+
+    return () => {
+      unsubEvents?.();
+      unsubUsers();
+      unsubResources();
+      unsubNews();
     };
-
-    setupListener();
-    return () => unsubscribe && unsubscribe();
   }, []);
 
   const navigateToEdit = (eventId: string) => {
@@ -156,25 +194,95 @@ const AdminDashboard = () => {
           </View>
         </View>
 
-        {/* Quick Actions */}
+        {/* Action Command Bar */}
         <View style={styles.sectionHeader}>
-          <LayoutGrid size={14} color={colors.brand.primary} />
-          <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
+          <Activity size={14} color={colors.brand.primary} />
+          <Text style={styles.sectionTitle}>EXECUTIVE ACTIONS</Text>
         </View>
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('AdminLibrary')}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.actionRow}
         >
-          <View style={styles.quickActionIconBox}>
-            <Library size={20} color="#8B5CF6" />
+          <TouchableOpacity
+            style={[styles.actionBubble, { borderColor: colors.brand.primary + '30' }]}
+            onPress={() => navigation.navigate('AddEventTab')}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: colors.brand.primary + '10' }]}>
+              <PlusCircle size={20} color={colors.brand.primary} />
+            </View>
+            <Text style={styles.actionText}>New Event</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBubble, { borderColor: '#8B5CF630' }]}
+            onPress={() => navigation.navigate('AdminLibrary')}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#8B5CF610' }]}>
+              <FilePlus size={20} color="#8B5CF6" />
+            </View>
+            <Text style={styles.actionText}>Add Resource</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBubble, { borderColor: colors.status.warning + '30' }]}
+            onPress={() => navigation.navigate('NewsTab')}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: colors.status.warning + '10' }]}>
+              <Megaphone size={20} color={colors.status.warning} />
+            </View>
+            <Text style={styles.actionText}>Post News</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBubble, { borderColor: colors.brand.secondary + '30' }]}
+            onPress={() => navigation.navigate('MembersTab')}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: colors.brand.secondary + '10' }]}>
+              <UserPlus size={20} color={colors.brand.secondary} />
+            </View>
+            <Text style={styles.actionText}>Members</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Global Landscape Stats */}
+        <View style={styles.sectionHeader}>
+          <TrendingUp size={14} color={colors.brand.primary} />
+          <Text style={styles.sectionTitle}>GLOBAL METRICS</Text>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconBox, { backgroundColor: colors.brand.primary + '10' }]}>
+              <Users size={16} color={colors.brand.primary} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{memberCount}</Text>
+              <Text style={styles.statLabel}>Members</Text>
+            </View>
           </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.quickActionTitle}>Resource Library</Text>
-            <Text style={styles.quickActionSub}>Guidelines &amp; training docs</Text>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIconBox, { backgroundColor: '#8B5CF610' }]}>
+              <BookOpen size={16} color="#8B5CF6" />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{resourceCount}</Text>
+              <Text style={styles.statLabel}>Assets</Text>
+            </View>
           </View>
-          <ChevronRight size={18} color={colors.text.tertiary} />
-        </TouchableOpacity>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIconBox, { backgroundColor: colors.status.warning + '10' }]}>
+              <FileText size={16} color={colors.status.warning} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{newsCount}</Text>
+              <Text style={styles.statLabel}>Articles</Text>
+            </View>
+          </View>
+        </View>
 
         <View style={styles.inventoryHeader}>
           <View style={styles.inventoryTitleRow}>
@@ -192,20 +300,20 @@ const AdminDashboard = () => {
             {events.length === 0
               ? renderEmptyList()
               : events.map(item => (
-                  <EventCard
-                    key={item.id}
-                    event={item}
-                    onPress={() =>
-                      navigation.navigate('AdminEventDetail', {
-                        eventId: item.id,
-                        eventTitle: item.title,
-                      })
-                    }
-                    onEdit={() => navigateToEdit(item.id)}
-                    onDelete={() => handleDeletePress(item)}
-                    isAdminView
-                  />
-                ))}
+                <EventCard
+                  key={item.id}
+                  event={item}
+                  onPress={() =>
+                    navigation.navigate('AdminEventDetail', {
+                      eventId: item.id,
+                      eventTitle: item.title,
+                    })
+                  }
+                  onEdit={() => navigateToEdit(item.id)}
+                  onDelete={() => handleDeletePress(item)}
+                  isAdminView
+                />
+              ))}
           </View>
         )}
       </ScrollView>
@@ -386,44 +494,79 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text.tertiary,
   },
-  quickActionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  actionRow: {
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
+  },
+  actionBubble: {
+    width: 110,
     backgroundColor: colors.layout.surface,
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
+    borderRadius: 24,
+    padding: spacing.md,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.layout.divider,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
       },
       android: { elevation: 2 },
     }),
   },
-  quickActionIconBox: {
+  actionIconBox: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#8B5CF615',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text.primary,
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.xxl,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.layout.surface,
+    paddingVertical: spacing.md,
+    // paddingHorizontal: spacing.sm,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(241, 245, 249, 0.8)',
+  },
+  statIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  quickActionTitle: {
+  statValue: {
     fontFamily: typography.fontFamily,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: colors.text.primary,
-    marginBottom: 2,
   },
-  quickActionSub: {
+  statLabel: {
     fontFamily: typography.fontFamily,
-    fontSize: 12,
+    fontSize: 9,
+    fontWeight: '600',
     color: colors.text.tertiary,
+    textTransform: 'uppercase',
   },
 });
 

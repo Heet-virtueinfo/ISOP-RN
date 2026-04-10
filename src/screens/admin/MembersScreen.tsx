@@ -21,6 +21,8 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radius } from '../../theme';
+import MemberDetailModal from '../../components/modals/MemberDetailModal';
+import UserHeader from '../../components/UserHeader';
 import {
   collection,
   query,
@@ -46,6 +48,7 @@ interface MemberEntry {
 const getInitials = (name: string) =>
   name
     .split(' ')
+    .filter(Boolean)
     .map(n => n[0])
     .join('')
     .toUpperCase()
@@ -59,9 +62,8 @@ const MemberCard = ({
   eventsMap: Record<string, AppEvent>;
 }) => (
   <View style={cardStyles.container}>
-    {/* Avatar + Name row */}
-    <View style={cardStyles.topRow}>
-      <View style={cardStyles.avatarWrap}>
+    <View style={cardStyles.headerRow}>
+      <View style={cardStyles.avatarContainer}>
         {member.profileImage ? (
           <Image
             source={{ uri: member.profileImage }}
@@ -74,49 +76,47 @@ const MemberCard = ({
             </Text>
           </View>
         )}
+        <View style={cardStyles.onlineIndicator} />
       </View>
 
-      <View style={cardStyles.nameBlock}>
+      <View style={cardStyles.profileBasic}>
         <Text style={cardStyles.name} numberOfLines={1}>
           {member.displayName}
         </Text>
-        <View style={cardStyles.infoRow}>
-          <Mail size={11} color={colors.text.tertiary} />
-          <Text style={cardStyles.infoText} numberOfLines={1}>
-            {member.email}
-          </Text>
-        </View>
-        {!!member.phoneNumber && (
-          <View style={cardStyles.infoRow}>
-            <Phone size={11} color={colors.text.tertiary} />
-            <Text style={cardStyles.infoText}>{member.phoneNumber}</Text>
-          </View>
-        )}
+        <Text style={cardStyles.email} numberOfLines={1}>
+          {member.email}
+        </Text>
       </View>
 
-      {/* Event count badge */}
-      <View style={cardStyles.countBadge}>
-        <Text style={cardStyles.countNum}>{member.events.length}</Text>
-        <Text style={cardStyles.countLabel}>
-          {member.events.length === 1 ? 'event' : 'events'}
-        </Text>
+      <View style={cardStyles.badgeContainer}>
+        <View style={cardStyles.countPill}>
+          <Text style={cardStyles.countNum}>{member.events.length}</Text>
+          <Text style={cardStyles.countLabel}>INTEL</Text>
+        </View>
       </View>
     </View>
 
-    {/* Events chip list */}
-    <View style={cardStyles.eventsWrap}>
-      {member.events.map(ev => (
-        <View key={ev.eventId} style={cardStyles.eventChip}>
-          <Calendar
-            size={10}
-            color={colors.brand.primary}
-            style={{ marginRight: 4 }}
+    <View style={cardStyles.divider} />
+
+    <View style={cardStyles.participationRow}>
+      <View style={cardStyles.metaItem}>
+        <Mail size={12} color={colors.text.tertiary} />
+        <Text style={cardStyles.metaText}>Verified Associate</Text>
+      </View>
+      <View style={cardStyles.eventPreview}>
+        {member.events.slice(0, 2).map((ev, idx) => (
+          <View
+            key={ev.eventId}
+            style={[
+              cardStyles.eventDot,
+              { backgroundColor: idx === 0 ? colors.brand.primary : colors.brand.secondary }
+            ]}
           />
-          <Text style={cardStyles.eventChipText} numberOfLines={1}>
-            {eventsMap[ev.eventId]?.title || 'Unknown Event'}
-          </Text>
-        </View>
-      ))}
+        ))}
+        {member.events.length > 2 && (
+          <Text style={cardStyles.moreText}>+{member.events.length - 2}</Text>
+        )}
+      </View>
     </View>
   </View>
 );
@@ -124,94 +124,140 @@ const MemberCard = ({
 const cardStyles = StyleSheet.create({
   container: {
     backgroundColor: colors.layout.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    borderRadius: 24,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.layout.divider,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
+        shadowColor: colors.brand.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
     }),
   },
-  topRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
-  avatarWrap: { marginRight: spacing.md },
-  avatar: { width: 50, height: 50, borderRadius: 25 },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: spacing.md,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: colors.palette.slate.bg,
+  },
   initialsAvatar: {
-    backgroundColor: 'rgba(79, 70, 229, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.brand.primary + '10',
+    borderWidth: 1,
+    borderColor: colors.brand.primary + '20',
   },
   initialsText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: colors.brand.primary,
-    fontFamily: typography.fontFamily,
-  },
-  nameBlock: { flex: 1, gap: 3 },
-  name: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text.primary,
-    fontFamily: typography.fontFamily,
-  },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  infoText: {
-    fontSize: 12,
-    color: colors.text.tertiary,
-    fontFamily: typography.fontFamily,
-    flexShrink: 1,
-  },
-  countBadge: {
-    backgroundColor: 'rgba(79,70,229,0.08)',
-    borderRadius: radius.md,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(79,70,229,0.12)',
-    marginLeft: spacing.sm,
-  },
-  countNum: {
-    fontSize: 18,
     fontWeight: '800',
     color: colors.brand.primary,
     fontFamily: typography.fontFamily,
   },
-  countLabel: {
-    fontSize: 9,
-    fontWeight: '600',
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.status.success,
+    borderWidth: 3,
+    borderColor: colors.layout.surface,
+  },
+  profileBasic: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text.primary,
+    fontFamily: typography.fontFamily,
+    letterSpacing: -0.5,
+  },
+  email: {
+    fontSize: 12,
+    color: colors.text.tertiary,
+    fontFamily: typography.fontFamily,
+    marginTop: 2,
+  },
+  badgeContainer: {
+    marginLeft: spacing.sm,
+  },
+  countPill: {
+    backgroundColor: 'rgba(79, 70, 229, 0.05)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(79, 70, 229, 0.1)',
+  },
+  countNum: {
+    fontSize: 14,
+    fontWeight: '800',
     color: colors.brand.primary,
+    fontFamily: typography.fontFamily,
+    lineHeight: 16,
+  },
+  countLabel: {
+    fontSize: 7,
+    fontWeight: '900',
+    color: colors.brand.primary,
+    fontFamily: typography.fontFamily,
+    letterSpacing: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.layout.divider,
+    marginVertical: spacing.md,
+    opacity: 0.5,
+  },
+  participationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.tertiary,
     fontFamily: typography.fontFamily,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  eventsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  eventChip: {
+  eventPreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(79,70,229,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(79,70,229,0.15)',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    maxWidth: '90%',
+    gap: 4,
   },
-  eventChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.brand.primary,
-    fontFamily: typography.fontFamily,
+  eventDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  moreText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.text.tertiary,
+    marginLeft: 2,
   },
 });
 
@@ -227,6 +273,15 @@ const MembersScreen = () => {
 
   const [search, setSearch] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+
+  // Modal State
+  const [selectedMember, setSelectedMember] = useState<MemberEntry | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const handleMemberPress = (member: MemberEntry) => {
+    setSelectedMember(member);
+    setIsModalVisible(true);
+  };
 
   useEffect(() => {
     const q = query(
@@ -354,135 +409,149 @@ const MembersScreen = () => {
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.headerTitle}>Members</Text>
-            <Text style={styles.headerSub}>
-              {loading
-                ? 'Loading…'
-                : `${members.length} registered member${
-                    members.length !== 1 ? 's' : ''
-                  }`}
-            </Text>
-          </View>
-          <View style={styles.headerBadge}>
-            <Users size={18} color={colors.brand.primary} />
-            <Text style={styles.headerBadgeText}>{members.length}</Text>
-          </View>
-        </View>
 
-        {/* Search bar */}
-        <View style={styles.searchBar}>
-          <Search size={16} color={colors.text.tertiary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name, email or phone…"
-            placeholderTextColor={colors.text.tertiary}
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearch('')}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-            >
-              <X size={15} color={colors.text.tertiary} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {eventTitles.length > 0 && (
-        <View style={styles.filterSection}>
-          <View style={styles.filterLabelRow}>
-            <Filter size={12} color={colors.text.tertiary} />
-            <Text style={styles.filterLabel}>Filter by Event</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Talent Pool Dashboard */}
+        <View style={styles.dashboardContainer}>
+          <View style={styles.dashCardMain}>
+            <View style={styles.dashIconBox}>
+              <Users size={24} color={colors.brand.primary} />
+            </View>
+            <View>
+              <Text style={styles.dashValue}>{members.length}</Text>
+              <Text style={styles.dashLabel}>ACTIVE EXECUTIVES</Text>
+            </View>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            {/* "All" chip */}
-            <TouchableOpacity
-              style={[
-                styles.filterChip,
-                !selectedEvent && styles.filterChipActive,
-              ]}
-              onPress={() => setSelectedEvent(null)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  !selectedEvent && styles.filterChipTextActive,
-                ]}
-              >
-                All
+
+          <View style={styles.dashGrid}>
+            <View style={styles.dashCardSub}>
+              <Text style={styles.dashSubValue}>{enrollments.length}</Text>
+              <Text style={styles.dashSubLabel}>ENROLLMENTS</Text>
+            </View>
+            <View style={styles.dashCardSub}>
+              <Text style={styles.dashSubValue}>
+                {Math.round((members.length / Math.max(enrollments.length, 1)) * 100)}%
               </Text>
-            </TouchableOpacity>
+              <Text style={styles.dashSubLabel}>ENGAGEMENT</Text>
+            </View>
+          </View>
+        </View>
 
-            {eventTitles.map(title => (
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <Search size={18} color={colors.brand.primary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search executive database..."
+              placeholderTextColor={colors.text.tertiary}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <X size={16} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {eventTitles.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+              style={styles.filterScroll}
+            >
               <TouchableOpacity
-                key={title}
                 style={[
                   styles.filterChip,
-                  selectedEvent === title && styles.filterChipActive,
+                  !selectedEvent && styles.filterChipActive,
                 ]}
-                onPress={() =>
-                  setSelectedEvent(prev => (prev === title ? null : title))
-                }
+                onPress={() => setSelectedEvent(null)}
               >
                 <Text
                   style={[
                     styles.filterChipText,
-                    selectedEvent === title && styles.filterChipTextActive,
+                    !selectedEvent && styles.filterChipTextActive,
                   ]}
-                  numberOfLines={1}
                 >
-                  {title}
+                  All Assets
                 </Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
 
-      {loading ? (
-        <CustomLoader
-          message="Loading members…"
-          overlay={false}
-          style={{ flex: 1 }}
-        />
-      ) : (
-        <FlatList
-          data={filteredMembers}
-          keyExtractor={item => item.uid}
-          renderItem={({ item }) => (
-            <MemberCard member={item} eventsMap={eventsMap} />
+              {eventTitles.map(title => (
+                <TouchableOpacity
+                  key={title}
+                  style={[
+                    styles.filterChip,
+                    selectedEvent === title && styles.filterChipActive,
+                  ]}
+                  onPress={() =>
+                    setSelectedEvent(prev => (prev === title ? null : title))
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedEvent === title && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           )}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Users size={48} color={colors.text.tertiary} />
-              <Text style={styles.emptyTitle}>
-                {search || selectedEvent
-                  ? 'No results found'
-                  : 'No members yet'}
-              </Text>
-              <Text style={styles.emptyText}>
-                {search || selectedEvent
-                  ? 'Try adjusting your search or filter.'
-                  : 'Members who join events will appear here.'}
-              </Text>
-            </View>
-          }
-        />
-      )}
+        </View>
+
+        {loading ? (
+          <CustomLoader
+            message="Analyzing executive profiles..."
+            overlay={false}
+            style={{ marginTop: 40 }}
+          />
+        ) : (
+          <View style={styles.listContent}>
+            {filteredMembers.map(item => (
+              <TouchableOpacity
+                key={item.uid}
+                activeOpacity={0.7}
+                onPress={() => handleMemberPress(item)}
+              >
+                <MemberCard member={item} eventsMap={eventsMap} />
+              </TouchableOpacity>
+            ))}
+
+            {filteredMembers.length === 0 && (
+              <View style={styles.empty}>
+                <Users size={48} color={colors.text.tertiary + '40'} />
+                <Text style={styles.emptyTitle}>
+                  {search || selectedEvent ? 'No Matches Found' : 'Pool Empty'}
+                </Text>
+                <Text style={styles.emptyText}>
+                  {search || selectedEvent
+                    ? 'Adjust your parameters to broaden the search.'
+                    : 'Awaiting first executive enrollment.'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
+
+      <MemberDetailModal
+        visible={isModalVisible}
+        onClose={() => {
+          setIsModalVisible(false);
+          setSelectedMember(null);
+        }}
+        member={selectedMember}
+        eventsMap={eventsMap}
+      />
     </View>
   );
 };
@@ -492,142 +561,143 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.layout.background,
   },
-  header: {
-    backgroundColor: colors.layout.surface,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm, // Compact but balanced top padding
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.layout.divider,
+  dashboardContainer: {
+    padding: spacing.md,
+    gap: spacing.md,
   },
-  headerTop: {
+  dashCardMain: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: spacing.xl,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.brand.primary,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 15,
+      },
+      android: { elevation: 4 },
+    }),
   },
-  headerTitle: {
-    fontFamily: typography.fontFamily,
-    fontSize: 24,
-    fontWeight: '800',
+  dashIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: colors.brand.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dashValue: {
+    fontSize: 32,
+    fontWeight: '900',
     color: colors.text.primary,
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
-  headerSub: {
-    fontFamily: typography.fontFamily,
-    fontSize: 13,
+  dashLabel: {
+    fontSize: 10,
+    fontWeight: '800',
     color: colors.text.tertiary,
+    letterSpacing: 1,
     marginTop: 2,
   },
-  headerBadge: {
+  dashGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(79,70,229,0.08)',
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(79,70,229,0.15)',
+    gap: spacing.md,
   },
-  headerBadgeText: {
-    fontFamily: typography.fontFamily,
-    fontSize: 18,
+  dashCardSub: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
+  },
+  dashSubValue: {
+    fontSize: 20,
     fontWeight: '800',
-    color: colors.brand.primary,
+    color: colors.text.primary,
+  },
+  dashSubLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.tertiary,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  searchSection: {
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.layout.background,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.ui.inputBorder,
+    backgroundColor: 'white',
+    borderRadius: 16,
     paddingHorizontal: spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
     gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
   },
   searchInput: {
     flex: 1,
     fontFamily: typography.fontFamily,
     fontSize: 14,
     color: colors.text.primary,
-    padding: 0,
-    margin: 0,
   },
-  filterSection: {
-    backgroundColor: colors.layout.surface,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.layout.divider,
-  },
-  filterLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    marginBottom: 6,
-  },
-  filterLabel: {
-    fontFamily: typography.fontFamily,
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+  filterScroll: {
+    marginTop: spacing.sm,
   },
   filterRow: {
-    paddingHorizontal: spacing.md,
     gap: spacing.sm,
+    paddingRight: 40,
   },
   filterChip: {
-    backgroundColor: colors.layout.background,
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.ui.inputBorder,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    maxWidth: 200,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
   },
   filterChipActive: {
     backgroundColor: colors.brand.primary,
     borderColor: colors.brand.primary,
   },
   filterChipText: {
-    fontFamily: typography.fontFamily,
     fontSize: 12,
-    fontWeight: '600',
-    color: colors.text.secondary,
+    fontWeight: '700',
+    color: colors.text.tertiary,
+    fontFamily: typography.fontFamily,
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: 'white',
   },
   listContent: {
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xxl * 2,
   },
   empty: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: spacing.xl,
+    paddingTop: 60,
   },
   emptyTitle: {
-    fontFamily: typography.fontFamily,
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.text.primary,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.md,
   },
   emptyText: {
-    fontFamily: typography.fontFamily,
     fontSize: 14,
     color: colors.text.tertiary,
     textAlign: 'center',
-    lineHeight: 20,
+    marginTop: 4,
+    paddingHorizontal: 40,
   },
 });
 

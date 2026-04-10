@@ -11,7 +11,15 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import { Upload, Plus, Trash2, Send, X } from 'lucide-react-native';
+import {
+  Upload,
+  Plus,
+  Trash2,
+  Send,
+  X,
+  Newspaper,
+  ExternalLink
+} from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 // @ts-ignore
@@ -29,6 +37,8 @@ import NewsCard from '../../components/NewsCard';
 import UserHeader from '../../components/UserHeader';
 import Button from '../../components/Button';
 import DeleteNewsModal from '../../components/modals/DeleteNewsModal';
+import BentoFormTile from '../../components/BentoFormTile';
+import InputField from '../../components/InputField';
 
 const AdminNewsScreen = () => {
   const navigation = useNavigation();
@@ -175,71 +185,85 @@ const AdminNewsScreen = () => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.formContent}
             >
-              <Text style={styles.label}>Type</Text>
-              <View style={styles.typeSelector}>
-                <TouchableOpacity
-                  style={[styles.typeBtn, newsType === 'news' && styles.typeBtnActiveNews]}
-                  onPress={() => setNewsType('news')}
-                >
-                  <Text style={[styles.typeBtnText, newsType === 'news' && styles.typeBtnTextActive]}>
-                    General News
+              <BentoFormTile
+                icon={Newspaper}
+                title="DISTRIBUTION"
+                isValid={!!newsType}
+              >
+                <View style={styles.typeSelector}>
+                  <TouchableOpacity
+                    style={[styles.typeBtn, newsType === 'news' && styles.typeBtnActiveNews]}
+                    onPress={() => setNewsType('news')}
+                  >
+                    <Text style={[styles.typeBtnText, newsType === 'news' && styles.typeBtnTextActive]}>
+                      EDITORIAL
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.typeBtn, newsType === 'alert' && styles.typeBtnActiveAlert]}
+                    onPress={() => setNewsType('alert')}
+                  >
+                    <Text style={[styles.typeBtnText, newsType === 'alert' && styles.typeBtnTextActive]}>
+                      URGENT ALERT
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </BentoFormTile>
+
+              <BentoFormTile
+                icon={Send}
+                title="CONTENT"
+                isValid={!!title && !!content}
+              >
+                <InputField
+                  label="Headline"
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Enter broadcast title..."
+                  containerStyle={{ marginBottom: spacing.md }}
+                />
+
+                <InputField
+                  label="Message body"
+                  value={content}
+                  onChangeText={setContent}
+                  placeholder="Draft the full announcement..."
+                  multiline
+                  numberOfLines={4}
+                  containerStyle={{ marginBottom: 0 }}
+                />
+              </BentoFormTile>
+
+              <BentoFormTile
+                icon={ExternalLink}
+                title="ATTACHMENTS"
+                isValid={!!linkUrl || !!imageUri}
+              >
+                <InputField
+                  label="Reference link"
+                  value={linkUrl}
+                  onChangeText={setLinkUrl}
+                  placeholder="https://..."
+                  autoCapitalize="none"
+                  keyboardType="url"
+                  containerStyle={{ marginBottom: spacing.lg }}
+                />
+
+                <Text style={styles.label}>Cover Visual</Text>
+                <TouchableOpacity style={styles.imageUploadBtn} onPress={handlePickImage}>
+                  <Upload size={20} color={colors.brand.primary} />
+                  <Text style={[styles.imageUploadText, imageUri && { color: colors.brand.primary, fontWeight: '700' }]}>
+                    {imageUri ? 'Visual Attached' : 'Select Network Asset'}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.typeBtn, newsType === 'alert' && styles.typeBtnActiveAlert]}
-                  onPress={() => setNewsType('alert')}
-                >
-                  <Text style={[styles.typeBtnText, newsType === 'alert' && styles.typeBtnTextActive]}>
-                    Urgent Alert
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={styles.input}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Enter headline..."
-                placeholderTextColor={colors.text.tertiary}
-              />
-
-              <Text style={styles.label}>Content *</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={content}
-                onChangeText={setContent}
-                placeholder="Write the full announcement..."
-                placeholderTextColor={colors.text.tertiary}
-                multiline
-                textAlignVertical="top"
-              />
-
-              <Text style={styles.label}>External Link (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={linkUrl}
-                onChangeText={setLinkUrl}
-                placeholder="https://..."
-                placeholderTextColor={colors.text.tertiary}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-
-              <Text style={styles.label}>Cover Image (Optional)</Text>
-              <TouchableOpacity style={styles.imageUploadBtn} onPress={handlePickImage}>
-                <Upload size={20} color={colors.text.tertiary} />
-                <Text style={styles.imageUploadText}>
-                  {imageUri ? 'Image Selected (Tap to change)' : 'Upload from Library'}
-                </Text>
-              </TouchableOpacity>
+              </BentoFormTile>
 
               <View style={styles.formActions}>
                 <View style={{ flex: 1 }}>
-                  <Button title="Cancel" onPress={() => setIsCreating(false)} variant="outline" />
+                  <Button title="Discard" onPress={() => setIsCreating(false)} variant="outline" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Button title="Publish" onPress={handlePublish} leftIcon={Send} loading={actionLoading} />
+                  <Button title="Broadcast" onPress={handlePublish} leftIcon={Send} loading={actionLoading} />
                 </View>
               </View>
             </ScrollView>
@@ -256,36 +280,63 @@ const AdminNewsScreen = () => {
     >
       <View style={styles.container}>
         {/* Header */}
-        <UserHeader title="Manage News & Alerts" showActions={false} />
+        <UserHeader
+          title="Broadcast Center"
+          showActions={false}
+        />
 
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Broadcast Pulse Dashboard */}
+          <View style={styles.pulseContainer}>
+            <View style={styles.pulseTileMain}>
+              <Text style={styles.pulseValue}>{news.length}</Text>
+              <Text style={styles.pulseLabel}>TOTAL BROADCASTS</Text>
+            </View>
+            <View style={styles.pulseGrid}>
+              <View style={styles.pulseTileSub}>
+                <Text style={styles.pulseSubValue}>
+                  {news.filter(n => n.type === 'alert').length}
+                </Text>
+                <Text style={styles.pulseSubLabel}>INTEL ALERTS</Text>
+              </View>
+              <View style={styles.pulseTileSub}>
+                <Text style={styles.pulseSubValue}>
+                  {news.filter(n => n.type === 'news').length}
+                </Text>
+                <Text style={styles.pulseSubLabel}>EDITORIALS</Text>
+              </View>
+            </View>
+          </View>
+
           <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreating(true)}>
             <Plus size={20} color="white" />
-            <Text style={styles.createBtnText}>Create Announcement</Text>
+            <Text style={styles.createBtnText}>Draft New Announcement</Text>
           </TouchableOpacity>
 
           {loading ? (
-            <CustomLoader message="Loading articles..." overlay={false} style={{ marginTop: 40 }} />
+            <CustomLoader message="Synchronizing transmissions..." overlay={false} style={{ marginTop: 40 }} />
           ) : news.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No news published yet.</Text>
+              <Text style={styles.emptyText}>No broadcasts on record.</Text>
             </View>
           ) : (
             <View style={styles.listContainer}>
               {news.map(article => (
-                <View key={article.id} style={styles.adminCardOuter}>
-                  <NewsCard article={article} />
-                  <TouchableOpacity
-                    style={styles.deleteOverlay}
-                    onPress={() => handleDelete(article)}
-                  >
-                    <Trash2 size={20} color={colors.status.error} />
-                  </TouchableOpacity>
-                </View>
+                <NewsCard
+                  key={article.id}
+                  article={article}
+                  isAdmin={true}
+                  onDelete={() => handleDelete(article)}
+                  onEdit={() => {
+                    // Pre-fill form for edit if needed, or navigate
+                    setArticleToDelete(article); // Reuse state or add isEditing
+                    Alert.alert('Edit Mode', 'News editing flow will be expanded in the next update.');
+                  }}
+                />
               ))}
             </View>
           )}
@@ -333,9 +384,59 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.text.primary,
   },
-  scrollContent: {
+  pulseContainer: {
+    padding: spacing.md,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  pulseTileMain: {
+    backgroundColor: colors.brand.primary,
+    borderRadius: 24,
     padding: spacing.xl,
-    paddingBottom: spacing.xxl,
+    alignItems: 'center',
+    shadowColor: colors.brand.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  pulseGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  pulseTileSub: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
+  },
+  pulseValue: {
+    fontSize: 42,
+    fontWeight: '900',
+    color: 'white',
+    letterSpacing: -1,
+  },
+  pulseLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgba(255, 255, 255, 0.7)',
+    letterSpacing: 1,
+    marginTop: 4,
+  },
+  pulseSubValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text.primary,
+  },
+  pulseSubLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.tertiary,
+    letterSpacing: 0.5,
+    marginTop: 4,
   },
   createBtn: {
     flexDirection: 'row',
@@ -343,47 +444,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.brand.primary,
     paddingVertical: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: 20,
+    marginHorizontal: spacing.md,
     marginBottom: spacing.xl,
     gap: 8,
   },
+  scrollContent: {
+    paddingBottom: spacing.xxl * 2,
+  },
   createBtnText: {
     fontFamily: typography.fontFamily,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: 'white',
+    letterSpacing: 0.5,
   },
   emptyContainer: {
     alignItems: 'center',
     padding: spacing.xxl,
+    opacity: 0.5,
   },
   emptyText: {
     color: colors.text.tertiary,
     fontFamily: typography.fontFamily,
     fontSize: 14,
+    fontWeight: '600',
   },
   listContainer: {
+    paddingHorizontal: spacing.md,
     gap: spacing.md,
-  },
-  adminCardOuter: {
-    position: 'relative',
-  },
-  deleteOverlay: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'white',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 10,
   },
   label: {
     fontFamily: typography.fontFamily,
@@ -464,29 +553,30 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: colors.layout.background,
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
-    height: '90%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    height: '92%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.xl,
     borderBottomWidth: 1,
     borderBottomColor: colors.layout.divider,
   },
   modalTitle: {
     fontFamily: typography.fontFamily,
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
     color: colors.text.primary,
+    letterSpacing: -0.5,
   },
   closeBtn: {
     padding: 4,
@@ -494,6 +584,7 @@ const styles = StyleSheet.create({
   formContent: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl * 2,
+    paddingTop: spacing.lg
   },
 });
 

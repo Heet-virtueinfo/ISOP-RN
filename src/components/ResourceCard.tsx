@@ -6,7 +6,18 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { FileText, PlayCircle, Link2, Download, Pencil, Trash2 } from 'lucide-react-native';
+import { 
+  FileText, 
+  PlayCircle, 
+  Link2, 
+  Download, 
+  Pencil, 
+  Trash2, 
+  ChevronRight,
+  FileCode,
+  Globe,
+  Shield
+} from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../theme';
 import { ResourceItem } from '../types';
 import { downloadFile } from '../services/downloadService';
@@ -24,179 +35,262 @@ const ResourceCard = ({ resource, onPress, isAdmin, onEdit, onDelete }: Resource
   const getIconConfig = () => {
     switch (resource.type) {
       case 'pdf':
-        return { Icon: FileText, color: colors.status.error, bg: 'rgba(239, 68, 68, 0.1)' };
+        return { 
+          Icon: FileText, 
+          color: colors.status.error, 
+          bg: colors.status.error + '10',
+          label: 'SECURE PDF'
+        };
       case 'video':
-        return { Icon: PlayCircle, color: colors.brand.secondary, bg: 'rgba(245, 158, 11, 0.1)' };
+        return { 
+          Icon: PlayCircle, 
+          color: colors.brand.secondary, 
+          bg: colors.brand.secondary + '10',
+          label: 'VIDEO BRIEF'
+        };
+      case 'link':
+        return { 
+          Icon: Globe, 
+          color: colors.palette.indigo.accent, 
+          bg: colors.palette.indigo.bg,
+          label: 'EXTERNAL INTEL'
+        };
       default:
-        return { Icon: Link2, color: colors.brand.primary, bg: 'rgba(79, 70, 229, 0.1)' };
+        return { 
+          Icon: Link2, 
+          color: colors.brand.primary, 
+          bg: colors.palette.slate.bg,
+          label: 'RESOURCE NODE'
+        };
     }
   };
 
-  const { Icon, color, bg } = getIconConfig();
+  const { Icon, color, bg, label } = getIconConfig();
 
   const handlePress = () => {
     if (onPress) {
       onPress();
     } else if (resource.url && !isAdmin) {
-      // All resource types trigger download for users
-      downloadFile(resource.url, resource.title);
-    }
-  };
-
-  const handleDownload = () => {
-    if (resource.url) {
       downloadFile(resource.url, resource.title);
     }
   };
 
   const formatCategory = (cat: string) => {
-    return cat.charAt(0).toUpperCase() + cat.slice(1);
+    return cat?.toUpperCase() || 'GENERAL';
   };
 
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={handlePress}
-      activeOpacity={0.8}
+      activeOpacity={0.9}
     >
-      <View style={[styles.iconContainer, { backgroundColor: bg }]}>
-        <Icon size={24} color={color} />
-      </View>
+      <View style={styles.contentRow}>
+        <View style={[styles.iconBox, { backgroundColor: bg }]}>
+          <Icon size={22} color={color} />
+        </View>
 
-      <View style={styles.contentContainer}>
-        <Text style={styles.categoryText}>{formatCategory(resource.category)}</Text>
-        <Text style={styles.title} numberOfLines={2}>
-          {resource.title}
-        </Text>
-        {resource.description ? (
-          <Text style={styles.description} numberOfLines={2}>
-            {resource.description}
+        <View style={styles.mainContent}>
+          <View style={styles.topMeta}>
+            <View style={[styles.typeBadge, { backgroundColor: bg }]}>
+              <Text style={[styles.typeBadgeText, { color }]}>{label}</Text>
+            </View>
+            <View style={styles.dot} />
+            <Text style={styles.categoryTag}>{formatCategory(resource.category)}</Text>
+          </View>
+
+          <Text style={styles.title} numberOfLines={1}>
+            {resource.title}
           </Text>
-        ) : null}
+          
+          <Text style={styles.description} numberOfLines={2}>
+            {resource.description || 'Strategic intelligence asset with no detailed specifications.'}
+          </Text>
+        </View>
+
+        {!isAdmin && (
+          <View style={styles.actionCol}>
+            <View style={styles.chevronBox}>
+              <ChevronRight size={16} color={colors.text.tertiary} />
+            </View>
+          </View>
+        )}
       </View>
 
-      <View style={styles.actionContainer}>
-        {isAdmin ? (
+      {isAdmin && (
+        <View style={styles.adminFooter}>
+          <View style={styles.authorSection}>
+            <Shield size={10} color={colors.brand.primary} />
+            <Text style={styles.authorText}>Verified Asset</Text>
+          </View>
+          
           <View style={styles.adminActions}>
             <TouchableOpacity
               onPress={onEdit}
-              style={[styles.adminBtn, styles.editBtn]}
+              style={styles.actionBtn}
               activeOpacity={0.7}
             >
-              <Pencil size={18} color={colors.brand.primary} />
+              <Pencil size={12} color={colors.brand.primary} />
+              <Text style={styles.actionBtnText}>Configure</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               onPress={onDelete}
-              style={[styles.adminBtn, styles.deleteBtn]}
+              style={[styles.actionBtn, styles.deleteBtn]}
               activeOpacity={0.7}
             >
-              <Trash2 size={18} color={colors.status.error} />
+              <Trash2 size={12} color={colors.status.error} />
             </TouchableOpacity>
           </View>
-        ) : (
-          // User: show a clean download button only
-          <TouchableOpacity
-            onPress={handleDownload}
-            style={styles.downloadBtn}
-            activeOpacity={0.7}
-          >
-            <Download size={20} color={colors.brand.primary} />
-          </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.layout.surface,
-    borderRadius: radius.xl,
+    backgroundColor: 'white',
+    borderRadius: 24,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.layout.divider,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowColor: '#64748b',
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowRadius: 10,
       },
       android: { elevation: 2 },
     }),
   },
-  iconContainer: {
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  iconBox: {
     width: 48,
     height: 48,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  contentContainer: {
+  mainContent: {
     flex: 1,
-    paddingRight: spacing.sm,
   },
-  categoryText: {
+  topMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  typeBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
     fontFamily: typography.fontFamily,
-    fontSize: 10,
-    fontWeight: '800',
+  },
+  categoryTag: {
+    fontSize: 9,
+    fontWeight: '700',
     color: colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    fontFamily: typography.fontFamily,
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.layout.divider,
   },
   title: {
     fontFamily: typography.fontFamily,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.text.primary,
     marginBottom: 4,
-    lineHeight: 20,
+    letterSpacing: -0.3,
   },
   description: {
     fontFamily: typography.fontFamily,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text.secondary,
     lineHeight: 18,
+    opacity: 0.7,
   },
-  actionContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+  actionCol: {
     paddingLeft: spacing.sm,
+    justifyContent: 'center',
+    height: 48,
   },
-  downloadBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: 'rgba(79, 70, 229, 0.07)',
+  chevronBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: colors.layout.background,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(79, 70, 229, 0.15)',
+  },
+  adminFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.layout.divider,
+    borderStyle: 'dashed',
+  },
+  authorSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  authorText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontFamily: typography.fontFamily,
   },
   adminActions: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 8,
   },
-  adminBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
+  actionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.layout.background,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
     borderWidth: 1,
-  },
-  editBtn: {
-    backgroundColor: 'rgba(79, 70, 229, 0.08)',
-    borderColor: 'rgba(79, 70, 229, 0.2)',
+    borderColor: colors.layout.divider,
   },
   deleteBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: colors.status.error + '05',
+    borderColor: colors.status.error + '10',
+    paddingHorizontal: 10,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.brand.primary,
+    fontFamily: typography.fontFamily,
   },
 });
 

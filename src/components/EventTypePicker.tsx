@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Pressable } from 'react-native';
-import { 
-  ChevronDown, 
-  Check, 
-  Users, 
-  MonitorPlay, 
-  GraduationCap, 
-  CalendarDays 
+import {
+  ChevronDown,
+  Check,
+  Users,
+  MonitorPlay,
+  GraduationCap,
+  CalendarDays
 } from 'lucide-react-native';
 import { EventType } from '../types';
 import { colors, spacing, typography, radius } from '../theme';
@@ -16,6 +16,7 @@ interface EventTypePickerProps {
   selectedType: EventType;
   onSelect: (type: EventType) => void;
   error?: string;
+  hideLabel?: boolean;
 }
 
 const EVENT_TYPES_CONFIG: { type: EventType; icon: any }[] = [
@@ -25,7 +26,12 @@ const EVENT_TYPES_CONFIG: { type: EventType; icon: any }[] = [
   { type: 'meeting', icon: CalendarDays },
 ];
 
-const EventTypePicker: React.FC<EventTypePickerProps> = ({ selectedType, onSelect, error }) => {
+const EventTypePicker: React.FC<EventTypePickerProps> = ({
+  selectedType,
+  onSelect,
+  error,
+  hideLabel = false
+}) => {
   const [modalVisible, setModalVisible] = useState(false);
 
   const selectedConfig = EVENT_TYPES_CONFIG.find(c => c.type === selectedType) || EVENT_TYPES_CONFIG[0];
@@ -38,12 +44,14 @@ const EventTypePicker: React.FC<EventTypePickerProps> = ({ selectedType, onSelec
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, error && styles.labelError]}>Event Type</Text>
-      
+      {!hideLabel && (
+        <Text style={[styles.label, error && styles.labelError]}>Event Type</Text>
+      )}
+
       {/* Dropdown Trigger */}
       <TouchableOpacity
         style={[
-          styles.trigger, 
+          styles.trigger,
           modalVisible && styles.triggerActive,
           error && styles.triggerError
         ]}
@@ -54,11 +62,11 @@ const EventTypePicker: React.FC<EventTypePickerProps> = ({ selectedType, onSelec
           <View style={styles.iconContainer}>
             <SelectedIcon size={18} color={colors.brand.primary} />
           </View>
-          <Text style={styles.triggerValue}>
+          <Text style={styles.triggerValue} numberOfLines={1} ellipsizeMode="tail">
             {getEventTypeLabel(selectedType)}
           </Text>
         </View>
-        <ChevronDown size={20} color={colors.text.tertiary} />
+        <ChevronDown size={20} color={colors.text.tertiary} style={styles.chevron} />
       </TouchableOpacity>
 
       {/* Selection Modal (Bottom Sheet Style) */}
@@ -68,8 +76,8 @@ const EventTypePicker: React.FC<EventTypePickerProps> = ({ selectedType, onSelec
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable 
-          style={styles.modalOverlay} 
+        <Pressable
+          style={styles.modalOverlay}
           onPress={() => setModalVisible(false)}
         >
           <View style={styles.sheetContainer}>
@@ -82,7 +90,7 @@ const EventTypePicker: React.FC<EventTypePickerProps> = ({ selectedType, onSelec
               {EVENT_TYPES_CONFIG.map((item) => {
                 const isSelected = selectedType === item.type;
                 const Icon = item.icon;
-                
+
                 return (
                   <TouchableOpacity
                     key={item.type}
@@ -126,35 +134,42 @@ const styles = StyleSheet.create({
     color: colors.status.error,
   },
   trigger: {
-    height: 48,
+    height: 52, // Slightly smaller
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.layout.surface,
+    paddingHorizontal: spacing.sm, // Reduced padding
+    borderRadius: radius.lg, // Standardized radius
+    backgroundColor: 'white',
     borderWidth: 1,
     borderColor: colors.ui.inputBorder,
   },
   triggerActive: {
     borderColor: colors.brand.primary,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   triggerError: {
     borderColor: colors.status.error,
   },
   triggerLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 8,
   },
   iconContainer: {
-    marginRight: spacing.sm,
+    marginRight: 10,
   },
   triggerValue: {
+    flex: 1,
     fontFamily: typography.fontFamily,
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.medium,
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.text.primary,
+  },
+  chevron: {
+    flexShrink: 0,
+    marginLeft: 4,
   },
   modalOverlay: {
     flex: 1,
