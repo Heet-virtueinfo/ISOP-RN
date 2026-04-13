@@ -12,3 +12,22 @@ export const countryCodes = [
 ];
 
 export const defaultCountry = countryCodes[0];
+
+export const splitPhoneNumber = (fullNumber: string) => {
+  if (!fullNumber) return { countryCode: defaultCountry.value, mobile: '' };
+
+  // Sort country codes by length descending to match longest prefix first (e.g., +1-CA before +1)
+  const sortedCodes = [...countryCodes].sort((a, b) => b.value.length - a.value.length);
+
+  for (const code of sortedCodes) {
+    if (fullNumber.startsWith(code.value)) {
+      return {
+        countryCode: code.value,
+        mobile: fullNumber.slice(code.value.length).trim(),
+      };
+    }
+  }
+
+  // Default to first code if no match (assuming it might be a number without code)
+  return { countryCode: defaultCountry.value, mobile: fullNumber };
+};

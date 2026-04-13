@@ -22,6 +22,7 @@ import {
   Clock,
   User,
   Share2,
+  Heart,
   CalendarPlus,
   MessageSquare,
   Star as StarIcon,
@@ -70,6 +71,7 @@ const EventDetailScreen = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [userFeedback, setUserFeedback] = useState<Feedback | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
 
   useEffect(() => {
     if (!eventId) return;
@@ -338,6 +340,40 @@ const EventDetailScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Floating Header Buttons */}
+      <TouchableOpacity
+        style={[
+          styles.headerBtn,
+          styles.backBtn,
+          { top: Platform.OS === 'ios' ? Math.max(insets.top, 20) : 20 },
+        ]}
+        onPress={() => navigation.goBack()}
+      >
+        <ChevronLeft size={24} color={colors.text.primary} />
+      </TouchableOpacity>
+
+      <View
+        style={[
+          styles.headerActions,
+          { top: Platform.OS === 'ios' ? Math.max(insets.top, 20) : 20 },
+        ]}
+      >
+        {/* <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => setIsLiked(!isLiked)}
+        >
+          <Heart
+            size={20}
+            color={isLiked ? colors.status.error : colors.text.primary}
+            fill={isLiked ? colors.status.error : 'transparent'}
+          />
+        </TouchableOpacity> */}
+
+        <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
+          <Share2 size={20} color={colors.text.primary} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -349,25 +385,6 @@ const EventDetailScreen = () => {
             style={styles.banner}
             resizeMode="cover"
           />
-          <TouchableOpacity
-            style={[
-              styles.backBtn,
-              { top: Platform.OS === 'ios' ? Math.max(insets.top, 20) : 20 },
-            ]}
-            onPress={() => navigation.goBack()}
-          >
-            <ChevronLeft size={24} color={colors.text.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.shareBtn,
-              { top: Platform.OS === 'ios' ? Math.max(insets.top, 20) : 20 },
-            ]}
-            onPress={handleShare}
-          >
-            <Share2 size={20} color={colors.text.primary} />
-          </TouchableOpacity>
 
           <View style={styles.typeBadge}>
             <Text style={styles.typeText}>{event.type.toUpperCase()}</Text>
@@ -663,8 +680,8 @@ const EventDetailScreen = () => {
                     enrollment
                       ? 'Unenroll From Event'
                       : isFull
-                      ? 'Sold Out'
-                      : 'Enroll Now'
+                        ? 'Sold Out'
+                        : 'Enroll Now'
                   }
                   onPress={handleEnrollmentPress}
                   loading={actionLoading}
@@ -753,43 +770,34 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: { elevation: 4 },
+    }),
+    zIndex: 10,
+  },
   backBtn: {
     position: 'absolute',
     left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: { elevation: 4 },
-    }),
   },
-  shareBtn: {
+  headerActions: {
     position: 'absolute',
     right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: { elevation: 4 },
-    }),
+    flexDirection: 'row',
+    gap: 12,
+    zIndex: 10,
   },
   typeBadge: {
     position: 'absolute',

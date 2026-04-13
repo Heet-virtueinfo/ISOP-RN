@@ -485,16 +485,29 @@ const EditEventScreen = () => {
             value={openDatePicker ? date : endDate || new Date()}
             mode={pickerMode}
             onChange={(e, d) => {
-              if (e.type === 'dismissed') { setOpenDatePicker(false); setOpenEndDatePicker(false); return; }
+              if (e?.type === 'dismissed') {
+                setOpenDatePicker(false);
+                setOpenEndDatePicker(false);
+                setPickerMode('date');
+                return;
+              }
               if (d) {
                 if (openDatePicker) {
                   setDate(d);
-                  if (pickerMode === 'date') setPickerMode('time');
-                  else { setOpenDatePicker(false); setPickerMode('date'); }
+                  if (Platform.OS === 'android' && pickerMode === 'date') {
+                    setPickerMode('time');
+                  } else {
+                    setOpenDatePicker(false);
+                    setPickerMode('date');
+                  }
                 } else {
                   setEndDate(d);
-                  if (pickerMode === 'date') setPickerMode('time');
-                  else { setOpenEndDatePicker(false); setPickerMode('date'); }
+                  if (Platform.OS === 'android' && pickerMode === 'date') {
+                    setPickerMode('time');
+                  } else {
+                    setOpenEndDatePicker(false);
+                    setPickerMode('date');
+                  }
                 }
               }
             }}
@@ -556,8 +569,94 @@ const EditEventScreen = () => {
                 </View>
               </View>
               <Button title="Confirm Session" onPress={handleConfirmAgenda} style={{ marginTop: 24 }} />
-              {showItemStartPicker && <DateTimePicker value={agendaStartTime} mode="datetime" onChange={(e, d) => { setShowItemStartPicker(false); if (d) setAgendaStartTime(d); }} />}
-              {showItemEndPicker && <DateTimePicker value={agendaEndTime} mode="datetime" onChange={(e, d) => { setShowItemEndPicker(false); if (d) setAgendaEndTime(d); }} />}
+              
+              {/* iOS Session Start Picker Modal */}
+              {Platform.OS === 'ios' && showItemStartPicker && (
+                <Modal transparent animationType="slide">
+                  <TouchableWithoutFeedback onPress={() => setShowItemStartPicker(false)}>
+                    <View style={styles.modalOverlay} />
+                  </TouchableWithoutFeedback>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Session Start</Text>
+                      <TouchableOpacity onPress={() => setShowItemStartPicker(false)}>
+                        <Text style={styles.modalDoneBtn}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.pickerWrapper}>
+                      <DateTimePicker
+                        value={agendaStartTime}
+                        mode="datetime"
+                        display="spinner"
+                        onChange={(e, d) => { if (d) setAgendaStartTime(d); }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+              )}
+
+              {/* iOS Session End Picker Modal */}
+              {Platform.OS === 'ios' && showItemEndPicker && (
+                <Modal transparent animationType="slide">
+                  <TouchableWithoutFeedback onPress={() => setShowItemEndPicker(false)}>
+                    <View style={styles.modalOverlay} />
+                  </TouchableWithoutFeedback>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Session End</Text>
+                      <TouchableOpacity onPress={() => setShowItemEndPicker(false)}>
+                        <Text style={styles.modalDoneBtn}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.pickerWrapper}>
+                      <DateTimePicker
+                        value={agendaEndTime}
+                        mode="datetime"
+                        display="spinner"
+                        onChange={(e, d) => { if (d) setAgendaEndTime(d); }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+              )}
+
+              {/* Android Native Pickers */}
+              {Platform.OS === 'android' && showItemStartPicker && (
+                <DateTimePicker
+                  value={agendaStartTime}
+                  mode={pickerMode}
+                  onChange={(e, d) => {
+                    if (e?.type === 'dismissed') {
+                      setShowItemStartPicker(false);
+                      setPickerMode('date');
+                      return;
+                    }
+                    if (d) {
+                      setAgendaStartTime(d);
+                      if (pickerMode === 'date') setPickerMode('time');
+                      else { setShowItemStartPicker(false); setPickerMode('date'); }
+                    }
+                  }}
+                />
+              )}
+              {Platform.OS === 'android' && showItemEndPicker && (
+                <DateTimePicker
+                  value={agendaEndTime}
+                  mode={pickerMode}
+                  onChange={(e, d) => {
+                    if (e?.type === 'dismissed') {
+                      setShowItemEndPicker(false);
+                      setPickerMode('date');
+                      return;
+                    }
+                    if (d) {
+                      setAgendaEndTime(d);
+                      if (pickerMode === 'date') setPickerMode('time');
+                      else { setShowItemEndPicker(false); setPickerMode('date'); }
+                    }
+                  }}
+                />
+              )}
             </ScrollView>
           </View>
         </View>

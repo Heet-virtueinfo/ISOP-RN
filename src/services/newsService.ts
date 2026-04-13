@@ -74,3 +74,29 @@ export const deleteNewsArticle = async (newsId: string) => {
     throw error;
   }
 };
+
+export const updateNewsArticle = async (newsId: string, data: Partial<NewsArticle>) => {
+  try {
+    let finalData = { ...data };
+
+    // Handle image upload if a local URI is provided
+    if (data.imageUrl && !data.imageUrl.startsWith('http')) {
+      const remoteUrl = await uploadImageToCloudinary(data.imageUrl, 'ISOP/News');
+      if (remoteUrl) {
+        finalData.imageUrl = remoteUrl;
+      } else {
+        throw new Error("Failed to upload image");
+      }
+    }
+
+    const newsRef = doc(firebaseFirestore, COLLECTIONS.NEWS, newsId);
+    await setDoc(newsRef, {
+      ...finalData,
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating news:", error);
+    throw error;
+  }
+};

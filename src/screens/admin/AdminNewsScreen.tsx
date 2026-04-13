@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Modal,
 } from 'react-native';
 import {
@@ -31,10 +30,11 @@ import {
   addNewsArticle,
   deleteNewsArticle,
   listenToAllNews,
+  updateNewsArticle,
 } from '../../services/newsService';
 import CustomLoader from '../../components/CustomLoader';
 import NewsCard from '../../components/NewsCard';
-import UserHeader from '../../components/UserHeader';
+import AdminHeader from '../../components/AdminHeader';
 import Button from '../../components/Button';
 import DeleteNewsModal from '../../components/modals/DeleteNewsModal';
 import BentoFormTile from '../../components/BentoFormTile';
@@ -53,6 +53,7 @@ const AdminNewsScreen = () => {
   const [linkUrl, setLinkUrl] = useState('');
   const [newsType, setNewsType] = useState<NewsType>('news');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [actionLoading, setActionLoading] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
@@ -87,6 +88,16 @@ const AdminNewsScreen = () => {
     }
   };
 
+  const handleReset = () => {
+    setTitle('');
+    setContent('');
+    setLinkUrl('');
+    setNewsType('news');
+    setImageUri(null);
+    setIsCreating(false);
+    setEditingId(null);
+  };
+
   const handlePublish = async () => {
     if (!title.trim() || !content.trim()) {
       Toast.show({
@@ -99,36 +110,55 @@ const AdminNewsScreen = () => {
 
     setActionLoading(true);
     try {
-      await addNewsArticle({
-        title,
-        content,
-        linkUrl,
-        type: newsType,
-        imageUrl: imageUri,
-        createdBy: userProfile?.uid || 'Admin',
-      });
-      // Reset form
-      setTitle('');
-      setContent('');
-      setLinkUrl('');
-      setNewsType('news');
-      setImageUri(null);
-      setIsCreating(false);
-      Toast.show({
-        type: 'success',
-        text1: 'Published',
-        text2: 'Article published successfully!'
-      });
+      if (editingId) {
+        await updateNewsArticle(editingId, {
+          title,
+          content,
+          linkUrl,
+          type: newsType,
+          imageUrl: imageUri,
+        });
+        Toast.show({
+          type: 'success',
+          text1: 'Updated',
+          text2: 'Article updated successfully!'
+        });
+      } else {
+        await addNewsArticle({
+          title,
+          content,
+          linkUrl,
+          type: newsType,
+          imageUrl: imageUri,
+          createdBy: userProfile?.uid || 'Admin',
+        });
+        Toast.show({
+          type: 'success',
+          text1: 'Published',
+          text2: 'Article published successfully!'
+        });
+      }
+      handleReset();
     } catch (error) {
       console.error('Publish error:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: 'Failed to publish article.'
+        text2: `Failed to ${editingId ? 'update' : 'publish'} article.`
       });
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleEdit = (article: NewsArticle) => {
+    setEditingId(article.id);
+    setTitle(article.title);
+    setContent(article.content);
+    setLinkUrl(article.linkUrl || '');
+    setNewsType(article.type);
+    setImageUri(article.imageUrl || null);
+    setIsCreating(true);
   };
 
   const handleDelete = (article: NewsArticle) => {
@@ -166,13 +196,15 @@ const AdminNewsScreen = () => {
       visible={isCreating}
       animationType="slide"
       transparent={true}
-      onRequestClose={() => setIsCreating(false)}
+      onRequestClose={handleReset}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Create New Article</Text>
-            <TouchableOpacity onPress={() => setIsCreating(false)} style={styles.closeBtn}>
+            <Text style={styles.modalTitle}>
+              {editingId ? 'Configure Broadcast' : 'Create New Article'}
+            </Text>
+            <TouchableOpacity onPress={handleReset} style={styles.closeBtn}>
               <X size={24} color={colors.text.primary} />
             </TouchableOpacity>
           </View>
@@ -260,10 +292,15 @@ const AdminNewsScreen = () => {
 
               <View style={styles.formActions}>
                 <View style={{ flex: 1 }}>
-                  <Button title="Discard" onPress={() => setIsCreating(false)} variant="outline" />
+                  <Button title="Discard" onPress={handleReset} variant="outline" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Button title="Broadcast" onPress={handlePublish} leftIcon={Send} loading={actionLoading} />
+                  <Button
+                    title={editingId ? "Update Intelligence" : "Broadcast"}
+                    onPress={handlePublish}
+                    leftIcon={Send}
+                    loading={actionLoading}
+                  />
                 </View>
               </View>
             </ScrollView>
@@ -280,9 +317,8 @@ const AdminNewsScreen = () => {
     >
       <View style={styles.container}>
         {/* Header */}
-        <UserHeader
+        <AdminHeader
           title="Broadcast Center"
-          showActions={false}
         />
 
         <ScrollView
@@ -331,11 +367,7 @@ const AdminNewsScreen = () => {
                   article={article}
                   isAdmin={true}
                   onDelete={() => handleDelete(article)}
-                  onEdit={() => {
-                    // Pre-fill form for edit if needed, or navigate
-                    setArticleToDelete(article); // Reuse state or add isEditing
-                    Alert.alert('Edit Mode', 'News editing flow will be expanded in the next update.');
-                  }}
+                  onEdit={() => handleEdit(article)}
                 />
               ))}
             </View>

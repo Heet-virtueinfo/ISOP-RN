@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   container: {
     height: 56,
     borderRadius: 16,
-    justifyContent: 'center',
+    // justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
     paddingHorizontal: spacing.md,
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
   },
   primaryContainer: {
     backgroundColor: colors.brand.primary,
+    justifyContent: 'center',
     // Premium shadow
     shadowColor: colors.brand.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -111,13 +112,16 @@ const styles = StyleSheet.create({
   },
   secondaryContainer: {
     backgroundColor: colors.brand.secondary,
+    justifyContent: 'center',
   },
   outlineContainer: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: colors.brand.primary,
+    justifyContent: 'center',
   },
   ghostContainer: {
+    justifyContent: 'center',
     backgroundColor: 'transparent',
     height: 'auto',
     paddingVertical: spacing.xs,
@@ -127,6 +131,7 @@ const styles = StyleSheet.create({
     borderColor: colors.ui.disabledSurface,
     shadowOpacity: 0,
     elevation: 0,
+    justifyContent: 'center',
   },
   label: {
     fontFamily: typography.fontFamily,

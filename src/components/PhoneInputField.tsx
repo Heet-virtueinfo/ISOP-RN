@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInputProps, StyleProp, ViewStyle } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TextInputProps,
+  StyleProp,
+  ViewStyle,
+  Platform,
+} from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Phone } from 'lucide-react-native';
-import InputField from './InputField';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -13,7 +21,7 @@ interface PhoneInputFieldProps extends TextInputProps {
   error?: string;
   countryCode: string;
   onCountryCodeChange: (code: string) => void;
-  wrapperStyle?: StyleProp<ViewStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 const PhoneInputField: React.FC<PhoneInputFieldProps> = ({
@@ -21,21 +29,44 @@ const PhoneInputField: React.FC<PhoneInputFieldProps> = ({
   error,
   countryCode,
   onCountryCodeChange,
-  wrapperStyle,
+  containerStyle,
+  onFocus,
+  onBlur,
   ...props
 }) => {
-  const [isDropdownFocused, setIsDropdownFocused] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const handleFocus = (e: any) => {
+    setIsFocused(true);
+    onFocus?.(e);
+  };
+
+  const handleBlur = (e: any) => {
+    setIsFocused(false);
+    onBlur?.(e);
+  };
+
+  const borderColor = error
+    ? colors.status.error
+    : isFocused
+    ? colors.brand.secondary
+    : colors.ui.inputBorder;
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.label, error && styles.errorLabel]}>{label}</Text>
-      <View style={styles.inputRow}>
+    <View style={[styles.container, containerStyle]}>
+      {!!label && (
+        <Text style={[styles.label, error && styles.errorLabel]}>{label}</Text>
+      )}
+      <View
+        style={[
+          styles.inputWrapper,
+          {
+            borderColor,
+          },
+        ]}
+      >
         <Dropdown
-          style={[
-            styles.dropdown,
-            isDropdownFocused && { borderColor: colors.brand.secondary },
-            error && { borderColor: colors.status.error },
-          ]}
+          style={styles.dropdown}
           placeholderStyle={styles.placeholderStyle}
           selectedTextStyle={styles.selectedTextStyle}
           data={countryCodes}
@@ -44,24 +75,27 @@ const PhoneInputField: React.FC<PhoneInputFieldProps> = ({
           valueField="value"
           placeholder="Code"
           value={countryCode}
-          onFocus={() => setIsDropdownFocused(true)}
-          onBlur={() => setIsDropdownFocused(false)}
           onChange={item => {
             onCountryCodeChange(item.value);
-            setIsDropdownFocused(false);
           }}
+          containerStyle={styles.dropdownListContainer}
+          itemTextStyle={styles.dropdownItemText}
         />
-        <View style={styles.phoneInputContainer}>
-          <InputField
-            label=""
-            leftIcon={Phone}
-            style={styles.noMargin}
-            containerStyle={styles.noMargin}
-            wrapperStyle={wrapperStyle}
-            {...props}
-            error={undefined}
-          />
+        
+        <View style={styles.verticalDivider} />
+        
+        <View style={styles.iconContainer}>
+          <Phone size={20} color={isFocused ? colors.brand.secondary : colors.text.tertiary} />
         </View>
+
+        <TextInput
+          style={styles.input}
+          placeholderTextColor={colors.text.tertiary}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          keyboardType="phone-pad"
+          {...props}
+        />
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
@@ -83,25 +117,26 @@ const styles = StyleSheet.create({
   errorLabel: {
     color: colors.status.error,
   },
-  inputRow: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-  },
-  dropdown: {
-    width: 100,
-    height: 56,
     backgroundColor: colors.ui.inputBackground,
-    borderRadius: 12,
-    paddingHorizontal: spacing.sm,
     borderWidth: 1.5,
-    borderColor: colors.ui.inputBorder,
-    // Matching InputField shadows
+    borderRadius: 12,
+    height: 56,
+    paddingHorizontal: spacing.xs,
+    // Shadow for iOS
     shadowColor: colors.text.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
+    // Elevation for Android
     elevation: 2,
+  },
+  dropdown: {
+    width: 70,
+    height: '100%',
+    paddingHorizontal: spacing.xs,
   },
   placeholderStyle: {
     fontSize: typography.sizes.sm,
@@ -112,12 +147,32 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     color: colors.text.primary,
     fontFamily: typography.fontFamily,
+    fontWeight: '600',
   },
-  phoneInputContainer: {
+  dropdownListContainer: {
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  dropdownItemText: {
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
+  },
+  verticalDivider: {
+    width: 1,
+    height: '50%',
+    backgroundColor: colors.ui.inputBorder,
+    marginHorizontal: spacing.xs,
+  },
+  iconContainer: {
+    paddingHorizontal: spacing.xs,
+  },
+  input: {
     flex: 1,
-  },
-  noMargin: {
-    marginBottom: 0,
+    height: '100%',
+    fontFamily: typography.fontFamily,
+    fontSize: typography.sizes.md,
+    color: colors.text.primary,
+    paddingVertical: Platform.OS === 'ios' ? 0 : 4,
   },
   errorText: {
     fontFamily: typography.fontFamily,
