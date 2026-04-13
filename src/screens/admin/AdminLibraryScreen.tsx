@@ -12,16 +12,16 @@ import {
   Modal,
   StatusBar,
 } from 'react-native';
-import { 
-  Plus, 
-  Trash2, 
-  Send, 
-  File, 
-  Link2, 
-  X, 
-  Search, 
-  Layers, 
-  HardDrive, 
+import {
+  Plus,
+  Trash2,
+  Send,
+  File,
+  Link2,
+  X,
+  Search,
+  Layers,
+  HardDrive,
   FileText,
   Globe,
   PlusCircle,
@@ -43,7 +43,7 @@ import {
 import { uploadDocumentToCloudinary } from '../../services/uploadService';
 import CustomLoader from '../../components/CustomLoader';
 import ResourceCard from '../../components/ResourceCard';
-import UserHeader from '../../components/UserHeader';
+import AdminHeader from '../../components/AdminHeader';
 import Button from '../../components/Button';
 import DeleteResourceModal from '../../components/modals/DeleteResourceModal';
 import BentoFormTile from '../../components/BentoFormTile';
@@ -105,8 +105,8 @@ const AdminLibraryScreen = () => {
     let result = resources;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(r => 
-        r.title.toLowerCase().includes(q) || 
+      result = result.filter(r =>
+        r.title.toLowerCase().includes(q) ||
         r.category.toLowerCase().includes(q) ||
         (r.description && r.description.toLowerCase().includes(q))
       );
@@ -385,9 +385,9 @@ const AdminLibraryScreen = () => {
               )}
 
               <View style={styles.footerActions}>
-                <Button 
-                  title={editingId ? "Update Intelligence" : "Broadcast Asset"} 
-                  onPress={handlePublish} 
+                <Button
+                  title={editingId ? "Update Intelligence" : "Broadcast Asset"}
+                  onPress={handlePublish}
                   loading={actionLoading}
                   leftIcon={Send}
                   style={styles.publishBtn}
@@ -403,11 +403,10 @@ const AdminLibraryScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <UserHeader
+      <AdminHeader
         title="Intelligence Base"
         showBack={true}
         onBackPress={() => navigation.goBack()}
-        showActions={false}
       />
 
       <ScrollView

@@ -192,9 +192,9 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                                 </Text>
                               </View>
                             </View>
-                            <TouchableOpacity style={styles.viewEventBtn}>
+                            {/* <TouchableOpacity style={styles.viewEventBtn}>
                               <ChevronRight size={18} color={colors.brand.primary} />
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                           </View>
                         </View>
                       </View>

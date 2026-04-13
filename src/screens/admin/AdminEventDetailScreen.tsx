@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import {
@@ -84,6 +85,15 @@ const AdminEventDetailScreen = () => {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const openInMaps = () => {
+    if (!event) return;
+    const url = Platform.select({
+      ios: `maps://app?q=${encodeURIComponent(event.location)}`,
+      android: `geo:0,0?q=${encodeURIComponent(event.location)}`,
+    });
+    if (url) Linking.openURL(url);
   };
 
   if (loading)
@@ -215,7 +225,11 @@ const AdminEventDetailScreen = () => {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.metaNodeLabel}>LOCATION</Text>
-                <Text style={styles.metaNodeValue}>{event.location}</Text>
+                <TouchableOpacity onPress={openInMaps} activeOpacity={0.6}>
+                  <Text style={[styles.metaNodeValue, styles.linkText]}>
+                    {event.location}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -538,6 +552,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: colors.text.primary,
+  },
+  linkText: {
+    color: colors.brand.primary,
+    textDecorationLine: 'underline',
   },
   sectionWrap: {
     marginBottom: spacing.xl,

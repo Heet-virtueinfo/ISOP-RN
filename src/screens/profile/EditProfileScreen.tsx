@@ -19,6 +19,7 @@ import Button from '../../components/Button';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { validatePhone, validateName } from '../../utils/validation';
+import { splitPhoneNumber } from '../../utils/countries';
 import { updateUserProfile } from '../../services/profileService';
 import CustomLoader from '../../components/CustomLoader';
 import UserHeader from '../../components/UserHeader';
@@ -26,13 +27,14 @@ import UserHeader from '../../components/UserHeader';
 const EditProfileScreen = () => {
   const navigation = useNavigation<any>();
   const { userProfile } = useAuth();
+  const phoneParts = splitPhoneNumber(userProfile?.phoneNumber || '');
 
   const [profileImage, setProfileImage] = useState<string | null>(
     userProfile?.profileImage || null,
   );
   const [fullName, setFullName] = useState(userProfile?.displayName || '');
-  const [mobile, setMobile] = useState(userProfile?.phoneNumber || '');
-  const [countryCode, setCountryCode] = useState('+91');
+  const [mobile, setMobile] = useState(phoneParts.mobile);
+  const [countryCode, setCountryCode] = useState(phoneParts.countryCode);
 
   const [errors, setErrors] = useState<{
     fullName?: string;
@@ -61,7 +63,7 @@ const EditProfileScreen = () => {
       try {
         await updateUserProfile(userProfile.uid, {
           displayName: fullName,
-          phoneNumber: mobile,
+          phoneNumber: `${countryCode}${mobile}`,
           profileImage,
         });
 
