@@ -41,6 +41,7 @@ import {
   submitFeedback,
   checkUserFeedback,
 } from '../../services/feedbackService';
+import { apiService } from '../../services/apiService';
 import CustomLoader from '../../components/CustomLoader';
 import Button from '../../components/Button';
 import Toast from 'react-native-toast-message';
@@ -139,6 +140,33 @@ const EventDetailScreen = () => {
       if (result.success && result.enrollment) {
         setEnrollment(result.enrollment);
         Toast.show({ type: 'success', text1: 'Enrolled Successfully!' });
+
+        apiService
+          .sendEnrollmentEmail({
+            userEmail: userProfile.email,
+            userName: userProfile.displayName,
+            eventTitle: event.title,
+            eventDate: formatDate(event.date),
+            eventLocation: event.location,
+            eventType: event.type,
+            eventStartDate: (event.date.toDate
+              ? event.date.toDate()
+              : new Date(event.date)
+            ).toISOString(),
+            eventEndDate: (event.endDate?.toDate
+              ? event.endDate.toDate()
+              : new Date(
+                  (event.date.toDate
+                    ? event.date.toDate()
+                    : new Date(event.date)
+                  ).getTime() + 3600000,
+                )
+            ).toISOString(),
+            eventDescription: event.description,
+          })
+          .catch(err =>
+            console.warn('Enrollment email could not be sent:', err?.message),
+          );
       }
       setShowConfirmModal(false);
     } catch (error) {
@@ -184,7 +212,7 @@ const EventDetailScreen = () => {
       typeof timestamp.toDate === 'function'
         ? timestamp.toDate()
         : new Date(timestamp);
-    
+
     const dateStr = date.toLocaleDateString('en-US', {
       day: 'numeric',
       month: 'short',

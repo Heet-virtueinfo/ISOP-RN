@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const notificationRoutes = require('./routes/notificationRoutes');
+const emailRoutes = require('./routes/emailRoutes');
 const { getWelcomeTemplate } = require('./utils/welcomeTemplate');
 
 const app = express();
@@ -16,6 +17,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/emails', emailRoutes);
 
 app.listen(port, () => {
   console.log(`ISoP Backend Server is running on http://localhost:${port}`);
