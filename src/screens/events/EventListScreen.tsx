@@ -19,6 +19,7 @@ import UserHeader from '../../components/UserHeader';
 import InputField from '../../components/InputField';
 import { getUserEnrollments } from '../../services/enrollmentService';
 import { useAuth } from '../../contexts/AuthContext';
+import { isEventActive } from '../../utils/eventHelpers';
 
 const EventListScreen = () => {
   const navigation = useNavigation<any>();
@@ -63,20 +64,8 @@ const EventListScreen = () => {
 
 
   const filteredEvents = useMemo(() => {
-    const isUpcomingEvent = (event: AppEvent): boolean => {
-      try {
-        const eventDate =
-          event.date && typeof event.date.toDate === 'function'
-            ? event.date.toDate()
-            : new Date(event.date);
-        return eventDate.getTime() > Date.now();
-      } catch {
-        return true;
-      }
-    };
-
     return events.filter(event => {
-      if (!isUpcomingEvent(event)) return false;
+      if (!isEventActive(event)) return false;
 
       const matchesQuery =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -107,7 +96,7 @@ const EventListScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="Upcoming Events" />
+      <UserHeader title="Upcoming Events" showBack={true} onBackPress={() => navigation.goBack()} />
 
       {loading && !refreshing ? (
         <CustomLoader

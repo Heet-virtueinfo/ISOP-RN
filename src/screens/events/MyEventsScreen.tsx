@@ -19,6 +19,7 @@ import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
 import UserHeader from '../../components/UserHeader';
 import InputField from '../../components/InputField';
+import { isEventActive } from '../../utils/eventHelpers';
 
 const MyEventsScreen = () => {
   const navigation = useNavigation<any>();
@@ -60,21 +61,8 @@ const MyEventsScreen = () => {
   }, [userProfile]);
 
   const filteredEvents = useMemo(() => {
-    // Helper: returns true if the event date is in the future (upcoming/active)
-    const isUpcomingEvent = (event: AppEvent): boolean => {
-      try {
-        const eventDate =
-          event.date && typeof event.date.toDate === 'function'
-            ? event.date.toDate()
-            : new Date(event.date);
-        return eventDate.getTime() > Date.now();
-      } catch {
-        return true; // Fallback: show if date can't be parsed
-      }
-    };
-
     let result = enrolledEvents.filter(event => {
-      const isUpcoming = isUpcomingEvent(event);
+      const isUpcoming = isEventActive(event);
       if (selectedStatus === 'upcoming' && !isUpcoming) return false;
       if (selectedStatus === 'completed' && isUpcoming) return false;
 
@@ -87,8 +75,8 @@ const MyEventsScreen = () => {
 
     // Sort: Upcoming events top, past events at bottom
     result.sort((a, b) => {
-      const aScore = isUpcomingEvent(a) ? 0 : 1;
-      const bScore = isUpcomingEvent(b) ? 0 : 1;
+      const aScore = isEventActive(a) ? 0 : 1;
+      const bScore = isEventActive(b) ? 0 : 1;
       return aScore - bScore;
     });
 

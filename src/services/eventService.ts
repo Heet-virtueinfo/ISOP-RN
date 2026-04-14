@@ -18,6 +18,7 @@ import { firebaseFirestore } from '../config/firebase';
 import { AppEvent } from '../types';
 import { COLLECTIONS } from '../constants/collections';
 import { uploadImageToCloudinary } from './uploadService';
+import { isEventActive } from '../utils/eventHelpers';
 
 // CREATE EVENT
 export const createEvent = async (
@@ -106,15 +107,8 @@ export const getActiveEvents = (callback: (events: AppEvent[]) => void) => {
         (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
           doc.data() as AppEvent,
       );
-      // Filter out ended events
-      const activeEvents = eventsList.filter((event: AppEvent) => {
-        const targetTimestamp = event.endDate || event.date;
-        const targetTime =
-          typeof targetTimestamp.toMillis === 'function'
-            ? targetTimestamp.toMillis()
-            : new Date(targetTimestamp as any).getTime();
-        return targetTime > now.toMillis();
-      });
+      // Filter out only strictly completed events
+      const activeEvents = eventsList.filter((event: AppEvent) => isEventActive(event));
       callback(activeEvents);
     },
     error => {

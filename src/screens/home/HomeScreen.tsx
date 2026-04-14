@@ -23,6 +23,7 @@ import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
 import UserHeader from '../../components/UserHeader';
+import { isEventActive } from '../../utils/eventHelpers';
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -64,20 +65,8 @@ const HomeScreen = () => {
       return;
     }
 
-    const isUpcomingEvent = (event: AppEvent): boolean => {
-      try {
-        const eventDate =
-          event.date && typeof event.date.toDate === 'function'
-            ? event.date.toDate()
-            : new Date(event.date);
-        return eventDate.getTime() > Date.now();
-      } catch {
-        return true; 
-      }
-    };
-
     // Explicitly filter out any past events before rendering
-    const validEvents = allEvents.filter(isUpcomingEvent);
+    const validEvents = allEvents.filter(event => isEventActive(event));
     setTotalEventsCount(validEvents.length);
 
     const notEnrolled = validEvents.filter(e => !enrollmentIds.includes(e.id));
