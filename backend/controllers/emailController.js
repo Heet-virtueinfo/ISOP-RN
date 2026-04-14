@@ -1,4 +1,4 @@
-const transporter = require('../utils/emailTransporter');
+const brevo = require('../utils/emailTransporter');
 const {
   getEnrollmentConfirmationTemplate,
 } = require('../utils/emailTemplates');
@@ -32,9 +32,9 @@ exports.sendEnrollmentEmail = async (req, res) => {
     });
   }
 
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+  if (!process.env.BREVO_API_KEY) {
     return res.status(500).json({
-      error: 'Email service not configured. Set EMAIL_USER and EMAIL_PASSWORD.',
+      error: 'Email service not configured. Set BREVO_API_KEY.',
     });
   }
 
@@ -50,19 +50,29 @@ exports.sendEnrollmentEmail = async (req, res) => {
       eventDescription: eventDescription || '',
     });
 
-    await transporter.sendMail({
-      from: `"ISOP Platform" <${process.env.EMAIL_USER}>`,
-      to: userEmail,
+    const result = await brevo.transactionalEmails.sendTransacEmail({
       subject: `Registration Confirmed - ${eventTitle}`,
-      html: htmlContent,
+      sender: {
+        name: 'ISOP Platform',
+        email: process.env.BREVO_SENDER_EMAIL || 'heet.virtueinfo@gmail.com',
+      },
+      to: [
+        {
+          email: userEmail,
+          name: userName,
+        },
+      ],
+      htmlContent: htmlContent,
     });
 
     console.log(
-      `✅ Enrollment email sent to ${userEmail} for event: ${eventTitle}`,
+      `✅ Enrollment email sent via Brevo to ${userEmail} for event: ${eventTitle}`,
     );
-    return res
-      .status(200)
-      .json({ success: true, message: `Email sent to ${userEmail}` });
+    return res.status(200).json({
+      success: true,
+      message: `Email sent to ${userEmail}`,
+      messageId: result.messageId,
+    });
   } catch (error) {
     console.error('Email Controller Error:', error.message);
     return res.status(500).json({ error: error.message });

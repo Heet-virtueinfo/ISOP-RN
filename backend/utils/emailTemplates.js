@@ -1,12 +1,3 @@
-/**
- * Generates a professional HTML email for event enrollment confirmation.
- * @param {Object} data
- * @param {string} data.userName
- * @param {string} data.eventTitle
- * @param {string} data.eventDate
- * @param {string} data.eventLocation
- * @param {string} data.eventType
- */
 const getEnrollmentConfirmationTemplate = ({
   userName,
   eventTitle,
@@ -35,7 +26,6 @@ const getEnrollmentConfirmationTemplate = ({
     eventDescription || '',
   )}&location=${encodeURIComponent(eventLocation)}`;
 
-  // Extract date components for the premium calendar box
   let month = 'APR';
   let day = '09';
   try {
@@ -44,9 +34,7 @@ const getEnrollmentConfirmationTemplate = ({
       month = parts[1].toUpperCase().substring(0, 3);
       day = parts[2].replace(',', '').padStart(2, '0');
     }
-  } catch (e) {
-    /* fallback to defaults */
-  }
+  } catch (e) {}
 
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     eventLocation,

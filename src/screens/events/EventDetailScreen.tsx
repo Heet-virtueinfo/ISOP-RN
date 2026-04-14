@@ -680,8 +680,8 @@ const EventDetailScreen = () => {
                     enrollment
                       ? 'Unenroll From Event'
                       : isFull
-                        ? 'Sold Out'
-                        : 'Enroll Now'
+                      ? 'Sold Out'
+                      : 'Enroll Now'
                   }
                   onPress={handleEnrollmentPress}
                   loading={actionLoading}

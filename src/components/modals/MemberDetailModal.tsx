@@ -86,7 +86,10 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContainer}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContainer}
+          >
             {/* Command Suite Hero */}
             <View style={styles.heroSection}>
               <View style={styles.avatarContainer}>
@@ -109,33 +112,34 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                 </View>
               </View>
               <Text style={styles.displayName}>{member.displayName}</Text>
-
-            </View>
-
-            {/* Metrics Overview (Restored for Admin value) */}
-            <View style={styles.metricsRow}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>{member.events.length}</Text>
-                <Text style={styles.metricLabel}>ENTRIES</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>TIER 1</Text>
-                <Text style={styles.metricLabel}>ACCESS</Text>
-              </View>
             </View>
 
             {/* Contact Information */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>COMMUNICATION CHANNELS</Text>
               <View style={styles.infoCard}>
-                <TouchableOpacity style={styles.infoRow} onPress={handleEmail} activeOpacity={0.7}>
-                  <View style={[styles.iconBox, { backgroundColor: colors.brand.primary + '10' }]}>
+                <TouchableOpacity
+                  style={styles.infoRow}
+                  onPress={handleEmail}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.iconBox,
+                      { backgroundColor: colors.brand.primary + '10' },
+                    ]}
+                  >
                     <Mail size={18} color={colors.brand.primary} />
                   </View>
                   <View style={styles.infoContent}>
                     <Text style={styles.infoLabel}>SECURE EMAIL</Text>
-                    <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="middle">{member.email}</Text>
+                    <Text
+                      style={styles.infoValue}
+                      numberOfLines={1}
+                      ellipsizeMode="middle"
+                    >
+                      {member.email}
+                    </Text>
                   </View>
                   <ExternalLink size={16} color={colors.text.tertiary} />
                 </TouchableOpacity>
@@ -148,14 +152,23 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                   disabled={!member.phoneNumber}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.iconBox, { backgroundColor: colors.brand.secondary + '10' }]}>
+                  <View
+                    style={[
+                      styles.iconBox,
+                      { backgroundColor: colors.brand.secondary + '10' },
+                    ]}
+                  >
                     <Phone size={18} color={colors.brand.secondary} />
                   </View>
                   <View style={styles.infoContent}>
                     <Text style={styles.infoLabel}>DIRECT LINE</Text>
-                    <Text style={styles.infoValue}>{member.phoneNumber || 'Not provided'}</Text>
+                    <Text style={styles.infoValue}>
+                      {member.phoneNumber || 'Not provided'}
+                    </Text>
                   </View>
-                  {member.phoneNumber && <ExternalLink size={16} color={colors.text.tertiary} />}
+                  {member.phoneNumber && (
+                    <ExternalLink size={16} color={colors.text.tertiary} />
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -165,7 +178,9 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitle}>OPERATIONAL HISTORY</Text>
                 <View style={styles.countPill}>
-                  <Text style={styles.countPillText}>{member.events.length} LOGS</Text>
+                  <Text style={styles.countPillText}>
+                    {member.events.length} LOGS
+                  </Text>
                 </View>
               </View>
 
@@ -177,7 +192,9 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                       <View key={ev.eventId} style={styles.timelineItem}>
                         <View style={styles.timelineLeading}>
                           <View style={styles.timelineDot} />
-                          {index !== member.events.length - 1 && <View style={styles.timelineLine} />}
+                          {index !== member.events.length - 1 && (
+                            <View style={styles.timelineLine} />
+                          )}
                         </View>
                         <View style={styles.timelineContent}>
                           <View style={styles.participationCard}>
@@ -188,7 +205,15 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                               <View style={styles.dateRow}>
                                 <Clock size={12} color={colors.brand.primary} />
                                 <Text style={styles.enrolledDate}>
-                                  {ev.enrolledAt?.toDate?.() ? ev.enrolledAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
+                                  {ev.enrolledAt?.toDate?.()
+                                    ? ev.enrolledAt
+                                        .toDate()
+                                        .toLocaleDateString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric',
+                                        })
+                                    : 'Recently'}
                                 </Text>
                               </View>
                             </View>
@@ -204,7 +229,9 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               ) : (
                 <View style={styles.emptyState}>
                   <Calendar size={32} color={colors.text.tertiary + '40'} />
-                  <Text style={styles.emptyText}>No event participation history detected.</Text>
+                  <Text style={styles.emptyText}>
+                    No event participation history detected.
+                  </Text>
                 </View>
               )}
             </View>
@@ -333,42 +360,6 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     letterSpacing: -0.5,
   },
-
-  metricsRow: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    marginHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.layout.divider,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginTop: -10,
-  },
-  metricItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  metricValue: {
-    fontFamily: typography.fontFamily,
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.brand.primary,
-  },
-  metricLabel: {
-    fontFamily: typography.fontFamily,
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.text.tertiary,
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  metricDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: colors.layout.divider,
-  },
   section: {
     paddingHorizontal: spacing.xl,
     marginTop: spacing.xxl,
@@ -394,9 +385,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(226, 232, 240, 0.8)',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10 },
-      android: { elevation: 2 }
-    })
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+      },
+      android: { elevation: 2 },
+    }),
   },
   infoRow: {
     flexDirection: 'row',
@@ -485,9 +481,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(226, 232, 240, 0.8)',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 5 },
-      android: { elevation: 1 }
-    })
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 5,
+      },
+      android: { elevation: 1 },
+    }),
   },
   eventInfo: {
     flex: 1,
