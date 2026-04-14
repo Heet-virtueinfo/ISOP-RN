@@ -1,5 +1,5 @@
 const BACKEND_URL = 'https://isop-rn.onrender.com';
-// const BACKEND_URL = 'https://cc45-182-77-116-255.ngrok-free.app';
+// const BACKEND_URL = 'https://d818-182-77-116-255.ngrok-free.app';
 
 interface NotificationPayload {
   fcmToken?: string | string[];

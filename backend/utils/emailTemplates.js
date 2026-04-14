@@ -249,11 +249,10 @@ const getEnrollmentConfirmationTemplate = ({
             <tr>
               <td>
                 <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.6;">
-                  This is an automated delivery for your enrollment at ${eventTitle}.<br/>
-                  Need help? Contact our support team at <a href="mailto:support@virtueinfo.com" style="color: #4f46e5; text-decoration: none;">support@virtueinfo.com</a>
+                  Need help? Contact our support team by replying to this email.
                 </p>
                 <p style="margin: 16px 0 0 0; font-size: 12px; font-weight: 700; color: #cbd5e1; text-transform: uppercase; letter-spacing: 1px;">
-                  © ${new Date().getFullYear()} ISOP · Virtue Info Solutions
+                  © ${new Date().getFullYear()} ISOP Platform
                 </p>
               </td>
             </tr>
