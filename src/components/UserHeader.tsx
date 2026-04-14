@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     marginRight: spacing.sm,
-    marginLeft: -4,
+    marginLeft: spacing.sm,
   },
   titleContainer: {
     flex: 1,

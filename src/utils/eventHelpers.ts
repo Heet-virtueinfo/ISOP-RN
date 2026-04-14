@@ -77,16 +77,25 @@ export const getEventTypeColor = (type: EventType, themeColors: any) => {
   return colors[type] || themeColors.brand.primary;
 };
 
-export const isEventActive = (event: AppEvent) => {
+export const getEventStatus = (event: AppEvent): 'UPCOMING' | 'ONGOING' | 'COMPLETED' => {
+  if (!event || !event.date) return 'UPCOMING';
+  
   const now = new Date();
-  const targetDate = event.endDate
-    ? event.endDate.toDate
-      ? event.endDate.toDate()
-      : new Date(event.endDate)
-    : event.date.toDate
-    ? event.date.toDate()
-    : new Date(event.date);
-  return targetDate > now;
+  const start = event.date?.toDate ? event.date.toDate() : new Date(event.date);
+  
+  // If endDate is missing, assume a 3-hour duration for the "Ongoing" window
+  const end = event.endDate
+    ? (event.endDate.toDate ? event.endDate.toDate() : new Date(event.endDate))
+    : new Date(start.getTime() + 3 * 60 * 60 * 1000);
+
+  if (now < start) return 'UPCOMING';
+  if (now >= start && now <= end) return 'ONGOING';
+  return 'COMPLETED';
+};
+
+export const isEventActive = (event: AppEvent) => {
+  const status = getEventStatus(event);
+  return status === 'UPCOMING' || status === 'ONGOING';
 };
 
 export const isEventFull = (event: AppEvent) => {

@@ -17,6 +17,7 @@ import {
   getEventTypeColor,
   isEventActive,
   isEventFull,
+  getEventStatus as getStatus,
 } from '../utils/eventHelpers';
 
 interface EventCardProps {
@@ -28,35 +29,28 @@ interface EventCardProps {
   isEnrolled?: boolean;
 }
 
-const getEventStatus = (eventDate: any) => {
-  const now = new Date();
-  
-  let event: Date;
-  if (eventDate && typeof eventDate.toDate === 'function') {
-    event = eventDate.toDate();
-  } else {
-    event = new Date(eventDate);
+const getStatusUI = (status: 'UPCOMING' | 'ONGOING' | 'COMPLETED') => {
+  switch (status) {
+    case 'COMPLETED':
+      return {
+        label: 'COMPLETED',
+        color: colors.text.tertiary,
+        bg: colors.palette.slate.bg,
+      };
+    case 'ONGOING':
+      return {
+        label: 'ONGOING',
+        color: colors.status.success,
+        bg: 'rgba(34, 197, 94, 0.1)',
+      };
+    case 'UPCOMING':
+    default:
+      return {
+        label: 'UPCOMING',
+        color: colors.brand.primary,
+        bg: 'rgba(79, 70, 229, 0.1)',
+      };
   }
-  
-  const diffHours = (event.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-  if (diffHours < 0)
-    return {
-      label: 'COMPLETED',
-      color: colors.text.tertiary,
-      bg: colors.palette.slate.bg,
-    };
-  if (diffHours < 24)
-    return {
-      label: 'ONGOING',
-      color: colors.status.success,
-      bg: 'rgba(34, 197, 94, 0.1)',
-    };
-  return {
-    label: 'UPCOMING',
-    color: colors.brand.primary,
-    bg: 'rgba(79, 70, 229, 0.1)',
-  };
 };
 
 const EventCard: React.FC<EventCardProps> = ({
@@ -72,7 +66,7 @@ const EventCard: React.FC<EventCardProps> = ({
   const imageSource = getEventImage(event);
   const typeLabel = getEventTypeLabel(event.type);
   const typeColor = getEventTypeColor(event.type, colors);
-  const status = getEventStatus(event.date);
+  const status = getStatusUI(getStatus(event));
 
   const enrollmentProgress = event.maxCapacity
     ? event.enrolledCount / event.maxCapacity
