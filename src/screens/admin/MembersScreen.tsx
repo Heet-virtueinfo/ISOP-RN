@@ -426,18 +426,6 @@ const MembersScreen = () => {
             </View>
           </View>
 
-          <View style={styles.dashGrid}>
-            <View style={styles.dashCardSub}>
-              <Text style={styles.dashSubValue}>{enrollments.length}</Text>
-              <Text style={styles.dashSubLabel}>ENROLLMENTS</Text>
-            </View>
-            <View style={styles.dashCardSub}>
-              <Text style={styles.dashSubValue}>
-                {Math.round((members.length / Math.max(enrollments.length, 1)) * 100)}%
-              </Text>
-              <Text style={styles.dashSubLabel}>ENGAGEMENT</Text>
-            </View>
-          </View>
         </View>
 
         <View style={styles.searchSection}>
@@ -603,30 +591,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.text.tertiary,
     letterSpacing: 1,
-    marginTop: 2,
-  },
-  dashGrid: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  dashCardSub: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.8)',
-  },
-  dashSubValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text.primary,
-  },
-  dashSubLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.text.tertiary,
-    letterSpacing: 0.5,
     marginTop: 2,
   },
   searchSection: {

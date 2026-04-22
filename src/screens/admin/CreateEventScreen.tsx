@@ -105,6 +105,20 @@ const CreateEventScreen = () => {
   const [showItemStartPicker, setShowItemStartPicker] = useState(false);
   const [showItemEndPicker, setShowItemEndPicker] = useState(false);
 
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setLocation('');
+    setType('conference');
+    setImages([]);
+    setMaxCapacityStr('');
+    setDate(new Date());
+    setEndDate(null);
+    setSpeakers([]);
+    setAgenda([]);
+    setErrors({});
+  };
+
   // Validation Flags for Bento Dashboard
   const isMediaValid = images.length > 0;
   const isDetailsValid =
@@ -189,6 +203,7 @@ const CreateEventScreen = () => {
         text2: 'The event has been successfully published.',
       });
 
+      resetForm();
       navigation.navigate('EventsTab');
     } catch (error) {
       Toast.show({
@@ -546,8 +561,6 @@ const CreateEventScreen = () => {
             </TouchableOpacity>
           </View>
         </BentoFormTile>
-
-        <View style={{ height: spacing.xxl }} />
       </ScrollView>
 
       {/* Sticky Action Footer */}
@@ -761,13 +774,17 @@ const CreateEventScreen = () => {
               {/* iOS Session Start Picker Modal */}
               {Platform.OS === 'ios' && showItemStartPicker && (
                 <Modal transparent animationType="slide">
-                  <TouchableWithoutFeedback onPress={() => setShowItemStartPicker(false)}>
+                  <TouchableWithoutFeedback
+                    onPress={() => setShowItemStartPicker(false)}
+                  >
                     <View style={styles.modalOverlay} />
                   </TouchableWithoutFeedback>
                   <View style={styles.modalContent}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Session Start</Text>
-                      <TouchableOpacity onPress={() => setShowItemStartPicker(false)}>
+                      <TouchableOpacity
+                        onPress={() => setShowItemStartPicker(false)}
+                      >
                         <Text style={styles.modalDoneBtn}>Done</Text>
                       </TouchableOpacity>
                     </View>
@@ -788,13 +805,17 @@ const CreateEventScreen = () => {
               {/* iOS Session End Picker Modal */}
               {Platform.OS === 'ios' && showItemEndPicker && (
                 <Modal transparent animationType="slide">
-                  <TouchableWithoutFeedback onPress={() => setShowItemEndPicker(false)}>
+                  <TouchableWithoutFeedback
+                    onPress={() => setShowItemEndPicker(false)}
+                  >
                     <View style={styles.modalOverlay} />
                   </TouchableWithoutFeedback>
                   <View style={styles.modalContent}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Session End</Text>
-                      <TouchableOpacity onPress={() => setShowItemEndPicker(false)}>
+                      <TouchableOpacity
+                        onPress={() => setShowItemEndPicker(false)}
+                      >
                         <Text style={styles.modalDoneBtn}>Done</Text>
                       </TouchableOpacity>
                     </View>
@@ -873,7 +894,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.md,
     paddingTop: spacing.xl,
-    paddingBottom: 130, // Space for sticky footer
+    paddingBottom: 100, // Space for sticky footer
   },
   dashboard: {
     backgroundColor: colors.brand.primary,

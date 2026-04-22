@@ -61,7 +61,7 @@ const HomeScreen = () => {
   // Derived logic for upcoming events: Not enrolled first, then enrolled
   useEffect(() => {
     if (allEvents.length === 0) {
-      if (!loading) setLoading(false);
+      if (loading) setLoading(false);
       return;
     }
 
@@ -71,7 +71,7 @@ const HomeScreen = () => {
 
     const notEnrolled = validEvents.filter(e => !enrollmentIds.includes(e.id));
     const enrolled = validEvents.filter(e => enrollmentIds.includes(e.id));
-    
+
     setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
     setLoading(false);
   }, [allEvents, enrollmentIds]);
@@ -145,7 +145,12 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.statsContainer, { marginTop: -15, flexDirection: 'row', gap: spacing.md }]}>
+        <View
+          style={[
+            styles.statsContainer,
+            { marginTop: -15, flexDirection: 'row', gap: spacing.md },
+          ]}
+        >
           <TouchableOpacity
             style={[
               styles.statBox,
@@ -155,7 +160,9 @@ const HomeScreen = () => {
           >
             <Newspaper size={20} color="#3B82F6" />
             <View>
-              <Text style={[styles.statValue, { color: '#3B82F6', fontSize: 16 }]}>
+              <Text
+                style={[styles.statValue, { color: '#3B82F6', fontSize: 16 }]}
+              >
                 Hub
               </Text>
               <Text style={styles.statLabel}>News & Alerts</Text>
@@ -171,7 +178,9 @@ const HomeScreen = () => {
           >
             <Library size={20} color="#8B5CF6" />
             <View>
-              <Text style={[styles.statValue, { color: '#8B5CF6', fontSize: 16 }]}>
+              <Text
+                style={[styles.statValue, { color: '#8B5CF6', fontSize: 16 }]}
+              >
                 Library
               </Text>
               <Text style={styles.statLabel}>Resources</Text>
@@ -196,8 +205,15 @@ const HomeScreen = () => {
         <View style={styles.eventGrid}>
           {upcomingEvents.length === 0 ? (
             <View style={styles.emptyContainer}>
+              <Calendar
+                size={40}
+                color={colors.text.tertiary}
+                strokeWidth={1.5}
+              />
+              <Text style={styles.emptyTitle}>Stay Tuned!</Text>
               <Text style={styles.emptyText}>
-                No upcoming events scheduled.
+                There are no upcoming events at the moment. Check back soon for
+                new opportunities to connect and learn.
               </Text>
             </View>
           ) : (
@@ -329,18 +345,29 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   emptyContainer: {
-    padding: spacing.xxl,
+    paddingVertical: spacing.huge,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
     backgroundColor: colors.layout.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.layout.divider,
     borderStyle: 'dashed',
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    fontFamily: typography.fontFamily,
+    marginTop: 4,
   },
   emptyText: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.text.tertiary,
     fontFamily: typography.fontFamily,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 
