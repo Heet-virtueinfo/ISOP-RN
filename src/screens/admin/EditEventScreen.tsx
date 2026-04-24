@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -29,7 +29,7 @@ import {
   User,
   Clock,
 } from 'lucide-react-native';
-import { AppEvent, EventType, Speaker, AgendaItem } from '../../types';
+import { EventType, Speaker, AgendaItem } from '../../types';
 import { colors, spacing, typography } from '../../theme';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
@@ -254,7 +254,7 @@ const EditEventScreen = () => {
               <Text style={styles.progressText}>{Math.round(progressPercent)}%</Text>
             </View>
           </View>
-          
+
           <View style={styles.indicatorRow}>
             <View style={[styles.indicator, isMediaValid && styles.indicatorValid]}>
               <ImageIcon size={14} color={isMediaValid ? 'white' : colors.text.tertiary} />
@@ -308,10 +308,10 @@ const EditEventScreen = () => {
         </BentoFormTile>
 
         <View style={styles.dualGrid}>
-          <BentoFormTile 
-            icon={Type} 
-            title="TYPE" 
-            isValid={!!type} 
+          <BentoFormTile
+            icon={Type}
+            title="TYPE"
+            isValid={!!type}
             fullWidth={false}
           >
             <EventTypePicker
@@ -322,10 +322,10 @@ const EditEventScreen = () => {
             />
           </BentoFormTile>
 
-          <BentoFormTile 
-            icon={Users} 
-            title="LIMIT" 
-            isValid={!!maxCapacityStr} 
+          <BentoFormTile
+            icon={Users}
+            title="LIMIT"
+            isValid={!!maxCapacityStr}
             fullWidth={false}
           >
             <InputField
@@ -340,7 +340,7 @@ const EditEventScreen = () => {
         </View>
 
         <BentoFormTile icon={MapPin} title="LOCATION" isValid={location.length > 0}>
-           <InputField
+          <InputField
             placeholder="Venue or Virtual link"
             value={location}
             onChangeText={setLocation}
@@ -391,8 +391,8 @@ const EditEventScreen = () => {
                 </View>
               </View>
             ))}
-            <TouchableOpacity 
-              style={styles.addItemBtn} 
+            <TouchableOpacity
+              style={styles.addItemBtn}
               onPress={() => { setEditingSpeaker(null); setTempSpeaker({ name: '', role: '', bio: '', image: null }); setSpeakerModalVisible(true); }}
             >
               <Plus size={18} color={colors.brand.primary} />
@@ -404,7 +404,7 @@ const EditEventScreen = () => {
         {/* Roadmap (Agenda) */}
         <BentoFormTile icon={Clock} title="AGENDA" isValid={isRoadmapValid}>
           <View style={styles.listContainer}>
-            {agenda.sort((a,b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).map((a) => (
+            {agenda.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).map((a) => (
               <View key={a.id} style={styles.listItem}>
                 <View style={styles.listContent}>
                   <Text style={styles.listItemTitle}>{a.title}</Text>
@@ -420,8 +420,8 @@ const EditEventScreen = () => {
                 </View>
               </View>
             ))}
-            <TouchableOpacity 
-              style={styles.addItemBtn} 
+            <TouchableOpacity
+              style={styles.addItemBtn}
               onPress={() => { setEditingAgenda(null); setTempAgenda({ title: '', description: '' }); setAgendaStartTime(new Date(date)); setAgendaModalVisible(true); }}
             >
               <Plus size={18} color={colors.brand.primary} />
@@ -436,7 +436,7 @@ const EditEventScreen = () => {
       {/* Sticky Action Footer */}
       <View style={styles.footer}>
         <View style={styles.footerRow}>
-           <Button
+          <Button
             title="Delete"
             variant="ghost"
             onPress={handleDelete}
@@ -519,7 +519,7 @@ const EditEventScreen = () => {
       <Modal visible={speakerModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback onPress={() => setSpeakerModalVisible(false)}>
-            <View style={{flex: 1}} />
+            <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -550,7 +550,7 @@ const EditEventScreen = () => {
       <Modal visible={agendaModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback onPress={() => setAgendaModalVisible(false)}>
-            <View style={{flex: 1}} />
+            <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -569,7 +569,7 @@ const EditEventScreen = () => {
                 </View>
               </View>
               <Button title="Confirm Session" onPress={handleConfirmAgenda} style={{ marginTop: 24 }} />
-              
+
               {/* iOS Session Start Picker Modal */}
               {Platform.OS === 'ios' && showItemStartPicker && (
                 <Modal transparent animationType="slide">
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'white', padding: spacing.lg,
-    paddingBottom: Platform.OS === 'ios' ? spacing.xxl : spacing.xl,
+    paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.xl,
     borderTopWidth: 1, borderTopColor: colors.layout.divider,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 10 },
@@ -777,7 +777,7 @@ const styles = StyleSheet.create({
     })
   },
   footerRow: { flexDirection: 'row', gap: spacing.md },
-  deleteBtn: { flex: 0.5, borderRadius: 20, height: 60 },
+  deleteBtn: { flex: 0.5, borderRadius: 20, height: 60, backgroundColor: colors.status.error + '10' },
   deleteBtnText: { color: colors.status.error },
   submitBtn: { flex: 1, borderRadius: 20, height: 60 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' },

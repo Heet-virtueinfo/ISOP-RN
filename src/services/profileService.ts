@@ -28,3 +28,14 @@ export const updateUserProfile = async (uid: string, data: any) => {
     throw error;
   }
 };
+
+export const deleteUserProfile = async (uid: string) => {
+  try {
+    const { deleteDoc } = await import('@react-native-firebase/firestore');
+    await deleteDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid));
+    return { success: true };
+  } catch (error) {
+    console.error('Delete User Profile Error:', error);
+    throw error;
+  }
+};

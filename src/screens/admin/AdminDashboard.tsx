@@ -6,7 +6,6 @@ import {
   Activity,
   TrendingUp,
   LayoutGrid,
-  Library,
   ChevronRight,
   Users,
   BookOpen,
@@ -16,7 +15,7 @@ import {
   UserPlus,
   FileText
 } from 'lucide-react-native';
-import { colors, spacing, typography, radius } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { getEvents, deleteEvent } from '../../services/eventService';
 import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
@@ -24,7 +23,7 @@ import CustomLoader from '../../components/CustomLoader';
 import DeleteEventModal from '../../components/modals/DeleteEventModal';
 import Toast from 'react-native-toast-message';
 import { firebaseFirestore } from '../../config/firebase';
-import { collection, onSnapshot, query, limit } from '@react-native-firebase/firestore';
+import { collection, onSnapshot } from '@react-native-firebase/firestore';
 import { COLLECTIONS } from '../../constants/collections';
 
 const getSafeTime = (timestamp: any) => {
@@ -546,7 +545,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: 'rgba(241, 245, 249, 0.8)',
+    borderColor: colors.layout.background,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
+      },
+      android: { elevation: 2 },
+    }),
   },
   statIconBox: {
     width: 32,

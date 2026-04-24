@@ -374,7 +374,9 @@ const styles = StyleSheet.create({
   dockBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    backgroundColor: colors.ui.skeleton,
+    padding: spacing.xs,
+    borderRadius: 10,
   },
   dockBtnText: {
     fontFamily: typography.fontFamily,

@@ -102,6 +102,7 @@ export interface Feedback {
   userImage?: string | null;
   rating: number;
   comment: string;
+  status?: 'pending' | 'reviewed' | 'resolved';
   createdAt: any;
 }
 

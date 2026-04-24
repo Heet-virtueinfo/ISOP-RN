@@ -5,14 +5,13 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   Image,
   StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MessageSquare, UserPlus, Check, X } from 'lucide-react-native';
-import { colors, spacing, typography, radius } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getIncomingRequests,
@@ -41,7 +40,6 @@ const ChatRequestsScreen = () => {
     'incoming',
   );
   const [actionLoading, setActionLoading] = useState(false);
-  console.log('sent', sent);
   useEffect(() => {
     if (!user) return;
 

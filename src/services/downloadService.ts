@@ -1,9 +1,21 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import Toast from 'react-native-toast-message';
+
+const isNativeModuleAvailable = !!NativeModules.ReactNativeBlobUtil;
 
 export const downloadFile = async (url: string, fileName: string) => {
   try {
+    if (!isNativeModuleAvailable) {
+      console.error('[Download] Native module "ReactNativeBlobUtil" is not available.');
+      Toast.show({
+        type: 'error',
+        text1: 'Download Unavailable',
+        text2: 'Please rebuild the app to enable downloads.',
+      });
+      return null;
+    }
+
     const { dirs } = ReactNativeBlobUtil.fs;
     // On Android, use the public Downloads directory
     const dirToSave = Platform.OS === 'ios'

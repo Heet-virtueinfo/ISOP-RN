@@ -138,3 +138,19 @@ export const getEventFeedback = (
     }
   );
 };
+
+export const updateFeedbackStatus = async (
+  feedbackId: string,
+  status: 'pending' | 'reviewed' | 'resolved'
+) => {
+  try {
+    const feedbackRef = doc(firebaseFirestore, COLLECTIONS.FEEDBACKS, feedbackId);
+    await runTransaction(firebaseFirestore, async transaction => {
+      transaction.update(feedbackRef, { status });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating feedback status:', error);
+    throw error;
+  }
+};

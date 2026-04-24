@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { 
-  FileText, 
-  PlayCircle, 
-  Link2, 
-  Download, 
-  Pencil, 
-  Trash2, 
+import {
+  FileText,
+  PlayCircle,
+  Link2,
+  Download,
+  Pencil,
+  Trash2,
   ChevronRight,
   FileCode,
   Globe,
@@ -35,30 +35,30 @@ const ResourceCard = ({ resource, onPress, isAdmin, onEdit, onDelete }: Resource
   const getIconConfig = () => {
     switch (resource.type) {
       case 'pdf':
-        return { 
-          Icon: FileText, 
-          color: colors.status.error, 
+        return {
+          Icon: FileText,
+          color: colors.status.error,
           bg: colors.status.error + '10',
           label: 'SECURE PDF'
         };
       case 'video':
-        return { 
-          Icon: PlayCircle, 
-          color: colors.brand.secondary, 
+        return {
+          Icon: PlayCircle,
+          color: colors.brand.secondary,
           bg: colors.brand.secondary + '10',
           label: 'VIDEO BRIEF'
         };
       case 'link':
-        return { 
-          Icon: Globe, 
-          color: colors.palette.indigo.accent, 
+        return {
+          Icon: Globe,
+          color: colors.palette.indigo.accent,
           bg: colors.palette.indigo.bg,
           label: 'EXTERNAL INTEL'
         };
       default:
-        return { 
-          Icon: Link2, 
-          color: colors.brand.primary, 
+        return {
+          Icon: Link2,
+          color: colors.brand.primary,
           bg: colors.palette.slate.bg,
           label: 'RESOURCE NODE'
         };
@@ -102,7 +102,7 @@ const ResourceCard = ({ resource, onPress, isAdmin, onEdit, onDelete }: Resource
           <Text style={styles.title} numberOfLines={1}>
             {resource.title}
           </Text>
-          
+
           <Text style={styles.description} numberOfLines={2}>
             {resource.description || 'Strategic intelligence asset with no detailed specifications.'}
           </Text>
@@ -110,8 +110,8 @@ const ResourceCard = ({ resource, onPress, isAdmin, onEdit, onDelete }: Resource
 
         {!isAdmin && (
           <View style={styles.actionCol}>
-            <View style={styles.chevronBox}>
-              <ChevronRight size={16} color={colors.text.tertiary} />
+            <View style={styles.downloadBox}>
+              <Download size={16} color={colors.brand.primary} />
             </View>
           </View>
         )}
@@ -123,7 +123,7 @@ const ResourceCard = ({ resource, onPress, isAdmin, onEdit, onDelete }: Resource
             <Shield size={10} color={colors.brand.primary} />
             <Text style={styles.authorText}>Verified Asset</Text>
           </View>
-          
+
           <View style={styles.adminActions}>
             <TouchableOpacity
               onPress={onEdit}
@@ -133,7 +133,7 @@ const ResourceCard = ({ resource, onPress, isAdmin, onEdit, onDelete }: Resource
               <Pencil size={12} color={colors.brand.primary} />
               <Text style={styles.actionBtnText}>Configure</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               onPress={onDelete}
               style={[styles.actionBtn, styles.deleteBtn]}
@@ -235,13 +235,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 48,
   },
-  chevronBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    backgroundColor: colors.layout.background,
+  downloadBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: colors.brand.primary + '10',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.brand.primary + '20',
   },
   adminFooter: {
     flexDirection: 'row',

@@ -27,7 +27,12 @@ const ChatInboxScreen = () => {
     if (!user) return;
 
     const unsubscribeChats = getMyChats(user.uid, data => {
-      setChats(data);
+      // Filter unique chats by other participant ID
+      const uniqueChats = data.filter((item, index, self) => {
+        const getOtherUid = (chat: Chat) => chat.participants.find(id => id !== user?.uid);
+        return index === self.findIndex(t => getOtherUid(t) === getOtherUid(item));
+      });
+      setChats(uniqueChats);
       setLoading(false);
     });
 

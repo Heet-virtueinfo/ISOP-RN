@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -13,15 +12,16 @@ import {
 import {
   Upload,
   Plus,
-  Trash2,
   Send,
   X,
   Newspaper,
-  ExternalLink
+  ExternalLink,
+  Radio,
+  Bell,
+  FileText
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
-// @ts-ignore
 import { launchImageLibrary } from 'react-native-image-picker';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -326,21 +326,34 @@ const AdminNewsScreen = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Broadcast Pulse Dashboard */}
-          <View style={styles.pulseContainer}>
-            <View style={styles.pulseTileMain}>
-              <Text style={styles.pulseValue}>{news.length}</Text>
-              <Text style={styles.pulseLabel}>TOTAL BROADCASTS</Text>
+          {/* Intelligence Pulse Management */}
+          <View style={styles.pulseWrapper}>
+            <View style={styles.pulseMainCard}>
+              <View style={styles.pulseIconContainer}>
+                <Radio size={24} color="white" />
+              </View>
+              <View>
+                <Text style={styles.pulseValue}>{news.length}</Text>
+                <Text style={styles.pulseLabel}>TOTAL BROADCASTS</Text>
+              </View>
             </View>
-            <View style={styles.pulseGrid}>
-              <View style={styles.pulseTileSub}>
-                <Text style={styles.pulseSubValue}>
+
+            <View style={styles.pulseSecondaryRow}>
+              <View style={[styles.pulseSubCard, { backgroundColor: colors.palette.rose.bg }]}>
+                <View style={styles.pulseSubIconBox}>
+                  <Bell size={18} color={colors.palette.rose.accent} />
+                </View>
+                <Text style={[styles.pulseSubValue, { color: colors.palette.rose.accent }]}>
                   {news.filter(n => n.type === 'alert').length}
                 </Text>
                 <Text style={styles.pulseSubLabel}>INTEL ALERTS</Text>
               </View>
-              <View style={styles.pulseTileSub}>
-                <Text style={styles.pulseSubValue}>
+
+              <View style={[styles.pulseSubCard, { backgroundColor: colors.palette.indigo.bg }]}>
+                <View style={styles.pulseSubIconBox}>
+                  <FileText size={18} color={colors.palette.indigo.accent} />
+                </View>
+                <Text style={[styles.pulseSubValue, { color: colors.palette.indigo.accent }]}>
                   {news.filter(n => n.type === 'news').length}
                 </Text>
                 <Text style={styles.pulseSubLabel}>EDITORIALS</Text>
@@ -416,57 +429,79 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.text.primary,
   },
-  pulseContainer: {
+  pulseWrapper: {
     padding: spacing.md,
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
-  pulseTileMain: {
+  pulseMainCard: {
     backgroundColor: colors.brand.primary,
     borderRadius: 24,
     padding: spacing.xl,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.lg,
     shadowColor: colors.brand.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 8,
   },
-  pulseGrid: {
+  pulseIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pulseSecondaryRow: {
     flexDirection: 'row',
     gap: spacing.md,
   },
-  pulseTileSub: {
+  pulseSubCard: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: spacing.lg,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.8)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  pulseSubIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   pulseValue: {
-    fontSize: 42,
+    fontSize: 32,
     fontWeight: '900',
     color: 'white',
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
   pulseLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: 'rgba(255, 255, 255, 0.7)',
     letterSpacing: 1,
-    marginTop: 4,
+    marginTop: 2,
   },
   pulseSubValue: {
     fontSize: 24,
-    fontWeight: '800',
-    color: colors.text.primary,
+    fontWeight: '900',
   },
   pulseSubLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.text.tertiary,
+    color: colors.text.secondary,
     letterSpacing: 0.5,
     marginTop: 4,
   },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -20,9 +20,13 @@ import {
   Shield,
   Clock,
   ExternalLink,
+  Trash2,
 } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 import { colors, spacing, typography, radius } from '../../theme';
 import { AppEvent } from '../../types';
+import DeleteMemberModal from './DeleteMemberModal';
+import { deleteUserProfile } from '../../services/profileService';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -46,6 +50,9 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   member,
   eventsMap,
 }) => {
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   if (!member) return null;
 
   const handleEmail = () => {
@@ -55,6 +62,20 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   const handlePhone = () => {
     if (member.phoneNumber) {
       Linking.openURL(`tel:${member.phoneNumber}`);
+    }
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteUserProfile(member.uid);
+      Toast.show({ type: 'success', text1: 'Executive Purged', text2: 'Profile removed from ecosystem.' });
+      setIsDeleteModalVisible(false);
+      onClose();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Purge Failed', text2: 'Profile remains in repository.' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -112,6 +133,16 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                 </View>
               </View>
               <Text style={styles.displayName}>{member.displayName}</Text>
+              
+              <View style={styles.heroActions}>
+                <TouchableOpacity 
+                  style={[styles.heroActionBtn, { borderColor: colors.status.error + '20' }]} 
+                  onPress={() => setIsDeleteModalVisible(true)}
+                >
+                  <Trash2 size={16} color={colors.status.error} />
+                  <Text style={[styles.heroActionText, { color: colors.status.error }]}>Purge Profile</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Contact Information */}
@@ -240,6 +271,14 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
           </ScrollView>
         </View>
       </View>
+
+      <DeleteMemberModal
+        visible={isDeleteModalVisible}
+        onClose={() => setIsDeleteModalVisible(false)}
+        onConfirm={confirmDelete}
+        member={member}
+        loading={isDeleting}
+      />
     </Modal>
   );
 };
@@ -300,10 +339,56 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     position: 'relative',
     overflow: 'hidden',
+    paddingBottom: spacing.xl,
+  },
+  heroActions: {
+    flexDirection: 'row',
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  heroActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.brand.primary + '15',
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  heroActionText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.brand.primary,
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  editAvatarContainer: {
+    position: 'relative',
+    marginBottom: spacing.xl,
+    alignSelf: 'center',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: colors.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
   },
   avatarGlass: {
     padding: 8,
@@ -359,6 +444,52 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.text.primary,
     letterSpacing: -0.5,
+  },
+  editForm: {
+    width: '100%',
+    paddingHorizontal: spacing.xl,
+  },
+  formActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    paddingBottom: spacing.md,
+  },
+  cancelFormBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+    backgroundColor: colors.palette.slate.bg,
+  },
+  saveFormBtn: {
+    flex: 2,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.brand.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: colors.brand.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  cancelFormText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text.secondary,
+  },
+  saveFormText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 15,
+    fontWeight: '800',
+    color: 'white',
   },
   section: {
     paddingHorizontal: spacing.xl,
