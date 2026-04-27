@@ -6,7 +6,6 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   Share,
   Linking,
@@ -22,7 +21,6 @@ import {
   Clock,
   User,
   Share2,
-  Heart,
   CalendarPlus,
   MessageSquare,
   Star as StarIcon,
@@ -59,6 +57,8 @@ const EventDetailScreen = () => {
   const { userProfile } = useAuth();
   const { eventId } = route.params;
   const insets = useSafeAreaInsets();
+
+  console.log('Event Id:', eventId);
 
   const [event, setEvent] = useState<AppEvent | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);

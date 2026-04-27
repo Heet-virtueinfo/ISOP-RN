@@ -16,13 +16,11 @@ import {
   Phone,
   Shield,
   ChevronRight,
-  Settings,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import UserHeader from '../../components/UserHeader';
-import Button from '../../components/Button';
 import LogoutConfirmModal from '../../components/modals/LogoutConfirmModal';
 
 const ProfileScreen = () => {
@@ -34,6 +32,8 @@ const ProfileScreen = () => {
     setShowLogoutModal(false);
     await logout();
   };
+
+  console.log('userProfile :: ', userProfile);
 
   const ProfileItem = ({
     icon: Icon,

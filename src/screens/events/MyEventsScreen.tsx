@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ScrollView,
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -19,7 +18,7 @@ import {
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserEnrollments } from '../../services/enrollmentService';
-import { Enrollment, AppEvent, EventType } from '../../types';
+import {  AppEvent, EventType } from '../../types';
 import { getEventById } from '../../services/eventService';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
@@ -57,7 +56,11 @@ const MyEventsScreen = () => {
     const fetchMyEvents = async () => {
       try {
         const enrollments = await getUserEnrollments(userProfile.uid);
-        const eventPromises = enrollments.map(e => getEventById(e.eventId));
+        
+        // Use the nested event data if available, otherwise fetch it
+        const eventPromises = enrollments.map(e => 
+          e.event ? Promise.resolve(e.event) : getEventById(e.eventId)
+        );
         const eventsData = await Promise.all(eventPromises);
 
         if (isMounted) {
@@ -109,7 +112,9 @@ const MyEventsScreen = () => {
 
     try {
       const enrollments = await getUserEnrollments(userProfile.uid);
-      const eventPromises = enrollments.map(e => getEventById(e.eventId));
+      const eventPromises = enrollments.map(e => 
+        e.event ? Promise.resolve(e.event) : getEventById(e.eventId)
+      );
       const eventsData = await Promise.all(eventPromises);
       setEnrolledEvents(eventsData.filter((e): e is AppEvent => e !== null));
     } catch (error) {
