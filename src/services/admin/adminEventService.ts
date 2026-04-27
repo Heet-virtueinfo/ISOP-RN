@@ -3,7 +3,6 @@
  *
  * Admin event operations against the Laravel API.
  * Replaces Firebase Firestore + Cloudinary with direct API calls.
- * Images are uploaded via POST /api/upload/image before saving event data.
  */
 
 import apiClient from '../../config/api';
@@ -15,34 +14,6 @@ import { normalizeEvent } from '../eventService';
 // ---------------------------------------------------------------------------
 
 export type EventPayload = Omit<AppEvent, 'id' | 'createdAt' | 'updatedAt' | 'enrolledCount' | 'createdBy'>;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Upload a single image file to the Laravel upload endpoint.
- * Returns the stored URL string.
- */
-const uploadImage = async (localUri: string): Promise<string> => {
-  const filename = localUri.split('/').pop() ?? 'image.jpg';
-  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-
-  const form = new FormData();
-  form.append('image', { uri: localUri, name: filename, type: mimeType } as any);
-
-  const res = await apiClient.post('/api/upload/image', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-
-  // Laravel returns { url: '...' } or { path: '...' } — handle both
-  return res.data.url ?? res.data.path ?? res.data;
-};
-
-/** If the string is already a remote URL return it as-is, otherwise upload it. */
-const resolveImageUrl = async (img: string): Promise<string> =>
-  img.startsWith('http') ? img : uploadImage(img);
 
 // ---------------------------------------------------------------------------
 // Admin Event CRUD

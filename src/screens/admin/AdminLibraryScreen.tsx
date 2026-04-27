@@ -28,7 +28,7 @@ import {
   ArrowRight,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import { pick, types, isCancel } from '@react-native-documents/picker';
 import { colors, spacing, typography, radius } from '../../theme';
@@ -85,25 +85,28 @@ const AdminLibraryScreen = () => {
   );
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    const loadResources = async () => {
-      try {
-        const data = await adminGetResources();
-        if (mounted) {
-          setResources(data);
-          setLoading(false);
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
+      const loadResources = async () => {
+        try {
+          const data = await adminGetResources();
+          console.log('Resources fetched:', data);
+          if (mounted) {
+            setResources(data);
+            setLoading(false);
+          }
+        } catch (error: any) {
+          console.error('[Library] loadResources failed:', error?.message);
+          if (mounted) setLoading(false);
         }
-      } catch (error: any) {
-        console.error('[Library] loadResources failed:', error?.message);
-        if (mounted) setLoading(false);
-      }
-    };
-    loadResources();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+      };
+      loadResources();
+      return () => {
+        mounted = false;
+      };
+    }, [])
+  );
 
   // Intelligence Pulse Stats
   const stats = useMemo(() => {
@@ -206,7 +209,7 @@ const AdminLibraryScreen = () => {
 
     setActionLoading(true);
     try {
-      let finalUrl = inputMode === 'url' ? url : undefined;
+      let finalUrl = inputMode === 'url' ? url : '';
       let finalLocalFile = undefined;
       let finalType = resourceType;
 
@@ -231,7 +234,9 @@ const AdminLibraryScreen = () => {
           type: finalType,
         });
         // Refresh list item in-place
-        setResources(prev => prev.map(r => (r.id === editingId ? updated : r)));
+        setResources(prev =>
+          prev.map(r => (String(r.id) === String(editingId) ? updated : r)),
+        );
         Toast.show({
           type: 'success',
           text1: 'Asset Updated',
@@ -254,6 +259,7 @@ const AdminLibraryScreen = () => {
         });
       }
 
+      setSearchQuery('');
       handleReset();
     } catch (error) {
       Toast.show({
@@ -290,7 +296,9 @@ const AdminLibraryScreen = () => {
     setIsDeleting(true);
     try {
       await adminDeleteResource(resourceToDelete.id);
-      setResources(prev => prev.filter(r => r.id !== resourceToDelete.id));
+      setResources(prev =>
+        prev.filter(r => String(r.id) !== String(resourceToDelete.id)),
+      );
       Toast.show({
         type: 'success',
         text1: 'Asset Purged',

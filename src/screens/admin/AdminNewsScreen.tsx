@@ -132,7 +132,9 @@ const AdminNewsScreen = () => {
           type: newsType,
           imageFile: imageUri,
         });
-        setNews(prev => prev.map(n => (n.id === editingId ? updated : n)));
+        setNews(prev =>
+          prev.map(n => (String(n.id) === String(editingId) ? updated : n)),
+        );
         Toast.show({
           type: 'success',
           text1: 'Updated',

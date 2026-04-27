@@ -20,6 +20,7 @@ import {
   Calendar,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import MemberDetailModal from '../../components/modals/MemberDetailModal';
 import UserHeader from '../../components/UserHeader';
@@ -281,75 +282,79 @@ const MembersScreen = () => {
     setIsModalVisible(true);
   };
 
-  useEffect(() => {
-    let mounted = true;
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
 
-    const loadData = async () => {
-      try {
-        const [users, events] = await Promise.all([
-          adminGetUsers(),
-          adminGetEvents(),
-        ]);
+      const loadData = async () => {
+        try {
+          const [users, events] = await Promise.all([
+            adminGetUsers(),
+            adminGetEvents(),
+          ]);
 
-        const eMap: Record<string, AppEvent> = {};
-        events.forEach(e => (eMap[e.id] = e));
-        if (mounted) setEventsMap(eMap);
-
-        const partsData = await Promise.all(
-          events.map(async ev => {
-            try {
-              const pts = await adminGetEventParticipants(ev.id);
-              return { eventId: ev.id, pts };
-            } catch (e) {
-              return { eventId: ev.id, pts: [] };
-            }
-          }),
-        );
-
-        const memMap = new Map<string, MemberEntry>();
-        users.forEach(u => {
-          memMap.set(u.uid, {
-            uid: u.uid,
-            displayName: u.displayName || 'Unknown Executive',
-            email: u.email || 'No Email',
-            profileImage: u.profileImage,
-            phoneNumber: u.phoneNumber,
-            events: [],
+          const evMap: Record<string, AppEvent> = {};
+          events.forEach(e => {
+            evMap[e.id] = e;
           });
-        });
+          if (mounted) setEventsMap(evMap);
 
-        partsData.forEach(({ eventId, pts }) => {
-          pts.forEach((pt: any) => {
-            const uid = String(pt.id || pt.user_id || pt.uid);
-            if (memMap.has(uid)) {
-              memMap.get(uid)!.events.push({
-                eventId,
-                enrolledAt:
-                  pt.created_at || pt.createdAt || new Date().toISOString(),
-              });
-            }
-          });
-        });
-
-        if (mounted) {
-          const finalMembers = Array.from(memMap.values()).sort((a, b) =>
-            a.displayName.localeCompare(b.displayName),
+          const partsData = await Promise.all(
+            events.map(async ev => {
+              try {
+                const pts = await adminGetEventParticipants(ev.id);
+                return { eventId: ev.id, pts };
+              } catch (e) {
+                return { eventId: ev.id, pts: [] };
+              }
+            }),
           );
-          setMembersList(finalMembers);
-          setLoading(false);
+
+          const memMap = new Map<string, MemberEntry>();
+          users.forEach(u => {
+            memMap.set(u.uid, {
+              uid: u.uid,
+              displayName: u.displayName || 'Unknown Executive',
+              email: u.email || 'No Email',
+              profileImage: u.profileImage,
+              phoneNumber: u.phoneNumber,
+              events: [],
+            });
+          });
+
+          partsData.forEach(({ eventId, pts }) => {
+            pts.forEach((pt: any) => {
+              const uid = String(pt.id || pt.user_id || pt.uid);
+              if (memMap.has(uid)) {
+                memMap.get(uid)!.events.push({
+                  eventId,
+                  enrolledAt:
+                    pt.created_at || pt.createdAt || new Date().toISOString(),
+                });
+              }
+            });
+          });
+
+          if (mounted) {
+            const finalMembers = Array.from(memMap.values()).sort((a, b) =>
+              a.displayName.localeCompare(b.displayName),
+            );
+            setMembersList(finalMembers);
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Members load failed', err);
+          if (mounted) setLoading(false);
         }
-      } catch (err) {
-        console.error('Members load failed', err);
-        if (mounted) setLoading(false);
-      }
-    };
+      };
 
-    loadData();
+      loadData();
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
+      return () => {
+        mounted = false;
+      };
+    }, [])
+  );
 
   const eventTitles = useMemo<string[]>(() => {
     const set = new Set<string>();
@@ -511,6 +516,9 @@ const MembersScreen = () => {
         }}
         member={selectedMember}
         eventsMap={eventsMap}
+        onDeleteSuccess={uid => {
+          setMembersList(prev => prev.filter(m => m.uid !== uid));
+        }}
       />
     </View>
   );

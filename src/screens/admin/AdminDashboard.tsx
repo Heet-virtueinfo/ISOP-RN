@@ -7,7 +7,7 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Shield,
   Activity,
@@ -70,39 +70,41 @@ const AdminDashboard = () => {
   const [resourceCount, setResourceCount] = useState(0);
   const [newsCount, setNewsCount] = useState(0);
 
-  useEffect(() => {
-    let mounted = true;
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
 
-    const loadDashboardData = async () => {
-      try {
-        // 1. Events
-        const eventsList = await adminGetEvents();
-        if (mounted) {
-          setEvents(eventsList);
-          setLoading(false);
+      const loadDashboardData = async () => {
+        try {
+          // 1. Events
+          const eventsList = await adminGetEvents();
+          if (mounted) {
+            setEvents(eventsList);
+            setLoading(false);
+          }
+          // 2. Members count
+          const users = await adminGetUsers();
+          if (mounted) setMemberCount(users.length);
+
+          // 3. Resources count
+          const resources = await adminGetResources();
+          if (mounted) setResourceCount(resources.length);
+
+          // 4. News count
+          const news = await adminGetNews();
+          if (mounted) setNewsCount(news.length);
+        } catch (error: any) {
+          console.error('[Dashboard] loadDashboardData failed:', error?.message);
+          if (mounted) setLoading(false);
         }
-        // 2. Members count
-        const users = await adminGetUsers();
-        if (mounted) setMemberCount(users.length);
+      };
 
-        // 3. Resources count
-        const resources = await adminGetResources();
-        if (mounted) setResourceCount(resources.length);
-
-        // 4. News count
-        const news = await adminGetNews();
-        if (mounted) setNewsCount(news.length);
-      } catch (error: any) {
-        console.error('[Dashboard] loadDashboardData failed:', error?.message);
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadDashboardData();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+      loadDashboardData();
+      return () => {
+        mounted = false;
+      };
+    }, [])
+  );
 
   const navigateToEdit = (eventId: string) => {
     navigation.navigate('EditEvent', { eventId });

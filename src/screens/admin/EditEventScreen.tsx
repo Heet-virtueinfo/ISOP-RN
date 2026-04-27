@@ -123,6 +123,7 @@ const EditEventScreen = () => {
     const fetchEvent = async () => {
       try {
         const ev = await adminGetEventById(eventId);
+        console.log('ev', ev);
         if (ev) {
           setTitle(ev.title);
           setDescription(ev.description);
@@ -220,6 +221,7 @@ const EditEventScreen = () => {
       });
       navigation.goBack();
     } catch (error) {
+      console.error('Error saving event:', error);
       Toast.show({
         type: 'error',
         text1: 'Save Failed',

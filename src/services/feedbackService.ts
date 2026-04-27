@@ -63,8 +63,13 @@ export const checkUserFeedback = async (
 export const getEventFeedback = async (eventId: string): Promise<Feedback[]> => {
   try {
     const response = await apiClient.get(`/api/user/events/${eventId}/feedback`);
-    const records = response.data.data || response.data;
-    return records.map((fb: any) => ({
+    const raw = response.data.feedback || response.data.data || response.data;
+    
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map((fb: any) => ({
       id: String(fb.id),
       eventId,
       uid: String(fb.user_id || fb.uid),

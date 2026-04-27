@@ -11,20 +11,17 @@ import { NewsArticle } from '../../types';
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Upload a single image and return the stored URL. */
-const uploadImage = async (localUri: string): Promise<string> => {
-  const filename = localUri.split('/').pop() ?? 'image.jpg';
-  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-
-  const form = new FormData();
-  form.append('image', { uri: localUri, name: filename, type: mimeType } as any);
-
-  const res = await apiClient.post('/api/upload/image', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return res.data.url ?? res.data.path ?? res.data;
-};
+const normalizeNewsArticle = (data: any): NewsArticle => ({
+  id: String(data.id || ''),
+  title: data.title || '',
+  content: data.content || '',
+  type: data.type || 'news',
+  imageUrl: data.image_url || data.imageUrl || null,
+  linkUrl: data.link_url || data.linkUrl || null,
+  createdBy: String(data.created_by || data.createdBy || ''),
+  createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+  updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+});
 
 // ---------------------------------------------------------------------------
 // News CRUD
@@ -35,7 +32,7 @@ export const adminGetNews = async (): Promise<NewsArticle[]> => {
   try {
     const res = await apiClient.get('/api/admin/news');
     const raw = res.data.news ?? res.data.data ?? res.data;
-    return Array.isArray(raw) ? raw : [];
+    return Array.isArray(raw) ? raw.map(normalizeNewsArticle) : [];
   } catch (error: any) {
     console.error('[Admin] adminGetNews failed:', error?.message);
     throw error;
@@ -44,17 +41,53 @@ export const adminGetNews = async (): Promise<NewsArticle[]> => {
 
 /** POST /api/admin/news */
 export const adminCreateNews = async (
-  data: Omit<NewsArticle, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> & { imageFile?: string | null },
+  data: Omit<NewsArticle, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> & {
+    imageFile?: string | null;
+  },
 ): Promise<NewsArticle> => {
   try {
-    let imageUrl = data.imageUrl;
+    const form = new FormData();
+    if (data.title) form.append('title', data.title);
+    if (data.content) form.append('content', data.content);
+    if (data.linkUrl) form.append('link_url', data.linkUrl);
+    if (data.type) form.append('type', data.type);
+
     if (data.imageFile && !data.imageFile.startsWith('http')) {
-      imageUrl = await uploadImage(data.imageFile);
+      const filename = data.imageFile.split('/').pop() ?? 'image.jpg';
+      const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const mimeType =
+        ext === 'png'
+          ? 'image/png'
+          : ext === 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
+      form.append('image', {
+        uri: data.imageFile,
+        name: filename,
+        type: mimeType,
+      } as any);
+    } else if (data.imageFile && data.imageFile.startsWith('http')) {
+      form.append('image_url', data.imageFile);
+    } else if (data.imageUrl) {
+      form.append('image_url', data.imageUrl);
     }
 
-    const payload = { ...data, image_url: imageUrl, imageFile: undefined };
-    const res = await apiClient.post('/api/admin/news', payload);
-    return res.data.data ?? res.data;
+    const res = await apiClient.post('/api/admin/news', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    const result = res.data.data ?? res.data.news ?? res.data;
+    const normalized = normalizeNewsArticle(result);
+
+    // Resilience: Merge original data if response is missing title/content
+    return {
+      ...normalized,
+      title: normalized.title || data.title || '',
+      content: normalized.content || data.content || '',
+      type: normalized.type || data.type || 'news',
+      linkUrl: normalized.linkUrl || data.linkUrl || null,
+      imageUrl: normalized.imageUrl || data.imageFile || data.imageUrl || null,
+    };
   } catch (error: any) {
     console.error('[Admin] adminCreateNews failed:', error?.message);
     throw error;
@@ -67,14 +100,52 @@ export const adminUpdateNews = async (
   data: Partial<NewsArticle> & { imageFile?: string | null },
 ): Promise<NewsArticle> => {
   try {
-    let imageUrl = data.imageUrl;
+    const form = new FormData();
+    form.append('_method', 'PUT');
+
+    if (data.title) form.append('title', data.title);
+    if (data.content) form.append('content', data.content);
+    if (data.linkUrl) form.append('link_url', data.linkUrl);
+    if (data.type) form.append('type', data.type);
+
     if (data.imageFile && !data.imageFile.startsWith('http')) {
-      imageUrl = await uploadImage(data.imageFile);
+      const filename = data.imageFile.split('/').pop() ?? 'image.jpg';
+      const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const mimeType =
+        ext === 'png'
+          ? 'image/png'
+          : ext === 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
+      form.append('image', {
+        uri: data.imageFile,
+        name: filename,
+        type: mimeType,
+      } as any);
+    } else if (data.imageFile && data.imageFile.startsWith('http')) {
+      form.append('image_url', data.imageFile);
+    } else if (data.imageUrl) {
+      form.append('image_url', data.imageUrl);
     }
 
-    const payload = { ...data, image_url: imageUrl, imageFile: undefined };
-    const res = await apiClient.put(`/api/admin/news/${id}`, payload);
-    return res.data.data ?? res.data;
+    const res = await apiClient.post(`/api/admin/news/${id}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    console.log('[AdminNews] Update response:', res.data);
+
+    const result = res.data.data ?? res.data.news ?? res.data;
+    const normalized = normalizeNewsArticle(result);
+
+    // Resilience: Merge original data if response is missing fields
+    return {
+      ...normalized,
+      title: normalized.title || data.title || '',
+      content: normalized.content || data.content || '',
+      type: normalized.type || data.type || 'news',
+      linkUrl: normalized.linkUrl || data.linkUrl || null,
+      imageUrl: normalized.imageUrl || data.imageFile || data.imageUrl || null,
+    };
   } catch (error: any) {
     console.error('[Admin] adminUpdateNews failed:', error?.message);
     throw error;

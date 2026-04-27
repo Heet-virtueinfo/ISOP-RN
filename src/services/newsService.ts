@@ -7,7 +7,12 @@ import { NewsArticle } from '../types';
 export const getNews = async (): Promise<NewsArticle[]> => {
   try {
     const response = await apiClient.get<{ data: any[] }>('/api/user/news');
-    return response.data.data.map(item => ({
+    const raw = response.data?.data;
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.map(item => ({
       id: String(item.id),
       title: item.title ?? '',
       content: item.content ?? '',

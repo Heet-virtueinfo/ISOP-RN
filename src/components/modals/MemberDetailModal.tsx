@@ -42,6 +42,7 @@ interface MemberDetailModalProps {
     events: { eventId: string; enrolledAt: any }[];
   } | null;
   eventsMap: Record<string, AppEvent>;
+  onDeleteSuccess?: (uid: string) => void;
 }
 
 const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
@@ -49,6 +50,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   onClose,
   member,
   eventsMap,
+  onDeleteSuccess,
 }) => {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -75,6 +77,9 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
         text2: 'Profile removed from ecosystem.',
       });
       setIsDeleteModalVisible(false);
+      if (onDeleteSuccess && member.uid) {
+        onDeleteSuccess(member.uid);
+      }
       onClose();
     } catch (error) {
       Toast.show({
