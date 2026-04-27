@@ -26,7 +26,7 @@ import Toast from 'react-native-toast-message';
 import { colors, spacing, typography, radius } from '../../theme';
 import { AppEvent } from '../../types';
 import DeleteMemberModal from './DeleteMemberModal';
-import { deleteUserProfile } from '../../services/profileService';
+import { adminDeleteUser } from '../../services/admin/adminUserService';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -68,12 +68,20 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await deleteUserProfile(member.uid);
-      Toast.show({ type: 'success', text1: 'Executive Purged', text2: 'Profile removed from ecosystem.' });
+      await adminDeleteUser(member.uid);
+      Toast.show({
+        type: 'success',
+        text1: 'Executive Purged',
+        text2: 'Profile removed from ecosystem.',
+      });
       setIsDeleteModalVisible(false);
       onClose();
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Purge Failed', text2: 'Profile remains in repository.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Purge Failed',
+        text2: 'Profile remains in repository.',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -133,14 +141,24 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                 </View>
               </View>
               <Text style={styles.displayName}>{member.displayName}</Text>
-              
+
               <View style={styles.heroActions}>
-                <TouchableOpacity 
-                  style={[styles.heroActionBtn, { borderColor: colors.status.error + '20' }]} 
+                <TouchableOpacity
+                  style={[
+                    styles.heroActionBtn,
+                    { borderColor: colors.status.error + '20' },
+                  ]}
                   onPress={() => setIsDeleteModalVisible(true)}
                 >
                   <Trash2 size={16} color={colors.status.error} />
-                  <Text style={[styles.heroActionText, { color: colors.status.error }]}>Purge Profile</Text>
+                  <Text
+                    style={[
+                      styles.heroActionText,
+                      { color: colors.status.error },
+                    ]}
+                  >
+                    Purge Profile
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -4,7 +4,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { Users } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { listenToEvent } from '../../services/eventService';
+import { getEventById } from '../../services/eventService';
 import { getEventParticipants } from '../../services/enrollmentService';
 import { Enrollment } from '../../types';
 import ParticipantCard from '../../components/ParticipantCard';
@@ -23,19 +23,29 @@ const ParticipantsScreen = () => {
 
   useEffect(() => {
     if (!eventId) return;
+    let isMounted = true;
 
-    const unsubscribeParticipants = getEventParticipants(eventId, data => {
-      setParticipants(data);
-      setLoading(false);
-    });
+    const loadData = async () => {
+      try {
+        const [participantsData, eventData] = await Promise.all([
+          getEventParticipants(eventId),
+          getEventById(eventId),
+        ]);
 
-    const unsubscribeEvent = listenToEvent(eventId, eventData => {
-      if (eventData) setEventTitle(eventData.title);
-    });
+        if (isMounted) {
+          setParticipants(participantsData);
+          if (eventData) setEventTitle(eventData.title);
+          setLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadData();
 
     return () => {
-      unsubscribeParticipants();
-      unsubscribeEvent();
+      isMounted = false;
     };
   }, [eventId]);
 

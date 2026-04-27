@@ -28,9 +28,11 @@ import {
 import { defaultCountry } from '../../utils/countries';
 import { registerUser } from '../../services/authService';
 import CustomLoader from '../../components/CustomLoader';
+import { useAuth } from '../../contexts/AuthContext';
 
 const RegisterScreen = () => {
   const navigation = useNavigation<any>();
+  const { refreshProfile } = useAuth();
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [fullName, setFullName] = useState('');
   const [countryCode, setCountryCode] = useState(defaultCountry.value);
@@ -88,6 +90,9 @@ const RegisterScreen = () => {
           profileImage,
         });
 
+        // Push the new profile into AuthContext so the navigator re-renders
+        await refreshProfile();
+
         Toast.show({
           type: 'success',
           text1: 'Registration Successful',
@@ -95,17 +100,10 @@ const RegisterScreen = () => {
         });
         // Navigation is handled automatically by AppNavigator
       } catch (error: any) {
-        let message = 'Registration failed. Please try again.';
-        if (error.code === 'auth/email-already-in-use') {
-          message = 'This email is already registered.';
-        } else if (error.code === 'auth/weak-password') {
-          message = 'The password is too weak.';
-        }
-
         Toast.show({
           type: 'error',
           text1: 'Registration Failed',
-          text2: message,
+          text2: error?.message ?? 'Registration failed. Please try again.',
         });
       } finally {
         setLoading(false);

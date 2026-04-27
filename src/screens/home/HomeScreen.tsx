@@ -37,27 +37,31 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (!userProfile) return;
+    let isMounted = true;
 
-    // Fetch active events
-    const unsubscribeEvents = getActiveEvents(events => {
-      setAllEvents(events);
-    });
+    const fetchHomeData = async () => {
+      try {
+        const [events, enrollments] = await Promise.all([
+          getActiveEvents(),
+          getUserEnrollments(userProfile.uid),
+        ]);
 
-    // Fetch enrollments to identify status
-    const unsubscribeEnrollments = getUserEnrollments(
-      userProfile.uid,
-      enrollments => {
-        setEnrollmentsCount(enrollments.length);
-        setEnrollmentIds(enrollments.map(e => e.eventId));
-      },
-    );
+        if (isMounted) {
+          setAllEvents(events);
+          setEnrollmentsCount(enrollments.length);
+          setEnrollmentIds(enrollments.map(e => e.eventId));
+        }
+      } catch (error) {
+        console.error('Home screen fetch error:', error);
+      }
+    };
+
+    fetchHomeData();
 
     return () => {
-      unsubscribeEvents();
-      unsubscribeEnrollments();
+      isMounted = false;
     };
   }, [userProfile]);
-
   // Derived logic for upcoming events: Not enrolled first, then enrolled
   useEffect(() => {
     if (allEvents.length === 0) {

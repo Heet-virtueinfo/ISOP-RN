@@ -30,7 +30,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { listenToEvent } from '../../services/eventService';
+import { getEventById } from '../../services/eventService';
 import {
   enrollInEvent,
   unenrollFromEvent,
@@ -75,30 +75,41 @@ const EventDetailScreen = () => {
 
   useEffect(() => {
     if (!eventId) return;
+    let isMounted = true;
 
-    // 1. Listen to event changes in real-time (title, description, enrolledCount)
-    const unsubscribeEvent = listenToEvent(eventId, data => {
-      setEvent(data);
-      setLoading(false);
-    });
+    const loadData = async () => {
+      try {
+        const [eventData, enrollmentData] = await Promise.all([
+          getEventById(eventId),
+          userProfile
+            ? checkEnrollment(eventId, userProfile.uid)
+            : Promise.resolve(null),
+        ]);
 
-    // 2. Check enrollment status one-time (or when userProfile changes)
-    const loadEnrollmentStatus = async () => {
-      if (userProfile) {
-        const enrollmentData = await checkEnrollment(eventId, userProfile.uid);
-        setEnrollment(enrollmentData);
-        if (enrollmentData) {
-          const feedbackData = await checkUserFeedback(
-            eventId,
-            userProfile.uid,
-          );
-          setUserFeedback(feedbackData);
+        if (isMounted) {
+          setEvent(eventData);
+          setEnrollment(enrollmentData);
+          setLoading(false);
+
+          if (enrollmentData && userProfile) {
+            const feedbackData = await checkUserFeedback(
+              eventId,
+              userProfile.uid,
+            );
+            if (isMounted) setUserFeedback(feedbackData);
+          }
         }
+      } catch (error) {
+        console.error('Event detail fetch error', error);
+        if (isMounted) setLoading(false);
       }
     };
-    loadEnrollmentStatus();
 
-    return () => unsubscribeEvent();
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [eventId, userProfile]);
 
   const handleEnrollmentPress = () => {

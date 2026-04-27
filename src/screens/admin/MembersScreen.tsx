@@ -24,14 +24,10 @@ import { colors, spacing, typography, radius } from '../../theme';
 import MemberDetailModal from '../../components/modals/MemberDetailModal';
 import UserHeader from '../../components/UserHeader';
 import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  doc,
-  FirebaseFirestoreTypes,
-} from '@react-native-firebase/firestore';
-import { firebaseFirestore } from '../../config/firebase';
+  adminGetUsers,
+  adminGetEvents,
+  adminGetEventParticipants,
+} from '../../services/admin';
 import { COLLECTIONS } from '../../constants/collections';
 import { Enrollment, UserProfile, AppEvent } from '../../types';
 import CustomLoader from '../../components/CustomLoader';
@@ -109,7 +105,10 @@ const MemberCard = ({
             key={ev.eventId}
             style={[
               cardStyles.eventDot,
-              { backgroundColor: idx === 0 ? colors.brand.primary : colors.brand.secondary }
+              {
+                backgroundColor:
+                  idx === 0 ? colors.brand.primary : colors.brand.secondary,
+              },
             ]}
           />
         ))}
@@ -264,10 +263,7 @@ const cardStyles = StyleSheet.create({
 const MembersScreen = () => {
   const insets = useSafeAreaInsets();
 
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>(
-    {},
-  );
+  const [membersList, setMembersList] = useState<MemberEntry[]>([]);
   const [eventsMap, setEventsMap] = useState<Record<string, AppEvent>>({});
   const [loading, setLoading] = useState(true);
 
@@ -275,7 +271,9 @@ const MembersScreen = () => {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
 
   // Modal State
-  const [selectedMember, setSelectedMember] = useState<MemberEntry | null>(null);
+  const [selectedMember, setSelectedMember] = useState<MemberEntry | null>(
+    null,
+  );
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleMemberPress = (member: MemberEntry) => {
@@ -284,109 +282,88 @@ const MembersScreen = () => {
   };
 
   useEffect(() => {
-    const q = query(
-      collection(firebaseFirestore, COLLECTIONS.ENROLLMENTS),
-      orderBy('enrolledAt', 'desc'),
-    );
-    const unsub = onSnapshot(
-      q,
-      snap => {
-        const data = snap.docs.map(
-          (d: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-            d.data() as Enrollment,
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        const [users, events] = await Promise.all([
+          adminGetUsers(),
+          adminGetEvents(),
+        ]);
+
+        const eMap: Record<string, AppEvent> = {};
+        events.forEach(e => (eMap[e.id] = e));
+        if (mounted) setEventsMap(eMap);
+
+        const partsData = await Promise.all(
+          events.map(async ev => {
+            try {
+              const pts = await adminGetEventParticipants(ev.id);
+              return { eventId: ev.id, pts };
+            } catch (e) {
+              return { eventId: ev.id, pts: [] };
+            }
+          }),
         );
-        setEnrollments(data);
-        setLoading(false);
-      },
-      err => {
-        console.error('MembersScreen enrollments error:', err);
-        setLoading(false);
-      },
-    );
-    return () => unsub();
-  }, []);
 
-  useEffect(() => {
-    const unsub = onSnapshot(
-      collection(firebaseFirestore, COLLECTIONS.EVENTS),
-      snap => {
-        const map: Record<string, AppEvent> = {};
-        snap.docs.forEach((d: FirebaseFirestoreTypes.QueryDocumentSnapshot) => {
-          const event = d.data() as AppEvent;
-          map[event.id] = event;
+        const memMap = new Map<string, MemberEntry>();
+        users.forEach(u => {
+          memMap.set(u.uid, {
+            uid: u.uid,
+            displayName: u.displayName || 'Unknown Executive',
+            email: u.email || 'No Email',
+            profileImage: u.profileImage,
+            phoneNumber: u.phoneNumber,
+            events: [],
+          });
         });
-        setEventsMap(map);
-      },
-      err => console.error('MembersScreen events error:', err),
-    );
-    return () => unsub();
-  }, []);
 
-  useEffect(() => {
-    const uniqueUids = [...new Set(enrollments.map(e => e.uid))];
-    if (uniqueUids.length === 0) return;
-
-    const unsubscribers: (() => void)[] = [];
-
-    uniqueUids.forEach(uid => {
-      const unsub = onSnapshot(
-        doc(firebaseFirestore, COLLECTIONS.USERS, uid),
-        snapshot => {
-          if (snapshot.exists()) {
-            setUserProfiles(prev => ({
-              ...prev,
-              [uid]: snapshot.data() as UserProfile,
-            }));
-          }
-        },
-        err => console.error('Profile fetch error:', err),
-      );
-      unsubscribers.push(unsub);
-    });
-
-    return () => unsubscribers.forEach(u => u());
-  }, [enrollments.map(e => e.uid).join(',')]);
-
-  const members = useMemo<MemberEntry[]>(() => {
-    const map = new Map<string, MemberEntry>();
-
-    enrollments.forEach(en => {
-      if (!map.has(en.uid)) {
-        const profile = userProfiles[en.uid];
-        map.set(en.uid, {
-          uid: en.uid,
-          displayName: profile?.displayName || en.displayName,
-          email: profile?.email || en.email,
-          profileImage: profile?.profileImage ?? en.profileImage ?? null,
-          phoneNumber: profile?.phoneNumber,
-          events: [],
+        partsData.forEach(({ eventId, pts }) => {
+          pts.forEach((pt: any) => {
+            const uid = String(pt.id || pt.user_id || pt.uid);
+            if (memMap.has(uid)) {
+              memMap.get(uid)!.events.push({
+                eventId,
+                enrolledAt:
+                  pt.created_at || pt.createdAt || new Date().toISOString(),
+              });
+            }
+          });
         });
+
+        if (mounted) {
+          const finalMembers = Array.from(memMap.values()).sort((a, b) =>
+            a.displayName.localeCompare(b.displayName),
+          );
+          setMembersList(finalMembers);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Members load failed', err);
+        if (mounted) setLoading(false);
       }
-      const entry = map.get(en.uid)!;
-      if (!entry.events.some(e => e.eventId === en.eventId)) {
-        entry.events.push({
-          eventId: en.eventId,
-          enrolledAt: en.enrolledAt,
-        });
-      }
-    });
+    };
 
-    return Array.from(map.values()).sort((a, b) =>
-      a.displayName.localeCompare(b.displayName),
-    );
-  }, [enrollments, userProfiles]);
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const eventTitles = useMemo<string[]>(() => {
     const set = new Set<string>();
-    enrollments.forEach(e => {
-      const title = eventsMap[e.eventId]?.title;
-      if (title) set.add(title);
+    membersList.forEach(m => {
+      m.events.forEach(e => {
+        const title = eventsMap[e.eventId]?.title;
+        if (title) set.add(title);
+      });
     });
     return Array.from(set).sort();
-  }, [enrollments, eventsMap]);
+  }, [membersList, eventsMap]);
 
   const filteredMembers = useMemo(() => {
-    let list = members;
+    let list = membersList;
 
     if (selectedEvent) {
       list = list.filter(m =>
@@ -405,15 +382,11 @@ const MembersScreen = () => {
     }
 
     return list;
-  }, [members, search, selectedEvent]);
+  }, [membersList, search, selectedEvent]);
 
   return (
     <View style={styles.root}>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Talent Pool Dashboard */}
         <View style={styles.dashboardContainer}>
           <View style={styles.dashCardMain}>
@@ -421,11 +394,10 @@ const MembersScreen = () => {
               <Users size={24} color={colors.brand.primary} />
             </View>
             <View>
-              <Text style={styles.dashValue}>{members.length}</Text>
+              <Text style={styles.dashValue}>{membersList.length}</Text>
               <Text style={styles.dashLabel}>ACTIVE EXECUTIVES</Text>
             </View>
           </View>
-
         </View>
 
         <View style={styles.searchSection}>

@@ -1,15 +1,26 @@
 export type UserRole = 'admin' | 'user';
 
+/**
+ * UserProfile now maps to the Laravel API user object shape.
+ *
+ * Laravel → App field mapping:
+ *   id            → uid
+ *   name          → displayName
+ *   phone         → phoneNumber
+ *   profile_image → profileImage
+ *   created_at    → createdAt (ISO string)
+ *   updated_at    → updatedAt (ISO string)
+ */
 export interface UserProfile {
-  uid: string;
+  uid: string;           // maps from `id` in the API response
   email: string;
-  displayName: string;
+  displayName: string;   // maps from `name`
   role: UserRole;
-  phoneNumber?: string;
-  profileImage?: string | null;
+  phoneNumber?: string;  // maps from `phone`
+  profileImage?: string | null; // maps from `profile_image`
   fcmToken?: string;
-  createdAt: any;
-  updatedAt: any;
+  createdAt: string | null; // ISO date string from Laravel
+  updatedAt: string | null; // ISO date string from Laravel
 }
 
 export type EventType = 'conference' | 'webinar' | 'training' | 'meeting';
@@ -35,13 +46,21 @@ export interface AppEvent {
   title: string;
   description: string;
   date: any;
+  time?: string;
   endDate?: any;
   location: string;
+  platform?: string;
+  meetingLink?: string;
   type: EventType;
+  ticketPrice?: number;
+  tags?: string[];
+  status?: string;
+  capacity?: number;
+  registrationDeadline?: any;
   images: string[];
   enrolledCount: number;
   maxCapacity?: number;
-  createdBy: string; // Admin UID
+  createdBy: string;
   speakers?: Speaker[];
   agenda?: AgendaItem[];
   averageRating?: number;
@@ -49,6 +68,7 @@ export interface AppEvent {
   createdAt: any;
   updatedAt: any;
 }
+
 export interface Enrollment {
   id: string;
   eventId: string;
@@ -70,7 +90,7 @@ export interface ChatRequest {
   toName: string;
   toImage?: string | null;
   eventId: string;
-  participants: string[]; // [fromUid, toUid] for efficient querying
+  participants: string[];
   status: ChatRequestStatus;
   createdAt: any;
   updatedAt: any;
@@ -115,7 +135,7 @@ export interface NewsArticle {
   type: NewsType;
   imageUrl?: string | null;
   linkUrl?: string | null;
-  createdBy: string; // User ID / Admin ID
+  createdBy: string;
   createdAt: any;
   updatedAt: any;
 }
@@ -133,5 +153,3 @@ export interface ResourceItem {
   createdBy: string;
   createdAt: any;
 }
-
-

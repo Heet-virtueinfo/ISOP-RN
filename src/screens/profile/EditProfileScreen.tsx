@@ -26,7 +26,7 @@ import UserHeader from '../../components/UserHeader';
 
 const EditProfileScreen = () => {
   const navigation = useNavigation<any>();
-  const { userProfile } = useAuth();
+  const { userProfile, refreshProfile } = useAuth();
   const phoneParts = splitPhoneNumber(userProfile?.phoneNumber || '');
 
   const [profileImage, setProfileImage] = useState<string | null>(
@@ -61,11 +61,13 @@ const EditProfileScreen = () => {
     if (validate() && userProfile) {
       setLoading(true);
       try {
-        await updateUserProfile(userProfile.uid, {
-          displayName: fullName,
-          phoneNumber: `${countryCode}${mobile}`,
+        await updateUserProfile({
+          full_name: fullName,
+          phone_number: `${countryCode}${mobile}`,
           profileImage,
         });
+
+        await refreshProfile();
 
         Toast.show({
           type: 'success',

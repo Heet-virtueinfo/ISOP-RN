@@ -12,9 +12,11 @@ import { spacing } from '../../theme/spacing';
 import { validateEmail, validatePassword } from '../../utils/validation';
 import { loginUser } from '../../services/authService';
 import CustomLoader from '../../components/CustomLoader';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = () => {
   const navigation = useNavigation<any>();
+  const { refreshProfile } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
@@ -40,6 +42,9 @@ const LoginScreen = () => {
       try {
         const result = await loginUser(email, password);
         const { role } = result.user;
+        console.log('Login Result:', result);
+        // Push the profile into AuthContext so the navigator re-renders
+        await refreshProfile();
 
         Toast.show({
           type: 'success',
@@ -47,19 +52,12 @@ const LoginScreen = () => {
           text2: `Welcome ${role === 'admin' ? 'Admin' : 'back'}!`,
         });
 
-        // Navigation is now handled automatically by AppNavigator observing AuthContext state
+        // Navigation is handled automatically by AppNavigator observing AuthContext state
       } catch (error: any) {
-        let message = 'Invalid email or password.';
-        if (error.code === 'auth/user-not-found') {
-          message = 'No account found with this email.';
-        } else if (error.code === 'auth/wrong-password') {
-          message = 'Incorrect password.';
-        }
-
         Toast.show({
           type: 'error',
           text1: 'Login Failed',
-          text2: message,
+          text2: error?.message ?? 'Invalid email or password.',
         });
       } finally {
         setLoading(false);
@@ -109,12 +107,13 @@ const LoginScreen = () => {
             value={password}
             onChangeText={text => {
               setPassword(text);
-              if (errors.password) setErrors({ ...errors, password: undefined });
+              if (errors.password)
+                setErrors({ ...errors, password: undefined });
             }}
             error={errors.password}
           />
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.forgotPassword}
             onPress={() => navigation.navigate('ForgotPassword')}
           >

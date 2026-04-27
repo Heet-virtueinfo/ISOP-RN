@@ -25,9 +25,7 @@ import CustomLoader from '../../components/CustomLoader';
 import Toast from 'react-native-toast-message';
 import UserHeader from '../../components/UserHeader';
 import { apiService } from '../../services/apiService';
-import { doc, getDoc } from '@react-native-firebase/firestore';
-import { firebaseFirestore } from '../../config/firebase';
-import { COLLECTIONS } from '../../constants/collections';
+// Removed Firebase imports
 
 const ChatRequestsScreen = () => {
   const navigation = useNavigation<any>();
@@ -42,72 +40,54 @@ const ChatRequestsScreen = () => {
   const [actionLoading, setActionLoading] = useState(false);
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
 
-    const unsubscribeIncoming = getIncomingRequests(user.uid, data => {
-      const uniqueData = data.filter(
-        (item, index, self) =>
-          index === self.findIndex(t => t.fromUid === item.fromUid),
-      );
-      setIncoming(uniqueData);
-      if (activeTab === 'incoming') setLoading(false);
-    });
+    const loadData = async () => {
+      try {
+        const [incomingReqs, sentReqs, acceptedReqs] = await Promise.all([
+          getIncomingRequests(),
+          getSentRequests(),
+          getAcceptedRequests(),
+        ]);
 
-    const unsubscribeSent = getSentRequests(user.uid, data => {
-      const uniqueData = data.filter(
-        (item, index, self) =>
-          index === self.findIndex(t => t.toUid === item.toUid),
-      );
-      setSent(uniqueData);
-      if (activeTab === 'sent') setLoading(false);
-    });
+        if (!isMounted) return;
 
-    const unsubscribeAccepted = getAcceptedRequests(user.uid, data => {
-      const uniqueData = data.filter((item, index, self) => {
-        const getUid = (req: ChatRequest) =>
-          req.fromUid === user.uid ? req.toUid : req.fromUid;
-        return index === self.findIndex(t => getUid(t) === getUid(item));
-      });
-      setAccepted(uniqueData);
-      if (activeTab === 'accepted') setLoading(false);
-    });
+        const uniqueIncoming = incomingReqs.filter(
+          (item, index, self) =>
+            index === self.findIndex(t => t.fromUid === item.fromUid),
+        );
+        const uniqueSent = sentReqs.filter(
+          (item, index, self) =>
+            index === self.findIndex(t => t.toUid === item.toUid),
+        );
+        const uniqueAccepted = acceptedReqs.filter((item, index, self) => {
+          const getUid = (req: ChatRequest) =>
+            req.fromUid === user.uid ? req.toUid : req.fromUid;
+          return index === self.findIndex(t => getUid(t) === getUid(item));
+        });
+
+        setIncoming(uniqueIncoming);
+        setSent(uniqueSent);
+        setAccepted(uniqueAccepted);
+        setLoading(false);
+      } catch (error) {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadData();
+    const interval = setInterval(loadData, 15000);
 
     return () => {
-      unsubscribeIncoming();
-      unsubscribeSent();
-      unsubscribeAccepted();
+      isMounted = false;
+      clearInterval(interval);
     };
-  }, [user, activeTab]);
+  }, [user]);
 
   const handleAccept = async (request: ChatRequest) => {
     setActionLoading(true);
     try {
       await acceptChatRequest(request);
-
-      // [NOTIFICATION] Notify original sender
-      try {
-        const senderSnapshot = await getDoc(
-          doc(firebaseFirestore, COLLECTIONS.USERS, request.fromUid),
-        );
-
-        if (senderSnapshot.exists()) {
-          const senderProfile = senderSnapshot.data() as UserProfile;
-          if (senderProfile.fcmToken) {
-            await apiService.sendNotification({
-              fcmToken: senderProfile.fcmToken,
-              title: 'Request Accepted!',
-              body: `${request.toName || 'Someone'
-                } accepted your chat request. Start the conversation!`,
-              data: {
-                screen: 'Chat',
-                chatId: request.id,
-                otherUserName: request.toName || 'Someone',
-              },
-            });
-          }
-        }
-      } catch (notifError) {
-        console.warn('Acceptance notification failed:', notifError);
-      }
 
       Toast.show({
         type: 'success',
@@ -130,40 +110,6 @@ const ChatRequestsScreen = () => {
     try {
       await declineChatRequest(request.id);
 
-      // [NOTIFICATION] Notify original sender about the decline
-      try {
-        const senderSnapshot = await getDoc(
-          doc(firebaseFirestore, COLLECTIONS.USERS, request.fromUid),
-        );
-
-        if (senderSnapshot.exists()) {
-          const senderProfile = senderSnapshot.data() as UserProfile;
-          if (senderProfile.fcmToken) {
-            // Fetch event title from source of truth
-            const eventSnapshot = await getDoc(
-              doc(firebaseFirestore, COLLECTIONS.EVENTS, request.eventId),
-            );
-            const eventTitle = eventSnapshot.exists()
-              ? (eventSnapshot.data() as any).title
-              : 'Event';
-
-            await apiService.sendNotification({
-              fcmToken: senderProfile.fcmToken,
-              title: 'Request Declined',
-              body: `${request.toName || 'Someone'
-                } declined your chat request.`,
-              data: {
-                screen: 'Participants', // Updated target screen
-                eventId: request.eventId,
-                eventTitle,
-              },
-            });
-          }
-        }
-      } catch (notifError) {
-        console.warn('Decline notification failed:', notifError);
-      }
-
       Toast.show({ type: 'success', text1: 'Request Declined' });
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Action Failed' });
@@ -177,19 +123,19 @@ const ChatRequestsScreen = () => {
     const name = isIncoming
       ? item.fromName
       : isAccepted
-        ? item.fromUid === user?.uid
-          ? item.toName
-          : item.fromName
-        : item.toName;
+      ? item.fromUid === user?.uid
+        ? item.toName
+        : item.fromName
+      : item.toName;
     const image = isIncoming
       ? item.fromImage
       : isSent
+      ? item.toImage
+      : isAccepted
+      ? item.fromUid === user?.uid
         ? item.toImage
-        : isAccepted
-          ? item.fromUid === user?.uid
-            ? item.toImage
-            : item.fromImage
-          : item.toImage;
+        : item.fromImage
+      : item.toImage;
 
     return (
       <View style={styles.cardWrapper}>
@@ -342,8 +288,8 @@ const ChatRequestsScreen = () => {
             activeTab === 'incoming'
               ? incoming
               : activeTab === 'sent'
-                ? sent
-                : accepted
+              ? sent
+              : accepted
           }
           keyExtractor={item => item.id}
           renderItem={renderRequestItem}
@@ -363,8 +309,8 @@ const ChatRequestsScreen = () => {
                   {activeTab === 'incoming'
                     ? 'No one has reached out yet. Why not start the conversation?'
                     : activeTab === 'sent'
-                      ? 'Your sent requests will appear here. Start reaching out to peers!'
-                      : 'Collaborations and established connections will sync here.'}
+                    ? 'Your sent requests will appear here. Start reaching out to peers!'
+                    : 'Collaborations and established connections will sync here.'}
                 </Text>
               </View>
             ) : null

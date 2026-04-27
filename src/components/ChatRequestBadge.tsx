@@ -10,12 +10,24 @@ const ChatRequestBadge = () => {
 
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
 
-    const unsubscribe = getIncomingRequests(user.uid, requests => {
-      setHasRequests(requests.length > 0);
-    });
+    const fetchReqs = async () => {
+      try {
+        const requests = await getIncomingRequests();
+        if (isMounted) {
+          setHasRequests(requests.length > 0);
+        }
+      } catch (err) {}
+    };
 
-    return () => unsubscribe();
+    fetchReqs();
+    const interval = setInterval(fetchReqs, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [user]);
 
   useEffect(() => {

@@ -38,17 +38,10 @@ const ForgotPasswordScreen = () => {
       });
       navigation.goBack();
     } catch (err: any) {
-      let message = 'Failed to send reset email. Please try again.';
-      if (err.code === 'auth/user-not-found') {
-        message = 'No account found with this email.';
-      } else if (err.code === 'auth/invalid-email') {
-        message = 'Invalid email address format.';
-      }
-
       Toast.show({
         type: 'error',
         text1: 'Reset Failed',
-        text2: message,
+        text2: err?.message ?? 'Failed to send reset email. Please try again.',
       });
     } finally {
       setLoading(false);
@@ -57,13 +50,18 @@ const ForgotPasswordScreen = () => {
 
   return (
     <View style={styles.root}>
-
-      <UserHeader title="Reset Password" showBack={true} onBackPress={() => navigation.goBack()} showActions={false} />
+      <UserHeader
+        title="Reset Password"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+        showActions={false}
+      />
       <AuthLayout>
         <View style={styles.header}>
           <Text style={styles.title}>ISOP</Text>
           <Text style={styles.subtitle}>
-            Enter the email associated with your account and we'll send an email with instructions to reset your password.
+            Enter the email associated with your account and we'll send an email
+            with instructions to reset your password.
           </Text>
         </View>
 
@@ -75,7 +73,7 @@ const ForgotPasswordScreen = () => {
             keyboardType="email-address"
             autoCapitalize="none"
             value={email}
-            onChangeText={(text) => {
+            onChangeText={text => {
               setEmail(text);
               if (error) setError(undefined);
             }}

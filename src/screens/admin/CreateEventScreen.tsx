@@ -34,8 +34,10 @@ import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import EventTypePicker from '../../components/EventTypePicker';
 import ImagePickerGrid from '../../components/ImagePickerGrid';
-import { createEvent } from '../../services/eventService';
-import { apiService } from '../../services/apiService';
+import {
+  adminCreateEvent,
+  adminBroadcastNotification,
+} from '../../services/admin';
 import { formatEventDate } from '../../utils/eventHelpers';
 import { firebaseAuth } from '../../config/firebase';
 import BentoFormTile from '../../components/BentoFormTile';
@@ -167,7 +169,7 @@ const CreateEventScreen = () => {
     try {
       const adminUid = firebaseAuth.currentUser?.uid || 'unknown_admin';
 
-      const { event } = await createEvent({
+      const event = await adminCreateEvent({
         title,
         description,
         location,
@@ -176,15 +178,13 @@ const CreateEventScreen = () => {
         date: date,
         ...(endDate && { endDate }),
         ...(maxCapacityStr && { maxCapacity: parseInt(maxCapacityStr, 10) }),
-        createdBy: adminUid,
         speakers,
         agenda,
       });
 
       if (event?.id) {
         try {
-          await apiService.sendNotification({
-            isBroadcast: true,
+          await adminBroadcastNotification({
             title: 'New Event Published!',
             body: `${title} is now live at ${location}. Check it out now!`,
             data: {

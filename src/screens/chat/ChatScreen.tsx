@@ -37,15 +37,30 @@ const ChatScreen = () => {
 
   useEffect(() => {
     if (!chatId) return;
+    let isMounted = true;
 
-    const unsubscribe = getMessages(chatId, data => {
-      setMessages(data);
-      setLoading(false);
-      // Mark as read after messages load
-      if (user) markMessagesRead(chatId, user.uid);
-    });
+    const fetchMessages = async () => {
+      try {
+        const data = await getMessages(chatId);
+        if (isMounted) {
+          setMessages(data);
+          setLoading(false);
+          if (user) {
+            markMessagesRead(chatId, user.uid);
+          }
+        }
+      } catch (error) {
+        if (isMounted) setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [chatId, user]);
 
   const handleSend = async () => {
@@ -72,10 +87,7 @@ const ChatScreen = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity
-        onPress={handleBack}
-        style={styles.backBtn}
-      >
+      <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
         <ChevronLeft size={24} color={colors.text.primary} />
       </TouchableOpacity>
 

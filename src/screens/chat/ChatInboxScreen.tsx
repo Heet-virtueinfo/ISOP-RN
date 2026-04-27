@@ -25,19 +25,34 @@ const ChatInboxScreen = () => {
 
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
 
-    const unsubscribeChats = getMyChats(user.uid, data => {
-      // Filter unique chats by other participant ID
-      const uniqueChats = data.filter((item, index, self) => {
-        const getOtherUid = (chat: Chat) => chat.participants.find(id => id !== user?.uid);
-        return index === self.findIndex(t => getOtherUid(t) === getOtherUid(item));
-      });
-      setChats(uniqueChats);
-      setLoading(false);
-    });
+    const fetchChats = async () => {
+      try {
+        const data = await getMyChats();
+        if (isMounted) {
+          const uniqueChats = data.filter((item, index, self) => {
+            const getOtherUid = (chat: Chat) =>
+              chat.participants.find(id => id !== user?.uid);
+            return (
+              index ===
+              self.findIndex(t => getOtherUid(t) === getOtherUid(item))
+            );
+          });
+          setChats(uniqueChats);
+          setLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchChats();
+    const interval = setInterval(fetchChats, 10000);
 
     return () => {
-      unsubscribeChats();
+      isMounted = false;
+      clearInterval(interval);
     };
   }, [user]);
 

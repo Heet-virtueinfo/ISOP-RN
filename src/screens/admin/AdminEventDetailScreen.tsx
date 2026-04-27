@@ -24,7 +24,7 @@ import {
   Target,
 } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
-import { listenToEvent, deleteEvent } from '../../services/eventService';
+import { adminGetEventById, adminDeleteEvent } from '../../services/admin';
 import { AppEvent, Speaker } from '../../types';
 import { getEventImage, formatEventDate } from '../../utils/eventHelpers';
 import CustomLoader from '../../components/CustomLoader';
@@ -45,14 +45,27 @@ const AdminEventDetailScreen = () => {
   const [showSpeakerModal, setShowSpeakerModal] = useState(false);
 
   useEffect(() => {
-    if (!eventId) return;
+    let mounted = true;
 
-    const unsubscribe = listenToEvent(eventId, data => {
-      setEvent(data);
-      setLoading(false);
-    });
+    const loadEvent = async () => {
+      if (!eventId) return;
+      try {
+        const data = await adminGetEventById(eventId);
+        if (mounted) {
+          setEvent(data);
+          setLoading(false);
+        }
+      } catch (error: any) {
+        console.error('[AdminEventDetail] loadEvent failed:', error?.message);
+        if (mounted) setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    loadEvent();
+
+    return () => {
+      mounted = false;
+    };
   }, [eventId]);
 
   const handleEdit = () => {
@@ -68,7 +81,7 @@ const AdminEventDetailScreen = () => {
     if (!event) return;
     setIsDeleting(true);
     try {
-      await deleteEvent(event.id);
+      await adminDeleteEvent(event.id);
       setDeleteModalVisible(false);
       Toast.show({
         type: 'success',

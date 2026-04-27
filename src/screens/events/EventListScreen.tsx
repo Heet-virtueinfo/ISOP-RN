@@ -41,27 +41,36 @@ const EventListScreen = () => {
 
   useEffect(() => {
     if (!userProfile) return;
+    let isMounted = true;
 
-    const unsubscribeEvents = getActiveEvents(activeEvents => {
-      setEvents(activeEvents);
-      setLoading(false);
-      setRefreshing(false);
-    });
+    const loadData = async () => {
+      try {
+        const [activeEvents, enrollments] = await Promise.all([
+          getActiveEvents(),
+          getUserEnrollments(userProfile.uid),
+        ]);
 
-    const unsubscribeEnrollments = getUserEnrollments(
-      userProfile.uid,
-      enrollments => {
-        setEnrollmentIds(enrollments.map(e => e.eventId));
-      },
-    );
+        if (isMounted) {
+          setEvents(activeEvents);
+          setEnrollmentIds(enrollments.map(e => e.eventId));
+          setLoading(false);
+          setRefreshing(false);
+        }
+      } catch (error) {
+        console.error('EventList Fetch Error', error);
+        if (isMounted) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    };
+
+    loadData();
 
     return () => {
-      unsubscribeEvents();
-      unsubscribeEnrollments();
+      isMounted = false;
     };
   }, [userProfile]);
-
-
 
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
@@ -75,8 +84,21 @@ const EventListScreen = () => {
     });
   }, [events, searchQuery, selectedType]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    if (!userProfile) {
+      setRefreshing(false);
+      return;
+    }
+
+    try {
+      const activeEvents = await getActiveEvents();
+      setEvents(activeEvents);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const renderEmpty = () => {
@@ -96,7 +118,11 @@ const EventListScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="Upcoming Events" showBack={true} onBackPress={() => navigation.goBack()} />
+      <UserHeader
+        title="Upcoming Events"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
 
       {loading && !refreshing ? (
         <CustomLoader
