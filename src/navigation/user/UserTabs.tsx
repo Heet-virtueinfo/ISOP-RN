@@ -3,14 +3,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   MessageCircle,
   Home,
-  BookMarked,
+  LayoutList,
   User,
   UserPlus,
 } from 'lucide-react-native';
 import { View } from 'react-native';
 import { colors, typography } from '../../theme';
 import HomeStack from './stacks/HomeStack';
-import MyEventsStack from './stacks/MyEventsStack';
+import FeedsStack from './stacks/FeedsStack';
 import ChatsStack from './stacks/ChatsStack';
 import ProfileStack from './stacks/ProfileStack';
 import ChatRequestBadge from '../../components/ChatRequestBadge';
@@ -46,12 +46,12 @@ const UserTabs = () => {
         }}
       />
       <Tab.Screen
-        name="MyEventsTab"
-        component={MyEventsStack}
+        name="FeedsTab"
+        component={FeedsStack}
         options={{
-          tabBarLabel: 'My Events',
+          tabBarLabel: 'Feeds',
           tabBarIcon: ({ color, size }) => (
-            <BookMarked color={color} size={size} />
+            <LayoutList color={color} size={size} />
           ),
         }}
       />

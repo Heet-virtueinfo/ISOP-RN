@@ -17,6 +17,7 @@ import {
   Shield,
   ChevronRight,
   Settings,
+  BookMarked,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
@@ -128,6 +129,23 @@ const ProfileScreen = () => {
 
         {/* Premium Action Stack */}
         <View style={styles.actionsBox}>
+          <TouchableOpacity
+            style={styles.actionRow}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('MyEventsList')}
+          >
+            <View style={[styles.actionIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.08)' }]}>
+              <BookMarked size={20} color="#10B981" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>My Events</Text>
+              <Text style={styles.actionSubtitle}>
+                View your enrolled events
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.text.tertiary} />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.actionRow}
             activeOpacity={0.7}

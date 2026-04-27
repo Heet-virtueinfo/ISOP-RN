@@ -96,7 +96,7 @@ const EventListScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="Upcoming Events" showBack={true} onBackPress={() => navigation.goBack()} />
+      <UserHeader title="Event Feeds" />
 
       {loading && !refreshing ? (
         <CustomLoader
