@@ -16,7 +16,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import InputField from '../../components/InputField';
 import PhoneInputField from '../../components/PhoneInputField';
 import Button from '../../components/Button';
-import { colors, spacing, typography, radius } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { validatePhone, validateName } from '../../utils/validation';
 import { splitPhoneNumber } from '../../utils/countries';
@@ -62,7 +62,7 @@ const EditProfileScreen = () => {
       setLoading(true);
       try {
         await updateUserProfile({
-          full_name: fullName,
+          display_name: fullName,
           phone_number: `${countryCode}${mobile}`,
           profileImage,
         });

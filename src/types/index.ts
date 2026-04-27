@@ -1,26 +1,15 @@
 export type UserRole = 'admin' | 'user';
 
-/**
- * UserProfile now maps to the Laravel API user object shape.
- *
- * Laravel → App field mapping:
- *   id            → uid
- *   name          → displayName
- *   phone         → phoneNumber
- *   profile_image → profileImage
- *   created_at    → createdAt (ISO string)
- *   updated_at    → updatedAt (ISO string)
- */
 export interface UserProfile {
-  uid: string;           // maps from `id` in the API response
+  uid: string;
   email: string;
-  displayName: string;   // maps from `name`
+  displayName: string;
   role: UserRole;
-  phoneNumber?: string;  // maps from `phone`
-  profileImage?: string | null; // maps from `profile_image`
+  phoneNumber?: string;
+  profileImage?: string | null;
   fcmToken?: string;
-  createdAt: string | null; // ISO date string from Laravel
-  updatedAt: string | null; // ISO date string from Laravel
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export type EventType = 'conference' | 'webinar' | 'training' | 'meeting';
@@ -140,7 +129,11 @@ export interface NewsArticle {
   updatedAt: any;
 }
 
-export type ResourceCategory = 'guideline' | 'training' | 'presentation' | 'other';
+export type ResourceCategory =
+  | 'guideline'
+  | 'training'
+  | 'presentation'
+  | 'other';
 export type ResourceType = 'pdf' | 'video' | 'link';
 
 export interface ResourceItem {
