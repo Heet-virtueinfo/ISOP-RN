@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Share,
   Linking,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Calendar,
   MapPin,
@@ -57,7 +57,7 @@ const EventDetailScreen = () => {
   const { userProfile } = useAuth();
   const { eventId } = route.params;
   const insets = useSafeAreaInsets();
-
+  console.log('userProfile', userProfile);
   console.log('Event Id:', eventId);
 
   const [event, setEvent] = useState<AppEvent | null>(null);
@@ -73,44 +73,47 @@ const EventDetailScreen = () => {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
-  useEffect(() => {
-    if (!eventId) return;
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      if (!eventId) return;
+      let isMounted = true;
 
-    const loadData = async () => {
-      try {
-        const [eventData, enrollmentData] = await Promise.all([
-          getEventById(eventId),
-          userProfile
-            ? checkEnrollment(eventId, userProfile.uid)
-            : Promise.resolve(null),
-        ]);
+      const loadData = async () => {
+        try {
+          const [eventData, enrollmentData] = await Promise.all([
+            getEventById(eventId),
+            userProfile
+              ? checkEnrollment(eventId, userProfile.uid)
+              : Promise.resolve(null),
+          ]);
+          console.log('Event Data:', eventData);
+          console.log('Enrollment Data:', enrollmentData);
+          if (isMounted) {
+            setEvent(eventData);
+            setEnrollment(enrollmentData);
+            setLoading(false);
 
-        if (isMounted) {
-          setEvent(eventData);
-          setEnrollment(enrollmentData);
-          setLoading(false);
-
-          if (enrollmentData && userProfile) {
-            const feedbackData = await checkUserFeedback(
-              eventId,
-              userProfile.uid,
-            );
-            if (isMounted) setUserFeedback(feedbackData);
+            if (enrollmentData && userProfile) {
+              const feedbackData = await checkUserFeedback(
+                eventId,
+                userProfile.uid,
+              );
+              if (isMounted) setUserFeedback(feedbackData);
+            }
           }
+        } catch (error) {
+          console.error('Event detail fetch error', error);
+          if (isMounted) setLoading(false);
         }
-      } catch (error) {
-        console.error('Event detail fetch error', error);
-        if (isMounted) setLoading(false);
-      }
-    };
+      };
 
-    loadData();
+      loadData();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [eventId, userProfile]);
+      return () => {
+        isMounted = false;
+      };
+    }, [eventId, userProfile]),
+  );
 
   const handleEnrollmentPress = () => {
     if (!event || !userProfile) return;
@@ -169,11 +172,11 @@ const EventDetailScreen = () => {
             eventEndDate: (event.endDate?.toDate
               ? event.endDate.toDate()
               : new Date(
-                  (event.date.toDate
-                    ? event.date.toDate()
-                    : new Date(event.date)
-                  ).getTime() + 3600000,
-                )
+                (event.date.toDate
+                  ? event.date.toDate()
+                  : new Date(event.date)
+                ).getTime() + 3600000,
+              )
             ).toISOString(),
             eventDescription: event.description,
           })
@@ -691,8 +694,8 @@ const EventDetailScreen = () => {
                     enrollment
                       ? 'Unenroll From Event'
                       : isFull
-                      ? 'Sold Out'
-                      : 'Enroll Now'
+                        ? 'Sold Out'
+                        : 'Enroll Now'
                   }
                   onPress={handleEnrollmentPress}
                   loading={actionLoading}

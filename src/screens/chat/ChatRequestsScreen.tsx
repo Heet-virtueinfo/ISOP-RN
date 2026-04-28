@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Image,
   StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MessageSquare, UserPlus, Check, X } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -38,51 +38,51 @@ const ChatRequestsScreen = () => {
     'incoming',
   );
   const [actionLoading, setActionLoading] = useState(false);
-  useEffect(() => {
-    if (!user) return;
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let isMounted = true;
 
-    const loadData = async () => {
-      try {
-        const [incomingReqs, sentReqs, acceptedReqs] = await Promise.all([
-          getIncomingRequests(),
-          getSentRequests(),
-          getAcceptedRequests(),
-        ]);
+      const loadData = async () => {
+        try {
+          const [incomingReqs, sentReqs, acceptedReqs] = await Promise.all([
+            getIncomingRequests(),
+            getSentRequests(),
+            getAcceptedRequests(),
+          ]);
+          if (!isMounted) return;
+          const uniqueIncoming = incomingReqs.filter(
+            (item, index, self) =>
+              index === self.findIndex(t => t.fromUid === item.fromUid),
+          );
+          const uniqueSent = sentReqs.filter(
+            (item, index, self) =>
+              index === self.findIndex(t => t.toUid === item.toUid),
+          );
+          const uniqueAccepted = acceptedReqs.filter((item, index, self) => {
+            const getUid = (req: ChatRequest) =>
+              req.fromUid === user.uid ? req.toUid : req.fromUid;
+            return index === self.findIndex(t => getUid(t) === getUid(item));
+          });
 
-        if (!isMounted) return;
+          setIncoming(uniqueIncoming);
+          setSent(uniqueSent);
+          setAccepted(uniqueAccepted);
+          setLoading(false);
+        } catch (error) {
+          if (isMounted) setLoading(false);
+        }
+      };
 
-        const uniqueIncoming = incomingReqs.filter(
-          (item, index, self) =>
-            index === self.findIndex(t => t.fromUid === item.fromUid),
-        );
-        const uniqueSent = sentReqs.filter(
-          (item, index, self) =>
-            index === self.findIndex(t => t.toUid === item.toUid),
-        );
-        const uniqueAccepted = acceptedReqs.filter((item, index, self) => {
-          const getUid = (req: ChatRequest) =>
-            req.fromUid === user.uid ? req.toUid : req.fromUid;
-          return index === self.findIndex(t => getUid(t) === getUid(item));
-        });
+      loadData();
+      const interval = setInterval(loadData, 20000); // 20s for requests
 
-        setIncoming(uniqueIncoming);
-        setSent(uniqueSent);
-        setAccepted(uniqueAccepted);
-        setLoading(false);
-      } catch (error) {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    loadData();
-    const interval = setInterval(loadData, 15000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [user]);
+      return () => {
+        isMounted = false;
+        clearInterval(interval);
+      };
+    }, [user])
+  );
 
   const handleAccept = async (request: ChatRequest) => {
     setActionLoading(true);
@@ -123,19 +123,19 @@ const ChatRequestsScreen = () => {
     const name = isIncoming
       ? item.fromName
       : isAccepted
-      ? item.fromUid === user?.uid
-        ? item.toName
-        : item.fromName
-      : item.toName;
+        ? item.fromUid === user?.uid
+          ? item.toName
+          : item.fromName
+        : item.toName;
     const image = isIncoming
       ? item.fromImage
       : isSent
-      ? item.toImage
-      : isAccepted
-      ? item.fromUid === user?.uid
         ? item.toImage
-        : item.fromImage
-      : item.toImage;
+        : isAccepted
+          ? item.fromUid === user?.uid
+            ? item.toImage
+            : item.fromImage
+          : item.toImage;
 
     return (
       <View style={styles.cardWrapper}>
@@ -156,7 +156,10 @@ const ChatRequestsScreen = () => {
 
             <View style={styles.userInfo}>
               <Text style={styles.userName} numberOfLines={1}>
-                {name}
+                {name || 'Member'}
+              </Text>
+              <Text style={styles.userRole}>
+                {isSent ? 'Request Sent' : isIncoming ? 'Wants to Connect' : 'Connection Active'}
               </Text>
             </View>
 
@@ -288,8 +291,8 @@ const ChatRequestsScreen = () => {
             activeTab === 'incoming'
               ? incoming
               : activeTab === 'sent'
-              ? sent
-              : accepted
+                ? sent
+                : accepted
           }
           keyExtractor={item => item.id}
           renderItem={renderRequestItem}
@@ -309,8 +312,8 @@ const ChatRequestsScreen = () => {
                   {activeTab === 'incoming'
                     ? 'No one has reached out yet. Why not start the conversation?'
                     : activeTab === 'sent'
-                    ? 'Your sent requests will appear here. Start reaching out to peers!'
-                    : 'Collaborations and established connections will sync here.'}
+                      ? 'Your sent requests will appear here. Start reaching out to peers!'
+                      : 'Collaborations and established connections will sync here.'}
                 </Text>
               </View>
             ) : null
@@ -465,6 +468,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: colors.text.primary,
+  },
+  userRole: {
+    fontFamily: typography.fontFamily,
+    fontSize: 11,
+    color: colors.text.tertiary,
+    marginTop: 2,
   },
   cardActions: {
     marginLeft: 12,

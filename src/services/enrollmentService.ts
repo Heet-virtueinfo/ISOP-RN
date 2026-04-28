@@ -46,14 +46,16 @@ export const checkEnrollment = async (
     });
     const data =
       response.data.data || response.data.enrollment || response.data;
-    if (data && data.is_enrolled) {
+
+    console.log('Data of checkEnrollment:', data);
+    if (data && (data.is_enrolled || data.id)) {
       return {
-        id: 'mocked',
-        eventId: eventId,
-        uid: uid,
-        displayName: 'User',
-        email: 'user@example.com',
-        enrolledAt: new Date(),
+        id: String(data.id || 'mocked'),
+        eventId: String(data.event_id || eventId),
+        uid: String(data.user_id || uid),
+        displayName: data.display_name || 'User',
+        email: data.email || 'user@example.com',
+        enrolledAt: data.enrolled_at || new Date().toISOString(),
       } as Enrollment;
     }
     return null;
@@ -95,17 +97,18 @@ export const getEventParticipants = async (
     const response = await apiClient.get(
       `/api/user/events/${eventId}/participants`,
     );
-    const records = response.data.data || response.data;
+    const records = response.data.participants || response.data.data || response.data;
+    console.log('Data of getEventParticipants:', records);
     return Array.isArray(records)
       ? (records.map((pt: any) => ({
-          id: String(pt.id),
-          eventId: eventId,
-          uid: String(pt.user_id || pt.uid),
-          displayName: pt.user?.name || pt.full_name || pt.name || '',
-          email: pt.user?.email || pt.email || '',
-          profileImage: pt.user?.profile_image || pt.profile_image || null,
-          enrolledAt: pt.created_at || new Date().toISOString(),
-        })) as Enrollment[])
+        id: String(pt.id),
+        eventId: eventId,
+        uid: String(pt.user_id || pt.uid),
+        displayName: pt.display_name || pt.user?.name || pt.full_name || pt.name || '',
+        email: pt.email || pt.user?.email || '',
+        profileImage: pt.profile_image || pt.user?.profile_image || null,
+        enrolledAt: pt.enrolled_at || pt.created_at || new Date().toISOString(),
+      })) as Enrollment[])
       : [];
   } catch (error) {
     console.error('[UserEnrollment] getEventParticipants error:', error);

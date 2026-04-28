@@ -31,9 +31,13 @@ const ParticipantsScreen = () => {
           getEventParticipants(eventId),
           getEventById(eventId),
         ]);
-
+        console.log('Participants Data:', participantsData);
+        console.log('Event Data:', eventData);
         if (isMounted) {
-          setParticipants(participantsData);
+          const filteredParticipants = participantsData.filter(
+            p => p.uid !== userProfile?.uid,
+          );
+          setParticipants(filteredParticipants);
           if (eventData) setEventTitle(eventData.title);
           setLoading(false);
         }

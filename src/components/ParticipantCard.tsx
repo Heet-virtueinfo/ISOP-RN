@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MessageSquare, UserCheck } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 import { colors, spacing, typography, radius } from '../theme';
 import { Enrollment, ChatRequest, UserProfile } from '../types';
 import { listenToChatRequestStatus, sendChatRequest } from '../services/chatService';
@@ -33,9 +34,16 @@ const ParticipantCard = ({
       currentUser.uid,
       participant.uid,
       data => {
-        setRequest(data);
+        if (data) {
+          setRequest(data);
+        } else {
+          // If server says null, only clear if we aren't already in a pending state
+          // This prevents flickering while the server processes the new request
+          setRequest(prev => (prev?.status === 'pending' ? prev : null));
+        }
         setLoading(false);
       },
+      participant.eventId,
     );
 
     return () => unsubscribe();
@@ -51,9 +59,25 @@ const ParticipantCard = ({
       );
       if (result.success && result.chatRequest) {
         setRequest(result.chatRequest);
+        Toast.show({
+          type: 'success',
+          text1: 'Request Sent',
+          text2: `Connection request sent to ${participant.displayName}`,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to Send',
+          text2: 'Could not send connection request. Please try again.',
+        });
       }
     } catch (error) {
       console.error('Action error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'An unexpected error occurred.',
+      });
     } finally {
       setActionLoading(false);
     }

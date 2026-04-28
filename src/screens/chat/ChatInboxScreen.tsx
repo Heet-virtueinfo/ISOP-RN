@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { Chat } from '../../types';
@@ -23,38 +23,41 @@ const ChatInboxScreen = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let isMounted = true;
 
-    const fetchChats = async () => {
-      try {
-        const data = await getMyChats();
-        if (isMounted) {
-          const uniqueChats = data.filter((item, index, self) => {
-            const getOtherUid = (chat: Chat) =>
-              chat.participants.find(id => id !== user?.uid);
-            return (
-              index ===
-              self.findIndex(t => getOtherUid(t) === getOtherUid(item))
-            );
-          });
-          setChats(uniqueChats);
-          setLoading(false);
+      const fetchChats = async () => {
+        try {
+          const data = await getMyChats();
+
+          if (isMounted) {
+            const uniqueChats = data.filter((item, index, self) => {
+              const getOtherUid = (chat: Chat) =>
+                chat.participants.find(id => id !== user?.uid);
+              return (
+                index ===
+                self.findIndex(t => getOtherUid(t) === getOtherUid(item))
+              );
+            });
+            setChats(uniqueChats);
+            setLoading(false);
+          }
+        } catch (error) {
+          if (isMounted) setLoading(false);
         }
-      } catch (error) {
-        if (isMounted) setLoading(false);
-      }
-    };
+      };
 
-    fetchChats();
-    const interval = setInterval(fetchChats, 10000);
+      fetchChats();
+      const interval = setInterval(fetchChats, 15000); // 15s
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [user]);
+      return () => {
+        isMounted = false;
+        clearInterval(interval);
+      };
+    }, [user])
+  );
 
   const getOtherParticipant = (chat: Chat) => {
     const otherId = chat.participants.find(id => id !== user?.uid);
@@ -91,7 +94,7 @@ const ChatInboxScreen = () => {
             <Text style={styles.chatName}>{other.name}</Text>
             <Text style={styles.chatTime}>
               {item.lastMessageAt
-                ? new Date(item.lastMessageAt?.toDate()).toLocaleDateString()
+                ? new Date(item.lastMessageAt).toLocaleDateString()
                 : ''}
             </Text>
           </View>

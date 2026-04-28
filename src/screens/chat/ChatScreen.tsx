@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ChevronLeft, Send, Image as ImageIcon } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,33 +35,37 @@ const ChatScreen = () => {
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    if (!chatId) return;
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      if (!chatId) return;
+      let isMounted = true;
 
-    const fetchMessages = async () => {
-      try {
-        const data = await getMessages(chatId);
-        if (isMounted) {
-          setMessages(data);
-          setLoading(false);
-          if (user) {
-            markMessagesRead(chatId, user.uid);
+      const fetchMessages = async () => {
+        try {
+          const data = await getMessages(chatId);
+          if (isMounted) {
+            setMessages(data);
+            setLoading(false);
+            // Only mark as read if there are unread messages from the other user
+            const hasUnread = data.some(m => !m.read && m.senderId !== user?.uid);
+            if (user && hasUnread) {
+              markMessagesRead(chatId, user.uid);
+            }
           }
+        } catch (error) {
+          if (isMounted) setLoading(false);
         }
-      } catch (error) {
-        if (isMounted) setLoading(false);
-      }
-    };
+      };
 
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 5000);
+      fetchMessages();
+      const interval = setInterval(fetchMessages, 10000); // Increased to 10s
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [chatId, user]);
+      return () => {
+        isMounted = false;
+        clearInterval(interval);
+      };
+    }, [chatId, user])
+  );
 
   const handleSend = async () => {
     if (!inputText.trim() || !user) return;
