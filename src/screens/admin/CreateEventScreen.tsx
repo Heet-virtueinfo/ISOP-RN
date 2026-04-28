@@ -39,7 +39,6 @@ import {
   adminBroadcastNotification,
 } from '../../services/admin';
 import { formatEventDate } from '../../utils/eventHelpers';
-import { firebaseAuth } from '../../config/firebase';
 import BentoFormTile from '../../components/BentoFormTile';
 
 const TimeNode = ({ label, value, onPress, isEnd = false, error }: any) => (
@@ -167,8 +166,6 @@ const CreateEventScreen = () => {
 
     setLoading(true);
     try {
-      const adminUid = firebaseAuth.currentUser?.uid || 'unknown_admin';
-
       const event = await adminCreateEvent({
         title,
         description,

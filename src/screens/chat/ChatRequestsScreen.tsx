@@ -24,8 +24,6 @@ import { ChatRequest, UserProfile } from '../../types';
 import CustomLoader from '../../components/CustomLoader';
 import Toast from 'react-native-toast-message';
 import UserHeader from '../../components/UserHeader';
-import { apiService } from '../../services/apiService';
-// Removed Firebase imports
 
 const ChatRequestsScreen = () => {
   const navigation = useNavigation<any>();

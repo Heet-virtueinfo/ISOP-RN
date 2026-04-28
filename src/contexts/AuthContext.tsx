@@ -1,16 +1,3 @@
-/**
- * src/contexts/AuthContext.tsx
- *
- * Token-based auth context for the Laravel API.
- * Replaces the Firebase onAuthStateChanged + Firestore onSnapshot listeners.
- *
- * Session restore flow (on mount):
- *   1. Read token from AsyncStorage.
- *   2. If token exists → call GET /api/auth/me to validate and get fresh profile.
- *   3. Fall back to cached profile in AsyncStorage if the API call fails (offline).
- *   4. If no token → user is logged out.
- */
-
 import React, {
   createContext,
   useContext,
@@ -24,26 +11,14 @@ import { STORAGE_KEYS } from '../config/api';
 import { fetchMe, getStoredUser, logoutUser } from '../services/authService';
 import { notificationService } from '../services/notificationService';
 
-// ---------------------------------------------------------------------------
-// Context type
-// ---------------------------------------------------------------------------
 
 interface AuthContextType {
-  /** Raw user object (same shape as UserProfile for the Laravel API) */
   user: UserProfile | null;
-  /** Full user profile from the API */
   userProfile: UserProfile | null;
-  /** True while the initial session restore is in progress */
   loading: boolean;
-  /** Log the user out */
   logout: () => Promise<void>;
-  /** Re-fetch the user profile from the API */
   refreshProfile: () => Promise<void>;
 }
-
-// ---------------------------------------------------------------------------
-// Context + Provider
-// ---------------------------------------------------------------------------
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -55,10 +30,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fcmInitialized = useRef(false);
   const tokenRefreshUnsubscribe = useRef<(() => void) | null>(null);
-
-  // -------------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------------
 
   const applyProfile = async (profile: UserProfile) => {
     setUserProfile(profile);
@@ -87,22 +58,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // -------------------------------------------------------------------------
-  // Session restore on mount
-  // -------------------------------------------------------------------------
-
   useEffect(() => {
     const restoreSession = async () => {
       try {
         const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
         if (!token) {
-          // No token — user is logged out
           return;
         }
 
-        // Try to get a fresh profile from the API
         const freshProfile = await fetchMe();
+
+        console.log('[AuthContext] Fresh profile:', freshProfile);
 
         if (freshProfile) {
           await AsyncStorage.setItem(
@@ -111,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           await applyProfile(freshProfile);
         } else {
-          // API unreachable — fall back to cached profile
           const cachedProfile = await getStoredUser();
           if (cachedProfile) {
             await applyProfile(cachedProfile);
@@ -133,10 +99,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Public actions
-  // -------------------------------------------------------------------------
-
   const refreshProfile = async () => {
     try {
       const fresh = await fetchMe();
@@ -145,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           STORAGE_KEYS.USER_PROFILE,
           JSON.stringify(fresh),
         );
-        setUserProfile(fresh);
+        await applyProfile(fresh);
       }
     } catch (error) {
       console.error('[AuthContext] refreshProfile error:', error);
@@ -155,7 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = async () => {
     try {
       setLoading(true);
-      await logoutUser(); // hits /api/auth/logout + clears AsyncStorage
+      if (userProfile?.role === 'user') {
+        await notificationService.deleteUserToken();
+      }
+      await logoutUser();
     } catch (error) {
       console.error('[AuthContext] Logout error:', error);
     } finally {
@@ -164,25 +129,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // -------------------------------------------------------------------------
-  // After login / register — called by authService which calls persistSession.
-  // The navigator will re-render because userProfile changes.
-  // We expose a helper so screens can push the profile into context immediately
-  // after a successful login/register without waiting for a full restoreSession.
-  // -------------------------------------------------------------------------
-
-  // Listen for profile stored by authService (login / register set AsyncStorage,
-  // so we poll once after those operations complete via the login / register hooks
-  // in the screens themselves calling refreshProfile).
-
-  // -------------------------------------------------------------------------
-  // Context value
-  // -------------------------------------------------------------------------
-
   return (
     <AuthContext.Provider
       value={{
-        user: userProfile, // keep `user` as alias for backward compat
+        user: userProfile,
         userProfile,
         loading,
         logout,
@@ -193,10 +143,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     </AuthContext.Provider>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

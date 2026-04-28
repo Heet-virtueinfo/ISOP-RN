@@ -59,19 +59,43 @@ class NotificationService {
   async updateUserToken(uid: string, existingToken?: string) {
     try {
       const newToken = await this.getFCMToken();
-      
-      // Only update if we have a token AND it's different from the existing one
-      if (newToken && uid && newToken !== existingToken) {
-        console.log('[NotificationService] New token detected. Updating API...');
+
+      if (newToken && uid) {
+        if (newToken !== existingToken) {
+          console.log(
+            `[NotificationService] Token mismatch detected (Server: ${existingToken?.slice(
+              0,
+              10,
+            )}... Device: ${newToken.slice(0, 10)}...). Updating...`,
+          );
+        } else {
+          console.log(
+            '[NotificationService] Token matches local profile. Syncing with API anyway for reliability...',
+          );
+        }
+
         await updateFcmToken(newToken);
+        console.log('[NotificationService] FCM Token synced successfully.');
       } else {
-        console.log('[NotificationService] Token matches existing one. Skipping update.');
+        console.warn(
+          '[NotificationService] Cannot update token: newToken or uid is missing.',
+          { hasToken: !!newToken, hasUid: !!uid },
+        );
       }
     } catch (error) {
-      console.error('Update User Token Error:', error);
+      console.error('[NotificationService] Update User Token Error:', error);
     }
   }
 
+  async deleteUserToken() {
+    try {
+      console.log('[NotificationService] Clearing FCM token from server...');
+      await updateFcmToken(null);
+      console.log('[NotificationService] FCM token cleared successfully.');
+    } catch (error) {
+      console.error('[NotificationService] Error clearing FCM token:', error);
+    }
+  }
 
   onTokenRefresh(uid: string) {
     return onTokenRefresh(firebaseMessaging, async token => {
@@ -155,8 +179,7 @@ class NotificationService {
     callback: (screen: string, data?: any) => void,
   ) {
     // 1. If app was opened from a "quit" state via FCM
-    const initialNotification =
-      await getInitialNotification(firebaseMessaging);
+    const initialNotification = await getInitialNotification(firebaseMessaging);
     if (initialNotification) {
       console.log('Opened from quit state (FCM):', initialNotification);
       this.processNotificationData(initialNotification, callback);
@@ -215,7 +238,9 @@ class NotificationService {
         },
       });
     } else if (data && data.eventId) {
-      console.log(`[NotificationService] Attempting deep-link to event: ${data.eventId}`);
+      console.log(
+        `[NotificationService] Attempting deep-link to event: ${data.eventId}`,
+      );
       // Navigate through the hierarchy: Root (User) -> Tab (HomeTab) -> Screen (EventDetail)
       navigationRef.navigate('User', {
         screen: 'HomeTab',
@@ -225,7 +250,9 @@ class NotificationService {
         },
       });
     } else if (data && data.screen) {
-      console.log(`[NotificationService] Attempting generic screen-link to: ${data.screen}`);
+      console.log(
+        `[NotificationService] Attempting generic screen-link to: ${data.screen}`,
+      );
       navigationRef.navigate(data.screen, data);
     }
 

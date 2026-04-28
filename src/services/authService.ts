@@ -147,7 +147,9 @@ export const fetchMe = async (): Promise<UserProfile | null> => {
   }
 };
 
-export const updateFcmToken = async (fcmToken: string): Promise<void> => {
+export const updateFcmToken = async (
+  fcmToken: string | null,
+): Promise<void> => {
   try {
     await apiClient.post('/api/user/notifications/token', {
       fcm_token: fcmToken,
