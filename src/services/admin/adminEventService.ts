@@ -45,7 +45,9 @@ export const adminGetEventById = async (id: string): Promise<AppEvent> => {
 };
 
 /** POST /api/admin/events — create a new event */
-export const adminCreateEvent = async (data: EventPayload): Promise<AppEvent> => {
+export const adminCreateEvent = async (
+  data: EventPayload,
+): Promise<AppEvent> => {
   try {
     const form = new FormData();
 
