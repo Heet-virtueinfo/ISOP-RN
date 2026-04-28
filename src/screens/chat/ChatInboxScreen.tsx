@@ -31,7 +31,7 @@ const ChatInboxScreen = () => {
       const fetchChats = async () => {
         try {
           const data = await getMyChats();
-
+          console.log('Data of fetchChats:', data);
           if (isMounted) {
             const uniqueChats = data.filter((item, index, self) => {
               const getOtherUid = (chat: Chat) =>

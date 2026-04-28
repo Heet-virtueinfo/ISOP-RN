@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MessageSquare, UserCheck } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { colors, spacing, typography, radius } from '../theme';
-import { Enrollment, ChatRequest, UserProfile } from '../types';
-import { listenToChatRequestStatus, sendChatRequest } from '../services/chatService';
+import { Enrollment, UserProfile } from '../types';
+import { sendChatRequest } from '../services/chatService';
 import CustomLoader from './CustomLoader';
 
 interface ParticipantCardProps {
@@ -18,36 +18,12 @@ const ParticipantCard = ({
   currentUser,
   onChatPress,
 }: ParticipantCardProps) => {
-  const [request, setRequest] = useState<ChatRequest | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [chatStatus, setChatStatus] = useState(participant.chatStatus || 'none');
+  const [chatDirection, setChatDirection] = useState(participant.chatDirection || null);
+  const [chatRequestId, setChatRequestId] = useState(participant.chatRequestId || null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const isMe = participant.uid === currentUser.uid;
-
-  useEffect(() => {
-    if (isMe) {
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = listenToChatRequestStatus(
-      currentUser.uid,
-      participant.uid,
-      data => {
-        if (data) {
-          setRequest(data);
-        } else {
-          // If server says null, only clear if we aren't already in a pending state
-          // This prevents flickering while the server processes the new request
-          setRequest(prev => (prev?.status === 'pending' ? prev : null));
-        }
-        setLoading(false);
-      },
-      participant.eventId,
-    );
-
-    return () => unsubscribe();
-  }, [currentUser.uid, participant.uid, isMe]);
+  const isMe = participant.uid === currentUser.uid || chatStatus === 'self';
 
   const handleSendRequest = async () => {
     setActionLoading(true);
@@ -58,7 +34,9 @@ const ParticipantCard = ({
         participant.eventId,
       );
       if (result.success && result.chatRequest) {
-        setRequest(result.chatRequest);
+        setChatStatus('pending');
+        setChatDirection('sent');
+        setChatRequestId(result.chatRequest.id);
         Toast.show({
           type: 'success',
           text1: 'Request Sent',
@@ -90,9 +68,8 @@ const ParticipantCard = ({
           <Text style={styles.meText}>YOU</Text>
         </View>
       );
-    if (loading) return null;
 
-    if (!request || request.status === 'declined') {
+    if (chatStatus === 'none' || chatStatus === 'declined' || !chatStatus) {
       return (
         <TouchableOpacity
           style={styles.actionBtn}
@@ -115,8 +92,8 @@ const ParticipantCard = ({
       );
     }
 
-    if (request.status === 'pending') {
-      const sentByMe = request.fromUid === currentUser.uid;
+    if (chatStatus === 'pending') {
+      const sentByMe = chatDirection === 'sent';
       return (
         <View style={[styles.statusBadge, styles.pendingBadge]}>
           <Text style={styles.statusText}>
@@ -126,17 +103,25 @@ const ParticipantCard = ({
       );
     }
 
-    if (request.status === 'accepted') {
+    if (chatStatus === 'accepted') {
       return (
         <TouchableOpacity
           style={[styles.actionBtn, styles.chatBtn]}
-          onPress={() =>
-            onChatPress(
-              request.id,
-              participant.displayName,
-              participant.profileImage || null,
-            )
-          }
+          onPress={() => {
+            if (chatRequestId) {
+              onChatPress(
+                chatRequestId,
+                participant.displayName,
+                participant.profileImage || null,
+              );
+            } else {
+              Toast.show({
+                type: 'error',
+                text1: 'Chat Unavailable',
+                text2: 'Could not open this chat right now.',
+              });
+            }
+          }}
         >
           <UserCheck size={14} color="white" />
           <Text style={[styles.actionBtnText, styles.chatBtnText]}>Chat</Text>

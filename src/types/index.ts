@@ -66,6 +66,9 @@ export interface Enrollment {
   email: string;
   profileImage?: string | null;
   enrolledAt: any;
+  chatStatus?: 'none' | 'pending' | 'accepted' | 'declined' | 'self' | string | null;
+  chatDirection?: 'sent' | 'received' | string | null;
+  chatRequestId?: string | null;
 }
 
 export type ChatRequestStatus = 'pending' | 'accepted' | 'declined';

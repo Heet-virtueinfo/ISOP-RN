@@ -14,7 +14,7 @@ export const submitFeedback = async (
       comment,
     });
     const feedback = response.data.feedback || response.data;
-    
+
     const newFeedback: Feedback = {
       id: String(feedback.id),
       eventId,
@@ -23,7 +23,7 @@ export const submitFeedback = async (
       userImage: userProfile.profileImage || null,
       rating,
       comment,
-      createdAt: new Date(), 
+      createdAt: new Date(),
     };
 
     return { success: true, newFeedback };
@@ -43,16 +43,16 @@ export const checkUserFeedback = async (
     });
     const data = response.data.feedback || response.data.data;
     if (data && data.id) {
-       return {
-         id: String(data.id),
-         eventId: eventId,
-         uid,
-         userName: '',
-         userImage: null,
-         rating: data.rating,
-         comment: data.comment,
-         createdAt: data.created_at || new Date().toISOString(),
-       };
+      return {
+        id: String(data.id),
+        eventId: eventId,
+        uid,
+        userName: '',
+        userImage: null,
+        rating: data.rating,
+        comment: data.comment,
+        createdAt: data.created_at || new Date().toISOString(),
+      };
     }
     return null;
   } catch (error) {
@@ -63,8 +63,9 @@ export const checkUserFeedback = async (
 export const getEventFeedback = async (eventId: string): Promise<Feedback[]> => {
   try {
     const response = await apiClient.get(`/api/user/events/${eventId}/feedback`);
-    const raw = response.data.feedback || response.data.data || response.data;
-    
+    console.log('Data of getEventFeedback:', response.data);
+    const raw = response.data.feedbacks || response.data.data || response.data;
+
     if (!Array.isArray(raw)) {
       return [];
     }
@@ -73,8 +74,8 @@ export const getEventFeedback = async (eventId: string): Promise<Feedback[]> => 
       id: String(fb.id),
       eventId,
       uid: String(fb.user_id || fb.uid),
-      userName: fb.user?.name || fb.user?.full_name || '',
-      userImage: fb.user?.profile_image || null,
+      userName: fb.user_name || fb.user?.name || fb.user?.full_name || '',
+      userImage: fb.user_image || fb.user?.profile_image || null,
       rating: fb.rating,
       comment: fb.comment,
       status: fb.status || 'pending',

@@ -206,7 +206,7 @@ export const declineChatRequest = async (requestId: string) => {
 export const getAcceptedRequests = async (): Promise<ChatRequest[]> => {
   try {
     const response = await apiClient.get('/api/user/chat-requests/accepted');
-    const data = response.data.data || response.data;
+    const data = response.data.requests || response.data;
     return Array.isArray(data) ? data.map(normalizeChatRequest) : [];
   } catch (error) {
     console.error('[ChatService] getAcceptedRequests Error:', error);
@@ -220,20 +220,22 @@ export const getMyChats = async (): Promise<Chat[]> => {
     const response = await apiClient.get('/api/user/chats');
     const data = response.data.chats || response.data;
     return Array.isArray(data) ? data.map((c: any) => {
-      // Mocking the structure as the backend likely returns a different participant tree
-      const fromUid = String(c.user1_id || c.participant1_id || c.from_user_id || '');
-      const toUid = String(c.user2_id || c.participant2_id || c.to_user_id || '');
+      const participantNames: Record<string, string> = {};
+      const participantImages: Record<string, string | null> = {};
+
+      if (Array.isArray(c.users)) {
+        c.users.forEach((user: any) => {
+          const uid = String(user.id);
+          participantNames[uid] = user.display_name || user.name || '';
+          participantImages[uid] = user.profile_image || null;
+        });
+      }
+
       return {
         id: String(c.id),
-        participants: [fromUid, toUid],
-        participantNames: {
-          [fromUid]: c.user1?.name || c.from_name || '',
-          [toUid]: c.user2?.name || c.to_name || '',
-        },
-        participantImages: {
-          [fromUid]: c.user1?.profile_image || null,
-          [toUid]: c.user2?.profile_image || null,
-        },
+        participants: Array.isArray(c.participants) ? c.participants.map(String) : [],
+        participantNames,
+        participantImages,
         lastMessage: c.last_message || '',
         lastMessageAt: c.last_message_at || c.updated_at || '',
         createdAt: c.created_at || '',

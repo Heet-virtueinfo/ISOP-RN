@@ -108,6 +108,9 @@ export const getEventParticipants = async (
         email: pt.email || pt.user?.email || '',
         profileImage: pt.profile_image || pt.user?.profile_image || null,
         enrolledAt: pt.enrolled_at || pt.created_at || new Date().toISOString(),
+        chatStatus: pt.chat_status || 'none',
+        chatDirection: pt.chat_direction || null,
+        chatRequestId: pt.chat_request_id || null,
       })) as Enrollment[])
       : [];
   } catch (error) {
