@@ -259,15 +259,21 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                               <View style={styles.dateRow}>
                                 <Clock size={12} color={colors.brand.primary} />
                                 <Text style={styles.enrolledDate}>
-                                  {ev.enrolledAt?.toDate?.()
-                                    ? ev.enrolledAt
+                                  {typeof ev.enrolledAt === 'string'
+                                    ? new Date(ev.enrolledAt).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })
+                                    : ev.enrolledAt?.toDate?.()
+                                      ? ev.enrolledAt
                                         .toDate()
                                         .toLocaleDateString('en-US', {
                                           month: 'short',
                                           day: 'numeric',
                                           year: 'numeric',
                                         })
-                                    : 'Recently'}
+                                      : 'Recently'}
                                 </Text>
                               </View>
                             </View>
@@ -290,7 +296,6 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               )}
             </View>
 
-            <View style={{ height: spacing.xxl * 2 }} />
           </ScrollView>
         </View>
       </View>

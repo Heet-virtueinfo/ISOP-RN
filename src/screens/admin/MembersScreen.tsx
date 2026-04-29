@@ -27,7 +27,6 @@ import UserHeader from '../../components/UserHeader';
 import {
   adminGetUsers,
   adminGetEvents,
-  adminGetEventParticipants,
 } from '../../services/admin';
 import { COLLECTIONS } from '../../constants/collections';
 import { Enrollment, UserProfile, AppEvent } from '../../types';
@@ -299,46 +298,19 @@ const MembersScreen = () => {
           });
           if (mounted) setEventsMap(evMap);
 
-          const partsData = await Promise.all(
-            events.map(async ev => {
-              try {
-                const pts = await adminGetEventParticipants(ev.id);
-                return { eventId: ev.id, pts };
-              } catch (e) {
-                return { eventId: ev.id, pts: [] };
-              }
-            }),
-          );
-
-          const memMap = new Map<string, MemberEntry>();
-          users.forEach(u => {
-            memMap.set(u.uid, {
-              uid: u.uid,
-              displayName: u.displayName || 'Unknown Executive',
-              email: u.email || 'No Email',
-              profileImage: u.profileImage,
-              phoneNumber: u.phoneNumber,
-              events: [],
-            });
-          });
-
-          partsData.forEach(({ eventId, pts }) => {
-            pts.forEach((pt: any) => {
-              const uid = String(pt.id || pt.user_id || pt.uid);
-              if (memMap.has(uid)) {
-                memMap.get(uid)!.events.push({
-                  eventId,
-                  enrolledAt:
-                    pt.created_at || pt.createdAt || new Date().toISOString(),
-                });
-              }
-            });
-          });
+          const finalMembers: MemberEntry[] = users.map(u => ({
+            uid: u.uid,
+            displayName: u.displayName || 'Unknown Executive',
+            email: u.email || 'No Email',
+            profileImage: u.profileImage,
+            phoneNumber: u.phoneNumber,
+            events: (u.joinedEventIds || []).map(eventId => ({
+              eventId,
+              enrolledAt: new Date().toISOString(), // Fallback since specific date isn't in user object
+            })),
+          })).sort((a, b) => a.displayName.localeCompare(b.displayName));
 
           if (mounted) {
-            const finalMembers = Array.from(memMap.values()).sort((a, b) =>
-              a.displayName.localeCompare(b.displayName),
-            );
             setMembersList(finalMembers);
             setLoading(false);
           }

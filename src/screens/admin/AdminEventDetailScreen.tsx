@@ -26,7 +26,7 @@ import {
 import { colors, spacing, typography, radius } from '../../theme';
 import { adminGetEventById, adminDeleteEvent } from '../../services/admin';
 import { AppEvent, Speaker } from '../../types';
-import { getEventImage, formatEventDate } from '../../utils/eventHelpers';
+import { getEventImage, formatEventDateRange } from '../../utils/eventHelpers';
 import CustomLoader from '../../components/CustomLoader';
 import DeleteEventModal from '../../components/modals/DeleteEventModal';
 import SpeakerBioModal from '../../components/modals/SpeakerBioModal';
@@ -219,10 +219,10 @@ const AdminEventDetailScreen = () => {
               >
                 <Calendar size={18} color={colors.palette.indigo.accent} />
               </View>
-              <View>
-                <Text style={styles.metaNodeLabel}>EVENT DATE</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.metaNodeLabel}>EVENT SCHEDULE</Text>
                 <Text style={styles.metaNodeValue}>
-                  {formatEventDate(event.date)}
+                  {formatEventDateRange(event.date, event.endDate)}
                 </Text>
               </View>
             </View>

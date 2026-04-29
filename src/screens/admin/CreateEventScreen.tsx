@@ -8,6 +8,7 @@ import {
   Platform,
   Modal,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
@@ -272,11 +273,16 @@ const CreateEventScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+    <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
         {/* Status Dashboard */}
         <View style={styles.dashboard}>
           <View style={styles.dashboardHeader}>
@@ -558,18 +564,18 @@ const CreateEventScreen = () => {
             </TouchableOpacity>
           </View>
         </BentoFormTile>
-      </ScrollView>
+        </ScrollView>
 
-      {/* Sticky Action Footer */}
-      <View style={styles.footer}>
-        <Button
-          title="Publish Event"
-          onPress={handleCreate}
-          loading={loading}
-          style={styles.stickySubmitBtn}
-          leftIcon={CheckCircle2}
-        />
-      </View>
+        {/* Sticky Action Footer */}
+        <View style={styles.footer}>
+          <Button
+            title="Publish Event"
+            onPress={handleCreate}
+            loading={loading}
+            style={styles.stickySubmitBtn}
+            leftIcon={CheckCircle2}
+          />
+        </View>
 
       {/* DateTime Pickers (Unified Logic) */}
       {(openDatePicker || openEndDatePicker) &&
@@ -655,7 +661,10 @@ const CreateEventScreen = () => {
           >
             <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
-          <View style={styles.modalContent}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContent}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}
@@ -666,6 +675,7 @@ const CreateEventScreen = () => {
             </View>
             <ScrollView
               style={{ padding: 20 }}
+              contentContainerStyle={{ paddingBottom: 60 }}
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.innerMedia}>
@@ -707,7 +717,7 @@ const CreateEventScreen = () => {
                 style={{ marginTop: 20 }}
               />
             </ScrollView>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -719,7 +729,10 @@ const CreateEventScreen = () => {
           >
             <View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
-          <View style={styles.modalContent}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContent}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingAgenda ? 'Edit Session' : 'Add Session'}
@@ -728,7 +741,11 @@ const CreateEventScreen = () => {
                 <Text style={styles.modalDoneBtn}>Cancel</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={{ padding: 20 }}>
+            <ScrollView
+              style={{ padding: 20 }}
+              contentContainerStyle={{ paddingBottom: 60 }}
+              showsVerticalScrollIndicator={false}
+            >
               <InputField
                 label="Session Title"
                 placeholder="e.g. Opening Keynote"
@@ -876,10 +893,12 @@ const CreateEventScreen = () => {
                 />
               )}
             </ScrollView>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
+  </KeyboardAvoidingView>
+</View>
   );
 };
 
@@ -891,7 +910,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.md,
     paddingTop: spacing.xl,
-    paddingBottom: 100, // Space for sticky footer
+    paddingBottom: 150, // Space for sticky footer
   },
   dashboard: {
     backgroundColor: colors.brand.primary,

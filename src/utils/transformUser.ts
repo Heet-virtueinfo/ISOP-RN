@@ -10,4 +10,5 @@ export const transformUser = (raw: any): UserProfile => ({
   fcmToken: raw.fcm_token ?? raw.fcmToken ?? undefined,
   createdAt: raw.created_at ?? raw.createdAt ?? null,
   updatedAt: raw.updated_at ?? raw.updatedAt ?? null,
+  joinedEventIds: raw.joined_event_ids ?? raw.joinedEventIds ?? [],
 });

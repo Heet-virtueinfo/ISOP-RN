@@ -6,9 +6,9 @@ import { ResourceItem } from '../types';
  */
 export const getResources = async (): Promise<ResourceItem[]> => {
   try {
-    const response = await apiClient.get<{ data: any[] }>('/api/user/resources');
+    const response = await apiClient.get<{ resources: any[] }>('/api/user/resources');
     // Map basic fields
-    const raw = response.data?.data;
+    const raw = response.data?.resources;
     if (!Array.isArray(raw)) {
       return [];
     }

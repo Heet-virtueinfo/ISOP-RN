@@ -10,6 +10,7 @@ export interface UserProfile {
   fcmToken?: string;
   createdAt: string | null;
   updatedAt: string | null;
+  joinedEventIds?: string[];
 }
 
 export type EventType = 'conference' | 'webinar' | 'training' | 'meeting';

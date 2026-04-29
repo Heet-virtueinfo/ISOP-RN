@@ -35,7 +35,7 @@ import {
   checkEnrollment,
 } from '../../services/enrollmentService';
 import { AppEvent, Enrollment, Feedback } from '../../types';
-import { getEventImage } from '../../utils/eventHelpers';
+import { getEventImage, formatEventDateRange } from '../../utils/eventHelpers';
 import {
   submitFeedback,
   checkUserFeedback,
@@ -194,31 +194,15 @@ const EventDetailScreen = () => {
     setFeedbackLoading(false);
   };
 
-  const formatDate = (timestamp: any) => {
+  const formatDate = (timestamp: any, endTimestamp?: any) => {
     if (!timestamp) return '';
-    const date =
-      typeof timestamp.toDate === 'function'
-        ? timestamp.toDate()
-        : new Date(timestamp);
-
-    const dateStr = date.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-
-    const timeStr = date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-
-    return `${dateStr} • ${timeStr}`;
+    return formatEventDateRange(timestamp, endTimestamp);
   };
 
   const handleShare = async () => {
     if (!event) return;
     try {
-      const dateStr = formatDate(event.date);
+      const dateStr = formatDate(event.date, event.endDate);
       const message = `Join me for ${event.title}!\n\n📅 Date: ${dateStr}\n📍 Location: ${event.location}\n\nCheck it out here: https://isop-app.com/events/${event.id}`;
       await Share.share({
         message,
@@ -405,7 +389,7 @@ const EventDetailScreen = () => {
               </View>
               <View style={styles.metaContent}>
                 <Text style={styles.metaLabel}>Date & Time</Text>
-                <Text style={styles.metaValue}>{formatDate(event.date)}</Text>
+                <Text style={styles.metaValue}>{formatDate(event.date, event.endDate)}</Text>
               </View>
             </View>
 
