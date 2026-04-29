@@ -1,13 +1,14 @@
 import apiClient from '../config/api';
 import { NewsArticle } from '../types';
 
-/**
- * Fetch all news from the user API.
- */
 export const getNews = async (): Promise<NewsArticle[]> => {
   try {
-    const response = await apiClient.get<{ data: any[] }>('/api/user/news');
-    const raw = response.data?.data;
+    const response = await apiClient.get<any>('/api/user/news');
+    const raw =
+      response.data?.news ??
+      response.data?.data ??
+      (Array.isArray(response.data) ? response.data : null);
+
     if (!Array.isArray(raw)) {
       return [];
     }

@@ -34,10 +34,7 @@ import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import EventTypePicker from '../../components/EventTypePicker';
 import ImagePickerGrid from '../../components/ImagePickerGrid';
-import {
-  adminCreateEvent,
-  adminBroadcastNotification,
-} from '../../services/admin';
+import { adminCreateEvent } from '../../services/admin';
 import { formatEventDate } from '../../utils/eventHelpers';
 import BentoFormTile from '../../components/BentoFormTile';
 
@@ -178,21 +175,6 @@ const CreateEventScreen = () => {
         speakers,
         agenda,
       });
-
-      if (event?.id) {
-        try {
-          await adminBroadcastNotification({
-            title: 'New Event Published!',
-            body: `${title} is now live at ${location}. Check it out now!`,
-            data: {
-              screen: 'EventDetail',
-              eventId: event.id,
-            },
-          });
-        } catch (notifError) {
-          console.error('Error sending broadcast notification:', notifError);
-        }
-      }
 
       Toast.show({
         type: 'success',

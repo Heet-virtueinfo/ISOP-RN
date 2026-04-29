@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,11 @@ import {
   Share,
   Linking,
 } from 'react-native';
-import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from '@react-navigation/native';
 import {
   Calendar,
   MapPin,
@@ -149,6 +153,7 @@ const EventDetailScreen = () => {
 
   const confirmEnroll = async () => {
     if (!event || !userProfile) return;
+    setShowConfirmModal(false);
     setActionLoading(true);
     try {
       const result = await enrollInEvent(event, userProfile);
@@ -156,7 +161,6 @@ const EventDetailScreen = () => {
         setEnrollment(result.enrollment);
         Toast.show({ type: 'success', text1: 'Enrolled Successfully!' });
       }
-      setShowConfirmModal(false);
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Enrollment Failed' });
     } finally {
@@ -166,13 +170,13 @@ const EventDetailScreen = () => {
 
   const confirmUnenroll = async () => {
     if (!event || !userProfile || !enrollment) return;
+    setShowUnenrollModal(false);
     setActionLoading(true);
     try {
-      await unenrollFromEvent(enrollment.id, event.id);
+      await unenrollFromEvent(enrollment.id);
       setEnrollment(null);
       setUserFeedback(null);
       Toast.show({ type: 'success', text1: 'Unenrolled Successfully' });
-      setShowUnenrollModal(false);
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Unenrollment Failed' });
     } finally {
@@ -666,8 +670,8 @@ const EventDetailScreen = () => {
                     enrollment
                       ? 'Unenroll From Event'
                       : isFull
-                        ? 'Sold Out'
-                        : 'Enroll Now'
+                      ? 'Sold Out'
+                      : 'Enroll Now'
                   }
                   onPress={handleEnrollmentPress}
                   loading={actionLoading}

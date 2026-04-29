@@ -67,17 +67,38 @@ const ChatRequestsScreen = () => {
           setSent(uniqueSent);
           setAccepted(uniqueAccepted);
           setLoading(false);
+
+          // Sync badge state globally
+          if (uniqueIncoming.length === 0) {
+            import('react-native').then(({ DeviceEventEmitter }) => {
+              DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
+            });
+          } else {
+            import('react-native').then(({ DeviceEventEmitter }) => {
+              DeviceEventEmitter.emit('NEW_CHAT_REQUEST');
+            });
+          }
         } catch (error) {
           if (isMounted) setLoading(false);
         }
       };
 
       loadData();
-      const interval = setInterval(loadData, 20000); // 20s for requests
+
+      import('react-native').then(({ DeviceEventEmitter }) => {
+        const sub = DeviceEventEmitter.addListener('NEW_CHAT_REQUEST', () => {
+          if (isMounted) loadData();
+        });
+        
+        // Cleanup the listener when focus is lost or component unmounts
+        return () => {
+          isMounted = false;
+          sub.remove();
+        };
+      });
 
       return () => {
         isMounted = false;
-        clearInterval(interval);
       };
     }, [user])
   );
@@ -92,6 +113,38 @@ const ChatRequestsScreen = () => {
         text1: 'Connection Established',
         text2: `Now chatting with ${request.fromName}`,
       });
+      // Refresh the list
+      const loadData = async () => {
+        const [incomingReqs, sentReqs, acceptedReqs] = await Promise.all([
+          getIncomingRequests(),
+          getSentRequests(),
+          getAcceptedRequests(),
+        ]);
+        const uniqueIncoming = incomingReqs.filter(
+          (item, index, self) =>
+            index === self.findIndex(t => t.fromUid === item.fromUid),
+        );
+        const uniqueSent = sentReqs.filter(
+          (item, index, self) =>
+            index === self.findIndex(t => t.toUid === item.toUid),
+        );
+        const uniqueAccepted = acceptedReqs.filter((item, index, self) => {
+          const getUid = (req: ChatRequest) =>
+            req.fromUid === user?.uid ? req.toUid : req.fromUid;
+          return index === self.findIndex(t => getUid(t) === getUid(item));
+        });
+
+        setIncoming(uniqueIncoming);
+        setSent(uniqueSent);
+        setAccepted(uniqueAccepted);
+        if (uniqueIncoming.length === 0) {
+          import('react-native').then(({ DeviceEventEmitter }) => {
+            DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
+          });
+        }
+      };
+      await loadData();
+      
       navigation.navigate('Chat', {
         chatId: request.id,
         otherUserName: request.fromName,
@@ -109,6 +162,18 @@ const ChatRequestsScreen = () => {
       await declineChatRequest(request.id);
 
       Toast.show({ type: 'success', text1: 'Request Declined' });
+      // Refresh the list
+      const incomingReqs = await getIncomingRequests();
+      const uniqueIncoming = incomingReqs.filter(
+        (item, index, self) =>
+          index === self.findIndex(t => t.fromUid === item.fromUid),
+      );
+      setIncoming(uniqueIncoming);
+      if (uniqueIncoming.length === 0) {
+        import('react-native').then(({ DeviceEventEmitter }) => {
+          DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
+        });
+      }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Action Failed' });
     }

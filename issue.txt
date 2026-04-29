@@ -1,0 +1,4 @@
+- in admin create news modal selected image is not showing
+- in request tab reload app then new quest all things show
+- in participants screen request status update refresh app then show
+- add user delete account functionality in setting screen 

@@ -11,7 +11,8 @@ import {
   registerDeviceForRemoteMessages,
   isDeviceRegisteredForRemoteMessages,
 } from '@react-native-firebase/messaging';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform, DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import * as navigationRef from '../utils/navigationRef';
 
@@ -145,6 +146,11 @@ class NotificationService {
           },
         });
       }
+
+      // If it's a chat request, emit an event to update the badge immediately
+      if (remoteMessage.data && remoteMessage.data.type === 'CHAT_REQUEST') {
+        DeviceEventEmitter.emit('NEW_CHAT_REQUEST', remoteMessage.data);
+      }
     });
 
     // 2. Listen for Notifee foreground events (e.g. user tapping the notification)
@@ -182,7 +188,7 @@ class NotificationService {
     const initialNotification = await getInitialNotification(firebaseMessaging);
     if (initialNotification) {
       console.log('Opened from quit state (FCM):', initialNotification);
-      this.processNotificationData(initialNotification, callback);
+      await this.processNotificationData(initialNotification, callback);
     }
 
     // 2. If app was opened from a "quit" state via Notifee
@@ -192,7 +198,7 @@ class NotificationService {
         'Opened from quit state (Notifee):',
         initialNotifee.notification,
       );
-      this.processNotificationData(initialNotifee.notification, callback);
+      await this.processNotificationData(initialNotifee.notification, callback);
     }
 
     // 3. If app was in background
@@ -202,15 +208,76 @@ class NotificationService {
     });
   }
 
-  private processNotificationData(
+  private async processNotificationData(
     remoteMessage: any,
     callback?: (screen: string, data?: any) => void,
   ) {
-    const { data } = remoteMessage;
+    const { data, messageId, notification } = remoteMessage;
+    const currentId =
+      messageId ||
+      (notification && notification.id) ||
+      (remoteMessage && remoteMessage.id);
+
+    if (currentId) {
+      const lastId = await AsyncStorage.getItem('LAST_NOTIFICATION_ID');
+      if (lastId === currentId) {
+        console.log(
+          '[NotificationService] Notification already handled, skipping:',
+          currentId,
+        );
+        return;
+      }
+      await AsyncStorage.setItem('LAST_NOTIFICATION_ID', currentId);
+    }
+
     console.log('[NotificationService] Processing data:', data);
 
-    if (data && data.screen === 'Participants') {
-      console.log('[NotificationService] Navigating to Participants screen');
+    // 1. New Event Created
+    if (data && (data.type === 'EVENT_PUBLISHED' || data.eventId)) {
+      console.log(
+        `[NotificationService] Navigating to Event Detail: ${data.eventId}`,
+      );
+      navigationRef.navigate('User', {
+        screen: 'HomeTab',
+        params: {
+          screen: 'EventDetail',
+          params: { eventId: data.eventId },
+        },
+      });
+    }
+
+    // 2. Incoming Chat Request
+    if (
+      data &&
+      (data.type === 'CHAT_REQUEST' || data.screen === 'RequestsTab')
+    ) {
+      console.log('[NotificationService] Navigating to Requests (Networking)');
+      navigationRef.navigate('User', {
+        screen: 'RequestsTab',
+        params: { screen: 'ChatRequests' },
+      });
+    }
+
+    // 3. Request Accepted
+    if (
+      data &&
+      (data.type === 'REQUEST_ACCEPTED' || data.screen === 'ChatsTab')
+    ) {
+      console.log('[NotificationService] Navigating to Chat Inbox (Accepted)');
+      navigationRef.navigate('User', {
+        screen: 'ChatsTab',
+        params: { screen: 'ChatInbox' },
+      });
+    }
+
+    // 4. Request Rejected - Redirect to Participants List
+    if (
+      data &&
+      (data.type === 'REQUEST_REJECTED' || data.screen === 'HomeTab')
+    ) {
+      console.log(
+        '[NotificationService] Navigating to Participants list (Rejected)',
+      );
       navigationRef.navigate('User', {
         screen: 'HomeTab',
         params: {
@@ -218,14 +285,11 @@ class NotificationService {
           params: { eventId: data.eventId, eventTitle: data.eventTitle },
         },
       });
-    } else if (data && data.screen === 'RequestsTab') {
-      console.log('[NotificationService] Navigating to RequestsTab');
-      navigationRef.navigate('User', {
-        screen: 'RequestsTab',
-        params: { screen: 'ChatRequests' },
-      });
-    } else if (data && data.screen === 'Chat') {
-      console.log('[NotificationService] Navigating to Chat screen');
+    }
+
+    // 5. New Message - Redirect to Specific Chat
+    if (data && (data.type === 'NEW_MESSAGE' || data.screen === 'Chat')) {
+      console.log(`[NotificationService] Navigating to Chat: ${data.chatId}`);
       navigationRef.navigate('User', {
         screen: 'ChatsTab',
         params: {
@@ -237,23 +301,21 @@ class NotificationService {
           },
         },
       });
-    } else if (data && data.eventId) {
-      console.log(
-        `[NotificationService] Attempting deep-link to event: ${data.eventId}`,
-      );
-      // Navigate through the hierarchy: Root (User) -> Tab (HomeTab) -> Screen (EventDetail)
+    }
+
+    // 6. News Broadcast - Redirect to News Screen
+    if (
+      data &&
+      (data.type === 'NEWS_BROADCAST' || data.screen === 'NewsScreen')
+    ) {
+      console.log('[NotificationService] Navigating to NewsScreen');
       navigationRef.navigate('User', {
         screen: 'HomeTab',
         params: {
-          screen: 'EventDetail',
-          params: { eventId: data.eventId },
+          screen: 'NewsScreen',
+          params: { articleId: data.newsId },
         },
       });
-    } else if (data && data.screen) {
-      console.log(
-        `[NotificationService] Attempting generic screen-link to: ${data.screen}`,
-      );
-      navigationRef.navigate(data.screen, data);
     }
 
     if (callback && data && data.screen) {

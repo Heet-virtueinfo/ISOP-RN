@@ -2,6 +2,25 @@ import apiClient from '../config/api';
 import { Enrollment, AppEvent, UserProfile } from '../types';
 import { normalizeEvent } from './eventService';
 
+const normalizeEnrollment = (
+  data: any,
+  eventId?: string,
+  uid?: string,
+): Enrollment => {
+  return {
+    id: String(data.id || ''),
+    eventId: String(data.event_id || data.eventId || eventId || ''),
+    uid: String(data.user_id || data.uid || uid || ''),
+    displayName: data.display_name || data.displayName || 'User',
+    email: data.email || '',
+    profileImage: data.profile_image || data.profileImage || null,
+    enrolledAt: data.enrolled_at || data.enrolledAt || new Date().toISOString(),
+    chatStatus: data.chat_status || data.chatStatus || 'none',
+    chatDirection: data.chat_direction || data.chatDirection || null,
+    chatRequestId: String(data.chat_request_id || data.chatRequestId || ''),
+  };
+};
+
 export const enrollInEvent = async (
   event: AppEvent,
   userProfile: UserProfile,
@@ -10,7 +29,13 @@ export const enrollInEvent = async (
     const response = await apiClient.post('/api/user/enrollments', {
       event_id: event.id,
     });
-    return { success: true, enrollment: response.data };
+    console.log('[UserEnrollment] enrollInEvent response:', response.data);
+
+    const data =
+      response.data.enrollment || response.data.data || response.data;
+    const enrollment = normalizeEnrollment(data, event.id, userProfile.uid);
+
+    return { success: true, enrollment };
   } catch (error: any) {
     console.error(
       '[UserEnrollment] enrollInEvent error:',
@@ -20,12 +45,9 @@ export const enrollInEvent = async (
   }
 };
 
-export const unenrollFromEvent = async (
-  enrollmentId: string,
-  eventId: string,
-) => {
+export const unenrollFromEvent = async (enrollmentId: string) => {
   try {
-    await apiClient.delete(`/api/user/enrollments/${eventId}`);
+    await apiClient.delete(`/api/user/enrollments/${enrollmentId}`);
     return { success: true };
   } catch (error: any) {
     console.error(
@@ -44,19 +66,17 @@ export const checkEnrollment = async (
     const response = await apiClient.get('/api/user/enrollments/check', {
       params: { event_id: eventId },
     });
-    const data =
-      response.data.data || response.data.enrollment || response.data;
+    console.log(
+      '[UserEnrollment] checkEnrollment raw response:',
+      response.data,
+    );
 
-    console.log('Data of checkEnrollment:', data);
-    if (data && (data.is_enrolled || data.id)) {
-      return {
-        id: String(data.id || 'mocked'),
-        eventId: String(data.event_id || eventId),
-        uid: String(data.user_id || uid),
-        displayName: data.display_name || 'User',
-        email: data.email || 'user@example.com',
-        enrolledAt: data.enrolled_at || new Date().toISOString(),
-      } as Enrollment;
+    const data =
+      response.data.enrollment || response.data.data || response.data;
+    console.log('[UserEnrollment] checkEnrollment extracted data:', data);
+
+    if (data && (data.id || data.is_enrolled)) {
+      return normalizeEnrollment(data, eventId, uid);
     }
     return null;
   } catch (error) {
@@ -76,12 +96,7 @@ export const getUserEnrollments = async (
     if (!Array.isArray(records)) return [];
 
     return records.map((pt: any) => ({
-      id: String(pt.id),
-      eventId: String(pt.event_id),
-      uid: String(pt.user_id || pt.uid),
-      displayName: pt.display_name || pt.user?.name || pt.displayName || '',
-      email: pt.email || pt.user?.email || '',
-      enrolledAt: pt.enrolled_at || pt.created_at || new Date().toISOString(),
+      ...normalizeEnrollment(pt),
       event: pt.event ? normalizeEvent(pt.event) : undefined,
     }));
   } catch (error) {
@@ -97,21 +112,11 @@ export const getEventParticipants = async (
     const response = await apiClient.get(
       `/api/user/events/${eventId}/participants`,
     );
-    const records = response.data.participants || response.data.data || response.data;
+    const records =
+      response.data.participants || response.data.data || response.data;
     console.log('Data of getEventParticipants:', records);
     return Array.isArray(records)
-      ? (records.map((pt: any) => ({
-        id: String(pt.id),
-        eventId: eventId,
-        uid: String(pt.user_id || pt.uid),
-        displayName: pt.display_name || pt.user?.name || pt.full_name || pt.name || '',
-        email: pt.email || pt.user?.email || '',
-        profileImage: pt.profile_image || pt.user?.profile_image || null,
-        enrolledAt: pt.enrolled_at || pt.created_at || new Date().toISOString(),
-        chatStatus: pt.chat_status || 'none',
-        chatDirection: pt.chat_direction || null,
-        chatRequestId: pt.chat_request_id || null,
-      })) as Enrollment[])
+      ? records.map((pt: any) => normalizeEnrollment(pt, eventId))
       : [];
   } catch (error) {
     console.error('[UserEnrollment] getEventParticipants error:', error);
