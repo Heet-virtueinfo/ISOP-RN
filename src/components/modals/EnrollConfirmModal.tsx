@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { CheckCircle2, X, AlertCircle } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
+import CustomLoader from '../CustomLoader';
 
 const { width } = Dimensions.get('window');
 
@@ -90,9 +91,13 @@ const EnrollConfirmModal: React.FC<EnrollConfirmModalProps> = ({
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.confirmBtnText}>
-                    {isUnenroll ? 'Yes, Unenroll' : 'Confirm Enrollment'}
-                  </Text>
+                  {loading ? (
+                    <CustomLoader size={24} color="white" overlay={false} />
+                  ) : (
+                    <Text style={styles.confirmBtnText}>
+                      {isUnenroll ? 'Yes, Unenroll' : 'Confirm Enrollment'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity

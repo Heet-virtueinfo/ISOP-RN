@@ -11,9 +11,13 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from '@react-navigation/native';
 import { ChevronLeft, Send, Image as ImageIcon } from 'lucide-react-native';
-import { colors, spacing, typography, radius } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getMessages,
@@ -47,7 +51,9 @@ const ChatScreen = () => {
             setMessages(data);
             setLoading(false);
             // Only mark as read if there are unread messages from the other user
-            const hasUnread = data.some(m => !m.read && m.senderId !== user?.uid);
+            const hasUnread = data.some(
+              m => !m.read && m.senderId !== user?.uid,
+            );
             if (user && hasUnread) {
               markMessagesRead(chatId, user.uid);
             }
@@ -58,13 +64,11 @@ const ChatScreen = () => {
       };
 
       fetchMessages();
-      const interval = setInterval(fetchMessages, 10000); // Increased to 10s
 
       return () => {
         isMounted = false;
-        clearInterval(interval);
       };
-    }, [chatId, user])
+    }, [chatId, user]),
   );
 
   const handleSend = async () => {
@@ -73,10 +77,27 @@ const ChatScreen = () => {
     const text = inputText.trim();
     setInputText(''); // Optimistic clear
 
+    // 1. Optimistic UI Update: add message immediately
+    const optimisticMessage: Message = {
+      id: 'temp-' + Date.now(),
+      senderId: user.uid,
+      text: text,
+      createdAt: new Date().toISOString(),
+      read: false,
+    };
+    
+    setMessages(prev => [optimisticMessage, ...prev]);
+
     try {
       await sendMessage(chatId, user.uid, text);
+      
+      // 2. Fetch latest messages from server to get real IDs and sync
+      const latestMessages = await getMessages(chatId);
+      setMessages(latestMessages);
     } catch (error) {
       console.error('Send message error:', error);
+      // Revert optimistic update on failure
+      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
     }
   };
 

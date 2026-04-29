@@ -29,6 +29,7 @@ const NewsScreen = () => {
     let isMounted = true;
     const fetchNews = async () => {
       const data = await getNews();
+      console.log('[NewsScreen] fetchNews data:', data);
       if (isMounted) {
         setNews(data);
         setLoading(false);

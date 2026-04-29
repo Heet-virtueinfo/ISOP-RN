@@ -8,7 +8,9 @@ const normalizeChatRequest = (data: any): ChatRequest => {
 
   return {
     id: String(data.id),
-    fromUid: String(data.from_user_id || data.fromUid || fromUser.id || fromUser.uid),
+    fromUid: String(
+      data.from_user_id || data.fromUid || fromUser.id || fromUser.uid,
+    ),
     fromName:
       fromUser.name ||
       fromUser.display_name ||
@@ -87,10 +89,14 @@ export const sendChatRequest = async (
       } as ChatRequest,
     };
   } catch (error: any) {
-    console.error('Send Chat Request Error:', error?.response?.data || error);
+    const isConflict =
+      error.status === 409 ||
+      error.response?.status === 409 ||
+      error.message?.includes('already exists') ||
+      error.response?.data?.message?.includes('already exists');
 
-    // Handle 409 Conflict - Request already exists
-    if (error.status === 409 || (error.response && error.response.status === 409)) {
+    if (isConflict) {
+      console.log('[ChatService] Request already exists, treating as success');
       return {
         success: true,
         chatRequest: {
@@ -108,6 +114,7 @@ export const sendChatRequest = async (
       };
     }
 
+    console.error('Send Chat Request Error:', error?.response?.data || error);
     return { success: false, error: 'Could not send request' };
   }
 };
@@ -146,8 +153,8 @@ export const getChatRequestStatus = async (
     const res = await apiClient.get('/api/user/chat-requests/status', {
       params: {
         other_user_id: uid2,
-        event_id: eventId
-      }
+        event_id: eventId,
+      },
     });
     const data = res.data.data || res.data.request || res.data;
     if (data && data.id) {
@@ -219,28 +226,32 @@ export const getMyChats = async (): Promise<Chat[]> => {
   try {
     const response = await apiClient.get('/api/user/chats');
     const data = response.data.chats || response.data;
-    return Array.isArray(data) ? data.map((c: any) => {
-      const participantNames: Record<string, string> = {};
-      const participantImages: Record<string, string | null> = {};
+    return Array.isArray(data)
+      ? data.map((c: any) => {
+          const participantNames: Record<string, string> = {};
+          const participantImages: Record<string, string | null> = {};
 
-      if (Array.isArray(c.users)) {
-        c.users.forEach((user: any) => {
-          const uid = String(user.id);
-          participantNames[uid] = user.display_name || user.name || '';
-          participantImages[uid] = user.profile_image || null;
-        });
-      }
+          if (Array.isArray(c.users)) {
+            c.users.forEach((user: any) => {
+              const uid = String(user.id);
+              participantNames[uid] = user.display_name || user.name || '';
+              participantImages[uid] = user.profile_image || null;
+            });
+          }
 
-      return {
-        id: String(c.id),
-        participants: Array.isArray(c.participants) ? c.participants.map(String) : [],
-        participantNames,
-        participantImages,
-        lastMessage: c.last_message || '',
-        lastMessageAt: c.last_message_at || c.updated_at || '',
-        createdAt: c.created_at || '',
-      } as Chat;
-    }) : [];
+          return {
+            id: String(c.id),
+            participants: Array.isArray(c.participants)
+              ? c.participants.map(String)
+              : [],
+            participantNames,
+            participantImages,
+            lastMessage: c.last_message || '',
+            lastMessageAt: c.last_message_at || c.updated_at || '',
+            createdAt: c.created_at || '',
+          } as Chat;
+        })
+      : [];
   } catch (error) {
     console.error('Get My Chats Error:', error);
     return [];
@@ -268,15 +279,17 @@ export const sendMessage = async (
 export const getMessages = async (chatId: string): Promise<Message[]> => {
   try {
     const response = await apiClient.get(`/api/user/chats/${chatId}/messages`);
-    console.log("messages", response.data);
+    console.log('messages', response.data);
     const data = response.data.messages || response.data;
-    return Array.isArray(data) ? data.map((m: any) => ({
-      id: String(m.id),
-      senderId: String(m.sender_id || m.user_id),
-      text: m.message || m.text,
-      createdAt: m.created_at || new Date().toISOString(),
-      read: m.is_read || m.read || false,
-    })) as Message[] : [];
+    return Array.isArray(data)
+      ? (data.map((m: any) => ({
+          id: String(m.id),
+          senderId: String(m.sender_id || m.user_id),
+          text: m.message || m.text,
+          createdAt: m.created_at || new Date().toISOString(),
+          read: m.is_read || m.read || false,
+        })) as Message[])
+      : [];
   } catch (error) {
     console.error('Get Messages Error:', error);
     return [];
@@ -292,4 +305,3 @@ export const markMessagesRead = async (chatId: string, uid: string) => {
     console.error('Mark Messages Read Error:', error);
   }
 };
-

@@ -4,6 +4,7 @@
  * Admin news operations against the Laravel API.
  */
 
+import { Platform } from 'react-native';
 import apiClient from '../../config/api';
 import { NewsArticle } from '../../types';
 
@@ -59,10 +60,16 @@ export const adminCreateNews = async (
         ext === 'png'
           ? 'image/png'
           : ext === 'webp'
-            ? 'image/webp'
-            : 'image/jpeg';
-      form.append('image', {
-        uri: data.imageFile,
+          ? 'image/webp'
+          : 'image/jpeg';
+
+      const cleanUri =
+        Platform.OS === 'ios'
+          ? data.imageFile.replace('file://', '')
+          : data.imageFile;
+
+      form.append('image_url', {
+        uri: Platform.OS === 'ios' ? data.imageFile : cleanUri,
         name: filename,
         type: mimeType,
       } as any);
@@ -115,10 +122,17 @@ export const adminUpdateNews = async (
         ext === 'png'
           ? 'image/png'
           : ext === 'webp'
-            ? 'image/webp'
-            : 'image/jpeg';
-      form.append('image', {
-        uri: data.imageFile,
+          ? 'image/webp'
+          : 'image/jpeg';
+
+      // Ensure URI is properly formatted for multipart
+      const cleanUri =
+        Platform.OS === 'ios'
+          ? data.imageFile.replace('file://', '')
+          : data.imageFile;
+
+      form.append('image_url', {
+        uri: Platform.OS === 'ios' ? data.imageFile : cleanUri,
         name: filename,
         type: mimeType,
       } as any);

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { AlertTriangle, X, Info } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
+import CustomLoader from '../CustomLoader';
 
 const { width } = Dimensions.get('window');
 
@@ -77,7 +78,11 @@ const UnenrollConfirmModal: React.FC<UnenrollConfirmModalProps> = ({
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.confirmBtnText}>Yes, Unenroll</Text>
+                  {loading ? (
+                    <CustomLoader size={24} color="white" overlay={false} />
+                  ) : (
+                    <Text style={styles.confirmBtnText}>Yes, Unenroll</Text>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
