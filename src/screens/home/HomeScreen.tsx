@@ -14,6 +14,7 @@ import {
   Sparkles,
   Newspaper,
   Library,
+  Smile,
 } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -109,9 +110,11 @@ const HomeScreen = () => {
           <View>
             <View style={styles.greetingRow}>
               <Text style={styles.greeting}>
-                Hello, {userProfile?.displayName?.split(' ')[0] || 'Member'}{' '}
+                Hello, {userProfile?.displayName?.split(' ')[0] || 'Member'}
               </Text>
-              <Text style={styles.waveEmoji}>👋</Text>
+              <View style={{ marginLeft: 8 }}>
+                <Smile size={24} color={colors.palette.amber.accent} />
+              </View>
             </View>
             <Text style={styles.subtitle}>
               Welcome back to the ISoP community.

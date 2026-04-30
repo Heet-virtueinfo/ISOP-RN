@@ -10,7 +10,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useRoute,
   useNavigation,
@@ -61,6 +61,7 @@ const formatSeparatorDate = (timestamp: any) => {
 const ChatScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { chatId, otherUserName, otherUserImage } = route.params;
 
@@ -174,7 +175,7 @@ const ChatScreen = () => {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
+    <View style={[styles.header, {paddingTop: insets.top}]}>
       <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
         <ChevronLeft size={24} color={colors.text.primary} />
       </TouchableOpacity>
@@ -193,7 +194,7 @@ const ChatScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {renderHeader()}
 
       <KeyboardAvoidingView
@@ -275,7 +276,7 @@ const ChatScreen = () => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
