@@ -16,22 +16,34 @@ import {
   Phone,
   Shield,
   ChevronRight,
+  Trash2,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import UserHeader from '../../components/UserHeader';
 import LogoutConfirmModal from '../../components/modals/LogoutConfirmModal';
+import DeleteAccountConfirmModal from '../../components/modals/DeleteAccountConfirmModal';
 
 const ProfileScreen = () => {
   const navigation = useNavigation<any>();
-  const { userProfile, logout } = useAuth();
+  const { userProfile, logout, deleteAccount } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
     await logout();
   };
+
+  const handleDeleteAccount = async () => {
+    setLoading(true);
+    await deleteAccount();
+    setLoading(false);
+    setShowDeleteModal(false);
+  };
+
 
   console.log('userProfile :: ', userProfile);
 
@@ -154,8 +166,23 @@ const ProfileScreen = () => {
               <LogOut size={20} color="#EF4444" />
             </View>
             <Text style={styles.logoutText}>Logout</Text>
-            <ChevronRight size={18} color="rgba(239, 68, 68, 0.2)" />
+            <ChevronRight size={18} color="rgba(239, 68, 68, 0.4)" />
           </TouchableOpacity>
+
+
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            activeOpacity={0.7}
+            onPress={() => setShowDeleteModal(true)}
+          >
+            <View style={styles.deleteIconBox}>
+              <Trash2 size={16} color="rgba(239, 68, 68, 0.6)" />
+            </View>
+            <Text style={styles.deleteText}>Delete Account</Text>
+          </TouchableOpacity>
+
+
+
         </View>
       </ScrollView>
 
@@ -164,7 +191,15 @@ const ProfileScreen = () => {
         onClose={() => setShowLogoutModal(false)}
         onConfirm={handleLogout}
       />
+
+      <DeleteAccountConfirmModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteAccount}
+        loading={loading}
+      />
     </View>
+
   );
 };
 
@@ -365,19 +400,16 @@ const styles = StyleSheet.create({
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.02)',
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
     padding: spacing.md,
     borderRadius: 24,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-    marginTop: 8,
+    marginTop: 12,
   },
   logoutIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -389,6 +421,34 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontFamily: typography.fontFamily,
   },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    padding: spacing.md,
+    borderRadius: 24,
+    marginTop: 4,
+    justifyContent: 'center',
+  },
+  deleteIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  deleteText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'rgba(239, 68, 68, 0.6)',
+    fontFamily: typography.fontFamily,
+  },
+
+
+
 });
+
 
 export default ProfileScreen;

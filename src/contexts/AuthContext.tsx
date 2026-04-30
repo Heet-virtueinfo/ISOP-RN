@@ -8,15 +8,21 @@ import React, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import { STORAGE_KEYS } from '../config/api';
-import { fetchMe, getStoredUser, logoutUser } from '../services/authService';
+import {
+  fetchMe,
+  getStoredUser,
+  logoutUser,
+  deleteAccount as deleteAccountApi,
+} from '../services/authService';
 import { notificationService } from '../services/notificationService';
-
+import { initEcho, disconnectEcho, getEcho } from '../services/echoService';
 
 interface AuthContextType {
   user: UserProfile | null;
   userProfile: UserProfile | null;
   loading: boolean;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -33,6 +39,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const applyProfile = async (profile: UserProfile) => {
     setUserProfile(profile);
+
+    try {
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+      if (token) {
+        initEcho(token);
+      }
+    } catch (e) {
+      console.error('[AuthContext] Failed to initialize Echo:', e);
+    }
 
     // Initialise FCM only for regular users
     if (profile.role === 'user' && !fcmInitialized.current) {
@@ -51,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearProfile = () => {
     setUserProfile(null);
+    disconnectEcho();
     fcmInitialized.current = false;
     if (tokenRefreshUnsubscribe.current) {
       tokenRefreshUnsubscribe.current();
@@ -129,6 +145,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      setLoading(true);
+      if (userProfile?.role === 'user') {
+        await notificationService.deleteUserToken();
+      }
+      await deleteAccountApi();
+    } catch (error) {
+      console.error('[AuthContext] Delete account error:', error);
+    } finally {
+      clearProfile();
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userProfile && !getEcho()) {
+      AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN).then(token => {
+        if (token) {
+          initEcho(token);
+        }
+      });
+    }
+  }, [userProfile]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -136,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         userProfile,
         loading,
         logout,
+        deleteAccount,
         refreshProfile,
       }}
     >

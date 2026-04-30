@@ -27,6 +27,8 @@ import {
 import { Message } from '../../types';
 import MessageBubble from '../../components/MessageBubble';
 import CustomLoader from '../../components/CustomLoader';
+import { getEcho } from '../../services/echoService';
+import { notificationService } from '../../services/notificationService';
 
 const ChatScreen = () => {
   const route = useRoute<any>();
@@ -42,6 +44,7 @@ const ChatScreen = () => {
   useFocusEffect(
     useCallback(() => {
       if (!chatId) return;
+      notificationService.setActiveChatId(chatId);
       let isMounted = true;
 
       const fetchMessages = async () => {
@@ -65,8 +68,54 @@ const ChatScreen = () => {
 
       fetchMessages();
 
+      const pusher = getEcho();
+      if (!pusher) return;
+
+      // In native Pusher, we manually join the private channel
+      const channelName = `private-chat.${chatId}`;
+      const eventName = 'App\\Events\\MessageSent';
+
+      pusher.subscribe({
+        channelName,
+        onEvent: (event: any) => {
+          if (event.eventName === eventName) {
+            try {
+              const data =
+                typeof event.data === 'string'
+                  ? JSON.parse(event.data)
+                  : event.data;
+              console.log('[ChatScreen] Real-Time Message Received:', data);
+
+              const newMessage: Message = {
+                id: String(data.id),
+                senderId: String(data.sender_id || data.senderId),
+                text: data.text || data.message || '',
+                createdAt:
+                  data.created_at || data.createdAt || new Date().toISOString(),
+                read: false,
+              };
+
+              setMessages(prev => {
+                // Prevent duplicates
+                if (prev.some(m => m.id === newMessage.id)) return prev;
+                return [newMessage, ...prev];
+              });
+
+              // Mark as read if it's from the other person
+              if (user && newMessage.senderId !== user.uid) {
+                markMessagesRead(chatId, user.uid);
+              }
+            } catch (e) {
+              console.error('[ChatScreen] Error parsing Pusher event data:', e);
+            }
+          }
+        },
+      });
+
       return () => {
+        notificationService.setActiveChatId(null);
         isMounted = false;
+        pusher.unsubscribe({ channelName });
       };
     }, [chatId, user]),
   );
@@ -77,27 +126,13 @@ const ChatScreen = () => {
     const text = inputText.trim();
     setInputText(''); // Optimistic clear
 
-    // 1. Optimistic UI Update: add message immediately
-    const optimisticMessage: Message = {
-      id: 'temp-' + Date.now(),
-      senderId: user.uid,
-      text: text,
-      createdAt: new Date().toISOString(),
-      read: false,
-    };
-    
-    setMessages(prev => [optimisticMessage, ...prev]);
-
     try {
+      // The Pusher listener will catch the sent message instantly and push it to the screen.
       await sendMessage(chatId, user.uid, text);
-      
-      // 2. Fetch latest messages from server to get real IDs and sync
-      const latestMessages = await getMessages(chatId);
-      setMessages(latestMessages);
     } catch (error) {
       console.error('Send message error:', error);
-      // Revert optimistic update on failure
-      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+      // Optional: restore text on failure
+      setInputText(text);
     }
   };
 

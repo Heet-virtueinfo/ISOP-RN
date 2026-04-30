@@ -73,10 +73,6 @@ const ChatRequestsScreen = () => {
             import('react-native').then(({ DeviceEventEmitter }) => {
               DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
             });
-          } else {
-            import('react-native').then(({ DeviceEventEmitter }) => {
-              DeviceEventEmitter.emit('NEW_CHAT_REQUEST');
-            });
           }
         } catch (error) {
           if (isMounted) setLoading(false);
@@ -89,7 +85,7 @@ const ChatRequestsScreen = () => {
         const sub = DeviceEventEmitter.addListener('NEW_CHAT_REQUEST', () => {
           if (isMounted) loadData();
         });
-        
+
         // Cleanup the listener when focus is lost or component unmounts
         return () => {
           isMounted = false;
@@ -100,7 +96,7 @@ const ChatRequestsScreen = () => {
       return () => {
         isMounted = false;
       };
-    }, [user])
+    }, [user]),
   );
 
   const handleAccept = async (request: ChatRequest) => {
@@ -144,7 +140,7 @@ const ChatRequestsScreen = () => {
         }
       };
       await loadData();
-      
+
       navigation.navigate('Chat', {
         chatId: request.id,
         otherUserName: request.fromName,
@@ -186,19 +182,19 @@ const ChatRequestsScreen = () => {
     const name = isIncoming
       ? item.fromName
       : isAccepted
-        ? item.fromUid === user?.uid
-          ? item.toName
-          : item.fromName
-        : item.toName;
+      ? item.fromUid === user?.uid
+        ? item.toName
+        : item.fromName
+      : item.toName;
     const image = isIncoming
       ? item.fromImage
       : isSent
+      ? item.toImage
+      : isAccepted
+      ? item.fromUid === user?.uid
         ? item.toImage
-        : isAccepted
-          ? item.fromUid === user?.uid
-            ? item.toImage
-            : item.fromImage
-          : item.toImage;
+        : item.fromImage
+      : item.toImage;
 
     return (
       <View style={styles.cardWrapper}>
@@ -222,7 +218,11 @@ const ChatRequestsScreen = () => {
                 {name || 'Member'}
               </Text>
               <Text style={styles.userRole}>
-                {isSent ? 'Request Sent' : isIncoming ? 'Wants to Connect' : 'Connection Active'}
+                {isSent
+                  ? 'Request Sent'
+                  : isIncoming
+                  ? 'Wants to Connect'
+                  : 'Connection Active'}
               </Text>
             </View>
 
@@ -354,8 +354,8 @@ const ChatRequestsScreen = () => {
             activeTab === 'incoming'
               ? incoming
               : activeTab === 'sent'
-                ? sent
-                : accepted
+              ? sent
+              : accepted
           }
           keyExtractor={item => item.id}
           renderItem={renderRequestItem}
@@ -375,8 +375,8 @@ const ChatRequestsScreen = () => {
                   {activeTab === 'incoming'
                     ? 'No one has reached out yet. Why not start the conversation?'
                     : activeTab === 'sent'
-                      ? 'Your sent requests will appear here. Start reaching out to peers!'
-                      : 'Collaborations and established connections will sync here.'}
+                    ? 'Your sent requests will appear here. Start reaching out to peers!'
+                    : 'Collaborations and established connections will sync here.'}
                 </Text>
               </View>
             ) : null

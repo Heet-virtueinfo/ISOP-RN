@@ -50,13 +50,11 @@ const ChatInboxScreen = () => {
       };
 
       fetchChats();
-      const interval = setInterval(fetchChats, 15000); // 15s
 
       return () => {
         isMounted = false;
-        clearInterval(interval);
       };
-    }, [user])
+    }, [user]),
   );
 
   const getOtherParticipant = (chat: Chat) => {

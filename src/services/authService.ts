@@ -167,3 +167,15 @@ export const getStoredUser = async (): Promise<UserProfile | null> => {
     return null;
   }
 };
+
+export const deleteAccount = async (): Promise<void> => {
+  try {
+    await apiClient.delete('/api/user/profile');
+  } catch (error: any) {
+    console.error('[Auth] deleteAccount API call failed:', error?.message);
+  } finally {
+    await clearSession();
+  }
+};
+
+

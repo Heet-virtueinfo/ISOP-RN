@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MessageSquare, UserCheck } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
@@ -18,10 +18,22 @@ const ParticipantCard = ({
   currentUser,
   onChatPress,
 }: ParticipantCardProps) => {
-  const [chatStatus, setChatStatus] = useState(participant.chatStatus || 'none');
-  const [chatDirection, setChatDirection] = useState(participant.chatDirection || null);
-  const [chatRequestId, setChatRequestId] = useState(participant.chatRequestId || null);
+  const [chatStatus, setChatStatus] = useState(
+    participant.chatStatus || 'none',
+  );
+  const [chatDirection, setChatDirection] = useState(
+    participant.chatDirection || null,
+  );
+  const [chatRequestId, setChatRequestId] = useState(
+    participant.chatRequestId || null,
+  );
   const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    setChatStatus(participant.chatStatus || 'none');
+    setChatDirection(participant.chatDirection || null);
+    setChatRequestId(participant.chatRequestId || null);
+  }, [participant]);
 
   const isMe = participant.uid === currentUser.uid || chatStatus === 'self';
 

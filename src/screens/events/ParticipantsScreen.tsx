@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  DeviceEventEmitter,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Users } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
@@ -31,9 +37,8 @@ const ParticipantsScreen = () => {
           getEventParticipants(eventId),
           getEventById(eventId),
         ]);
-        console.log('Participants Data:', participantsData);
-        console.log('Event Data:', eventData);
         if (isMounted) {
+          console.log('Participants Data:', participantsData);
           const filteredParticipants = participantsData.filter(
             p => p.uid !== userProfile?.uid,
           );
@@ -48,8 +53,24 @@ const ParticipantsScreen = () => {
 
     loadData();
 
+    // Listen for real-time status updates (Accept/Reject)
+    const subAccepted = DeviceEventEmitter.addListener(
+      'REQUEST_ACCEPTED',
+      () => {
+        if (isMounted) loadData();
+      },
+    );
+    const subRejected = DeviceEventEmitter.addListener(
+      'REQUEST_REJECTED',
+      () => {
+        if (isMounted) loadData();
+      },
+    );
+
     return () => {
       isMounted = false;
+      subAccepted.remove();
+      subRejected.remove();
     };
   }, [eventId]);
 

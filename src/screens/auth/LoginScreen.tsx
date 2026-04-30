@@ -54,10 +54,13 @@ const LoginScreen = () => {
 
         // Navigation is handled automatically by AppNavigator observing AuthContext state
       } catch (error: any) {
+        const errorMessage = error?.message || 'Invalid email or password.';
+
         Toast.show({
           type: 'error',
-          text1: 'Login Failed',
-          text2: error?.message ?? 'Invalid email or password.',
+          text1: error?.status === 403 ? 'Account Status' : 'Login Failed',
+          text2: errorMessage,
+          visibilityTime: 4000,
         });
       } finally {
         setLoading(false);

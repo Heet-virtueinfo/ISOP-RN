@@ -17,6 +17,13 @@ import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import * as navigationRef from '../utils/navigationRef';
 
 class NotificationService {
+  private activeChatId: string | null = null;
+
+  setActiveChatId(id: string | null) {
+    this.activeChatId = id;
+    console.log('[NotificationService] Active Chat ID set to:', id);
+  }
+
   async requestPermission(): Promise<boolean> {
     try {
       if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -122,6 +129,20 @@ class NotificationService {
     const unsubscribeFCM = onMessage(firebaseMessaging, async remoteMessage => {
       console.log('A new FCM message arrived (Foreground)!', remoteMessage);
 
+      // Check if we should suppress this notification (user is already in this chat)
+      const incomingChatId =
+        remoteMessage.data?.chatId || remoteMessage.data?.chat_id;
+      if (
+        incomingChatId &&
+        String(incomingChatId) === String(this.activeChatId)
+      ) {
+        console.log(
+          '[NotificationService] Suppressing foreground notification for active chat:',
+          this.activeChatId,
+        );
+        return;
+      }
+
       if (remoteMessage.notification) {
         const { title, body } = remoteMessage.notification;
 
@@ -147,9 +168,14 @@ class NotificationService {
         });
       }
 
-      // If it's a chat request, emit an event to update the badge immediately
-      if (remoteMessage.data && remoteMessage.data.type === 'CHAT_REQUEST') {
-        DeviceEventEmitter.emit('NEW_CHAT_REQUEST', remoteMessage.data);
+      if (remoteMessage.data) {
+        if (remoteMessage.data.type === 'CHAT_REQUEST') {
+          DeviceEventEmitter.emit('NEW_CHAT_REQUEST', remoteMessage.data);
+        } else if (remoteMessage.data.type === 'REQUEST_ACCEPTED') {
+          DeviceEventEmitter.emit('REQUEST_ACCEPTED', remoteMessage.data);
+        } else if (remoteMessage.data.type === 'REQUEST_REJECTED') {
+          DeviceEventEmitter.emit('REQUEST_REJECTED', remoteMessage.data);
+        }
       }
     });
 
@@ -161,9 +187,8 @@ class NotificationService {
             'User pressed notification in foreground',
             detail.notification,
           );
-          // If you have a callback for navigation, you can trigger it here
-          if (detail.notification?.data?.screen) {
-            // handle navigation
+          if (detail.notification) {
+            this.processNotificationData(detail.notification);
           }
           break;
       }
