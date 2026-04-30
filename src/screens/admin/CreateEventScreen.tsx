@@ -260,627 +260,665 @@ const CreateEventScreen = () => {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <View style={styles.container}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-        {/* Status Dashboard */}
-        <View style={styles.dashboard}>
-          <View style={styles.dashboardHeader}>
-            <View>
-              <Text style={styles.dashboardTitle}>Event Configuration</Text>
-              <Text style={styles.dashboardSub}>
-                Phase {totalProgress} of 5 Complete
-              </Text>
-            </View>
-            <View style={styles.progressCircle}>
-              <Text style={styles.progressText}>
-                {Math.round(progressPercent)}%
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.indicatorRow}>
-            <View
-              style={[styles.indicator, isMediaValid && styles.indicatorValid]}
-            >
-              <ImageIcon
-                size={14}
-                color={isMediaValid ? 'white' : colors.text.tertiary}
-              />
-            </View>
-            <View style={styles.indicatorLine} />
-            <View
-              style={[
-                styles.indicator,
-                isDetailsValid && styles.indicatorValid,
-              ]}
-            >
-              <Layers
-                size={14}
-                color={isDetailsValid ? 'white' : colors.text.tertiary}
-              />
-            </View>
-            <View style={styles.indicatorLine} />
-            <View
-              style={[
-                styles.indicator,
-                isLogisticsValid && styles.indicatorValid,
-              ]}
-            >
-              <CalendarIcon
-                size={14}
-                color={isLogisticsValid ? 'white' : colors.text.tertiary}
-              />
-            </View>
-            <View style={styles.indicatorLine} />
-            <View
-              style={[styles.indicator, isTalentValid && styles.indicatorValid]}
-            >
-              <User
-                size={14}
-                color={isTalentValid ? 'white' : colors.text.tertiary}
-              />
-            </View>
-            <View style={styles.indicatorLine} />
-            <View
-              style={[
-                styles.indicator,
-                isRoadmapValid && styles.indicatorValid,
-              ]}
-            >
-              <Clock
-                size={14}
-                color={isRoadmapValid ? 'white' : colors.text.tertiary}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Media Center */}
-        <BentoFormTile
-          icon={ImageIcon}
-          title="MEDIA HUB"
-          isValid={isMediaValid}
-        >
-          <View style={styles.innerMedia}>
-            <ImagePickerGrid
-              images={images}
-              onChange={imgs => {
-                setImages(imgs);
-                setErrors(prev => ({ ...prev, images: '' }));
-              }}
-              error={errors.images}
-            />
-          </View>
-        </BentoFormTile>
-
-        {/* Logistics Grid */}
-        <BentoFormTile
-          icon={CalendarIcon}
-          title="TIMELINE"
-          isValid={isLogisticsValid}
-        >
-          <View style={styles.timelineRow}>
-            <View style={styles.railLine} />
-            <View style={styles.nodesContainer}>
-              <TimeNode
-                label="START TIME"
-                value={formatEventDate(date)}
-                onPress={() => setOpenDatePicker(true)}
-                error={errors.date}
-              />
-              <TimeNode
-                label="END TIME"
-                value={endDate ? formatEventDate(endDate) : 'Required'}
-                onPress={() => setOpenEndDatePicker(true)}
-                isEnd
-                error={errors.endDate}
-              />
-            </View>
-          </View>
-        </BentoFormTile>
-
-        <View style={styles.dualGrid}>
-          <BentoFormTile
-            icon={Type}
-            title="TYPE"
-            isValid={!!type}
-            fullWidth={false}
+        <View style={styles.container}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
-            <EventTypePicker
-              selectedType={type}
-              onSelect={t => setType(t)}
-              hideLabel={true}
-              error={errors.type}
-            />
-          </BentoFormTile>
-
-          <BentoFormTile
-            icon={Users}
-            title="CAPACITY"
-            isValid={!!maxCapacityStr}
-            fullWidth={false}
-          >
-            <InputField
-              placeholder="Limit"
-              keyboardType="numeric"
-              value={maxCapacityStr}
-              onChangeText={setMaxCapacityStr}
-              containerStyle={{ marginBottom: 0 }}
-              style={{ fontSize: 13 }}
-            />
-          </BentoFormTile>
-        </View>
-
-        <BentoFormTile
-          icon={MapPin}
-          title="LOCATION"
-          isValid={location.length > 0}
-        >
-          <InputField
-            placeholder="Venue name or Virtual link"
-            value={location}
-            onChangeText={setLocation}
-            containerStyle={{ marginBottom: 0 }}
-            error={errors.location}
-          />
-        </BentoFormTile>
-
-        {/* Core Content */}
-        <BentoFormTile icon={Layers} title="DETAILS" isValid={isDetailsValid}>
-          <InputField
-            label="Event Title"
-            placeholder="Innovation Summit..."
-            leftIcon={Type}
-            value={title}
-            onChangeText={setTitle}
-            error={errors.title}
-          />
-          <InputField
-            label="Description"
-            placeholder="Tell us about the event..."
-            leftIcon={AlignLeft}
-            value={description}
-            onChangeText={setDescription}
-            error={errors.description}
-            multiline
-            numberOfLines={4}
-            containerStyle={{ marginBottom: 0 }}
-          />
-        </BentoFormTile>
-
-        {/* Talent Section */}
-        <BentoFormTile icon={User} title="TALENT" isValid={isTalentValid}>
-          <View style={styles.listContainer}>
-            {speakers.map(s => (
-              <View key={s.id} style={styles.listItem}>
-                <View style={styles.listContent}>
-                  <Text style={styles.listItemTitle}>{s.name}</Text>
-                  <Text style={styles.listItemSub}>{s.role}</Text>
+            {/* Status Dashboard */}
+            <View style={styles.dashboard}>
+              <View style={styles.dashboardHeader}>
+                <View>
+                  <Text style={styles.dashboardTitle}>Event Configuration</Text>
+                  <Text style={styles.dashboardSub}>
+                    Phase {totalProgress} of 5 Complete
+                  </Text>
                 </View>
-                <View style={styles.listActions}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditingSpeaker(s);
-                      setTempSpeaker(s);
-                      setSpeakerModalVisible(true);
-                    }}
-                  >
-                    <Edit2 size={16} color={colors.brand.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setSpeakers(prev => prev.filter(i => i.id !== s.id))
-                    }
-                  >
-                    <Trash2 size={16} color={colors.status.error} />
-                  </TouchableOpacity>
+                <View style={styles.progressCircle}>
+                  <Text style={styles.progressText}>
+                    {Math.round(progressPercent)}%
+                  </Text>
                 </View>
               </View>
-            ))}
-            <TouchableOpacity
-              style={styles.addItemBtn}
-              onPress={() => {
-                setEditingSpeaker(null);
-                setTempSpeaker({ name: '', role: '', bio: '', image: null });
-                setSpeakerModalVisible(true);
-              }}
-            >
-              <Plus size={18} color={colors.brand.primary} />
-              <Text style={styles.addItemText}>Add Speaker Profile</Text>
-            </TouchableOpacity>
-          </View>
-        </BentoFormTile>
 
-        {/* Roadmap (Agenda) */}
-        <BentoFormTile icon={Clock} title="ROADMAP" isValid={isRoadmapValid}>
-          <View style={styles.listContainer}>
-            {agenda
-              .sort(
-                (a, b) =>
-                  new Date(a.startTime).getTime() -
-                  new Date(b.startTime).getTime(),
-              )
-              .map(a => (
-                <View key={a.id} style={styles.listItem}>
-                  <View style={styles.listContent}>
-                    <Text style={styles.listItemTitle}>{a.title}</Text>
-                    <Text style={styles.listItemSub}>
-                      {formatEventDate(a.startTime)}
-                    </Text>
-                  </View>
-                  <View style={styles.listActions}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setEditingAgenda(a);
-                        setTempAgenda(a);
-                        setAgendaStartTime(new Date(a.startTime));
-                        setAgendaModalVisible(true);
-                      }}
-                    >
-                      <Edit2 size={16} color={colors.brand.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() =>
-                        setAgenda(prev => prev.filter(i => i.id !== a.id))
-                      }
-                    >
-                      <Trash2 size={16} color={colors.status.error} />
-                    </TouchableOpacity>
-                  </View>
+              <View style={styles.indicatorRow}>
+                <View
+                  style={[
+                    styles.indicator,
+                    isMediaValid && styles.indicatorValid,
+                  ]}
+                >
+                  <ImageIcon
+                    size={14}
+                    color={isMediaValid ? 'white' : colors.text.tertiary}
+                  />
                 </View>
-              ))}
-            <TouchableOpacity
-              style={styles.addItemBtn}
-              onPress={() => {
-                setEditingAgenda(null);
-                setTempAgenda({ title: '', description: '' });
-                setAgendaStartTime(new Date(date));
-                setAgendaModalVisible(true);
-              }}
-            >
-              <Plus size={18} color={colors.brand.primary} />
-              <Text style={styles.addItemText}>Add Session Item</Text>
-            </TouchableOpacity>
-          </View>
-        </BentoFormTile>
-        </ScrollView>
+                <View style={styles.indicatorLine} />
+                <View
+                  style={[
+                    styles.indicator,
+                    isDetailsValid && styles.indicatorValid,
+                  ]}
+                >
+                  <Layers
+                    size={14}
+                    color={isDetailsValid ? 'white' : colors.text.tertiary}
+                  />
+                </View>
+                <View style={styles.indicatorLine} />
+                <View
+                  style={[
+                    styles.indicator,
+                    isLogisticsValid && styles.indicatorValid,
+                  ]}
+                >
+                  <CalendarIcon
+                    size={14}
+                    color={isLogisticsValid ? 'white' : colors.text.tertiary}
+                  />
+                </View>
+                <View style={styles.indicatorLine} />
+                <View
+                  style={[
+                    styles.indicator,
+                    isTalentValid && styles.indicatorValid,
+                  ]}
+                >
+                  <User
+                    size={14}
+                    color={isTalentValid ? 'white' : colors.text.tertiary}
+                  />
+                </View>
+                <View style={styles.indicatorLine} />
+                <View
+                  style={[
+                    styles.indicator,
+                    isRoadmapValid && styles.indicatorValid,
+                  ]}
+                >
+                  <Clock
+                    size={14}
+                    color={isRoadmapValid ? 'white' : colors.text.tertiary}
+                  />
+                </View>
+              </View>
+            </View>
 
-        {/* Sticky Action Footer */}
-        <View style={styles.footer}>
-          <Button
-            title="Publish Event"
-            onPress={handleCreate}
-            loading={loading}
-            style={styles.stickySubmitBtn}
-            leftIcon={CheckCircle2}
-          />
-        </View>
-
-      {/* DateTime Pickers (Unified Logic) */}
-      {(openDatePicker || openEndDatePicker) &&
-        (Platform.OS === 'ios' ? (
-          <Modal transparent animationType="slide">
-            <TouchableWithoutFeedback
-              onPress={() => {
-                setOpenDatePicker(false);
-                setOpenEndDatePicker(false);
-              }}
+            {/* Media Center */}
+            <BentoFormTile
+              icon={ImageIcon}
+              title="MEDIA HUB"
+              isValid={isMediaValid}
             >
-              <View style={styles.modalOverlay} />
-            </TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {openDatePicker ? 'Start Time' : 'End Time'}
-                </Text>
+              <View style={styles.innerMedia}>
+                <ImagePickerGrid
+                  images={images}
+                  onChange={imgs => {
+                    setImages(imgs);
+                    setErrors(prev => ({ ...prev, images: '' }));
+                  }}
+                  error={errors.images}
+                />
+              </View>
+            </BentoFormTile>
+
+            {/* Logistics Grid */}
+            <BentoFormTile
+              icon={CalendarIcon}
+              title="TIMELINE"
+              isValid={isLogisticsValid}
+            >
+              <View style={styles.timelineRow}>
+                <View style={styles.railLine} />
+                <View style={styles.nodesContainer}>
+                  <TimeNode
+                    label="START TIME"
+                    value={formatEventDate(date)}
+                    onPress={() => setOpenDatePicker(true)}
+                    error={errors.date}
+                  />
+                  <TimeNode
+                    label="END TIME"
+                    value={endDate ? formatEventDate(endDate) : 'Required'}
+                    onPress={() => setOpenEndDatePicker(true)}
+                    isEnd
+                    error={errors.endDate}
+                  />
+                </View>
+              </View>
+            </BentoFormTile>
+
+            <View style={styles.dualGrid}>
+              <BentoFormTile
+                icon={Type}
+                title="TYPE"
+                isValid={!!type}
+                fullWidth={false}
+              >
+                <EventTypePicker
+                  selectedType={type}
+                  onSelect={t => setType(t)}
+                  hideLabel={true}
+                  error={errors.type}
+                />
+              </BentoFormTile>
+
+              <BentoFormTile
+                icon={Users}
+                title="CAPACITY"
+                isValid={!!maxCapacityStr}
+                fullWidth={false}
+              >
+                <InputField
+                  placeholder="Limit"
+                  keyboardType="numeric"
+                  value={maxCapacityStr}
+                  onChangeText={setMaxCapacityStr}
+                  containerStyle={{ marginBottom: 0 }}
+                  style={{ fontSize: 13 }}
+                />
+              </BentoFormTile>
+            </View>
+
+            <BentoFormTile
+              icon={MapPin}
+              title="LOCATION"
+              isValid={location.length > 0}
+            >
+              <InputField
+                placeholder="Venue name or Virtual link"
+                value={location}
+                onChangeText={setLocation}
+                containerStyle={{ marginBottom: 0 }}
+                error={errors.location}
+              />
+            </BentoFormTile>
+
+            {/* Core Content */}
+            <BentoFormTile
+              icon={Layers}
+              title="DETAILS"
+              isValid={isDetailsValid}
+            >
+              <InputField
+                label="Event Title"
+                placeholder="Innovation Summit..."
+                leftIcon={Type}
+                value={title}
+                onChangeText={setTitle}
+                error={errors.title}
+              />
+              <InputField
+                label="Description"
+                placeholder="Tell us about the event..."
+                leftIcon={AlignLeft}
+                value={description}
+                onChangeText={setDescription}
+                error={errors.description}
+                multiline
+                numberOfLines={4}
+                containerStyle={{ marginBottom: 0 }}
+              />
+            </BentoFormTile>
+
+            {/* Talent Section */}
+            <BentoFormTile icon={User} title="TALENT" isValid={isTalentValid}>
+              <View style={styles.listContainer}>
+                {speakers.map(s => (
+                  <View key={s.id} style={styles.listItem}>
+                    <View style={styles.listContent}>
+                      <Text style={styles.listItemTitle}>{s.name}</Text>
+                      <Text style={styles.listItemSub}>{s.role}</Text>
+                    </View>
+                    <View style={styles.listActions}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setEditingSpeaker(s);
+                          setTempSpeaker(s);
+                          setSpeakerModalVisible(true);
+                        }}
+                      >
+                        <Edit2 size={16} color={colors.brand.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setSpeakers(prev => prev.filter(i => i.id !== s.id))
+                        }
+                      >
+                        <Trash2 size={16} color={colors.status.error} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
                 <TouchableOpacity
+                  style={styles.addItemBtn}
+                  onPress={() => {
+                    setEditingSpeaker(null);
+                    setTempSpeaker({
+                      name: '',
+                      role: '',
+                      bio: '',
+                      image: null,
+                    });
+                    setSpeakerModalVisible(true);
+                  }}
+                >
+                  <Plus size={18} color={colors.brand.primary} />
+                  <Text style={styles.addItemText}>Add Speaker Profile</Text>
+                </TouchableOpacity>
+              </View>
+            </BentoFormTile>
+
+            {/* Roadmap (Agenda) */}
+            <BentoFormTile
+              icon={Clock}
+              title="ROADMAP"
+              isValid={isRoadmapValid}
+            >
+              <View style={styles.listContainer}>
+                {agenda
+                  .sort(
+                    (a, b) =>
+                      new Date(a.startTime).getTime() -
+                      new Date(b.startTime).getTime(),
+                  )
+                  .map(a => (
+                    <View key={a.id} style={styles.listItem}>
+                      <View style={styles.listContent}>
+                        <Text style={styles.listItemTitle}>{a.title}</Text>
+                        <Text style={styles.listItemSub}>
+                          {formatEventDate(a.startTime)}
+                        </Text>
+                      </View>
+                      <View style={styles.listActions}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setEditingAgenda(a);
+                            setTempAgenda(a);
+                            setAgendaStartTime(new Date(a.startTime));
+                            setAgendaModalVisible(true);
+                          }}
+                        >
+                          <Edit2 size={16} color={colors.brand.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() =>
+                            setAgenda(prev => prev.filter(i => i.id !== a.id))
+                          }
+                        >
+                          <Trash2 size={16} color={colors.status.error} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                <TouchableOpacity
+                  style={styles.addItemBtn}
+                  onPress={() => {
+                    setEditingAgenda(null);
+                    setTempAgenda({ title: '', description: '' });
+                    setAgendaStartTime(new Date(date));
+                    setAgendaModalVisible(true);
+                  }}
+                >
+                  <Plus size={18} color={colors.brand.primary} />
+                  <Text style={styles.addItemText}>Add Session Item</Text>
+                </TouchableOpacity>
+              </View>
+            </BentoFormTile>
+          </ScrollView>
+
+          {/* Sticky Action Footer */}
+          <View style={styles.footer}>
+            <Button
+              title="Publish Event"
+              onPress={handleCreate}
+              loading={loading}
+              style={styles.stickySubmitBtn}
+              leftIcon={CheckCircle2}
+            />
+          </View>
+
+          {/* DateTime Pickers (Unified Logic) */}
+          {(openDatePicker || openEndDatePicker) &&
+            (Platform.OS === 'ios' ? (
+              <Modal transparent animationType="slide">
+                <TouchableWithoutFeedback
                   onPress={() => {
                     setOpenDatePicker(false);
                     setOpenEndDatePicker(false);
                   }}
                 >
-                  <Text style={styles.modalDoneBtn}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.pickerWrapper}>
-                <DateTimePicker
-                  value={openDatePicker ? date : endDate || new Date()}
-                  mode="datetime"
-                  display="spinner"
-                  minimumDate={new Date()}
-                  onChange={(e, d) => {
-                    if (d) {
-                      if (openDatePicker) setDate(d);
-                      else setEndDate(d);
-                    }
-                  }}
-                />
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={openDatePicker ? date : endDate || new Date()}
-            mode={pickerMode}
-            onChange={(e, d) => {
-              if (e?.type === 'dismissed') {
-                setOpenDatePicker(false);
-                setOpenEndDatePicker(false);
-                setPickerMode('date');
-                return;
-              }
-              if (d) {
-                if (openDatePicker) {
-                  setDate(d);
-                  if (Platform.OS === 'android' && pickerMode === 'date') {
-                    setPickerMode('time');
-                  } else {
+                  <View style={styles.modalOverlay} />
+                </TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>
+                      {openDatePicker ? 'Start Time' : 'End Time'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setOpenDatePicker(false);
+                        setOpenEndDatePicker(false);
+                      }}
+                    >
+                      <Text style={styles.modalDoneBtn}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.pickerWrapper}>
+                    <DateTimePicker
+                      value={openDatePicker ? date : endDate || new Date()}
+                      mode="datetime"
+                      display="spinner"
+                      minimumDate={new Date()}
+                      onChange={(e, d) => {
+                        if (d) {
+                          if (openDatePicker) setDate(d);
+                          else setEndDate(d);
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={openDatePicker ? date : endDate || new Date()}
+                mode={pickerMode}
+                onChange={(e, d) => {
+                  if (e?.type === 'dismissed') {
                     setOpenDatePicker(false);
-                    setPickerMode('date');
-                  }
-                } else {
-                  setEndDate(d);
-                  if (Platform.OS === 'android' && pickerMode === 'date') {
-                    setPickerMode('time');
-                  } else {
                     setOpenEndDatePicker(false);
                     setPickerMode('date');
+                    return;
                   }
-                }
-              }
-            }}
-          />
-        ))}
-
-      {/* Speaker Modal */}
-      <Modal visible={speakerModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback
-            onPress={() => setSpeakerModalVisible(false)}
-          >
-            <View style={{ flex: 1 }} />
-          </TouchableWithoutFeedback>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalContent}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}
-              </Text>
-              <TouchableOpacity onPress={() => setSpeakerModalVisible(false)}>
-                <Text style={styles.modalDoneBtn}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={{ padding: 20 }}
-              contentContainerStyle={{ paddingBottom: 60 }}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.innerMedia}>
-                <Text style={styles.inputLabel}>Speaker Photo</Text>
-                <ImagePickerGrid
-                  images={tempSpeaker.image ? [tempSpeaker.image] : []}
-                  onChange={imgs =>
-                    setTempSpeaker({ ...tempSpeaker, image: imgs[0] || null })
+                  if (d) {
+                    if (openDatePicker) {
+                      setDate(d);
+                      if (Platform.OS === 'android' && pickerMode === 'date') {
+                        setPickerMode('time');
+                      } else {
+                        setOpenDatePicker(false);
+                        setPickerMode('date');
+                      }
+                    } else {
+                      setEndDate(d);
+                      if (Platform.OS === 'android' && pickerMode === 'date') {
+                        setPickerMode('time');
+                      } else {
+                        setOpenEndDatePicker(false);
+                        setPickerMode('date');
+                      }
+                    }
                   }
-                  maxImages={1}
-                />
-              </View>
-              <InputField
-                label="Full Name"
-                placeholder="e.g. Dr. John Smith"
-                value={tempSpeaker.name}
-                onChangeText={t => setTempSpeaker({ ...tempSpeaker, name: t })}
-                error={modalErrors.name}
+                }}
               />
-              <InputField
-                label="Role / Title"
-                placeholder="e.g. Senior Researcher"
-                value={tempSpeaker.role}
-                onChangeText={t => setTempSpeaker({ ...tempSpeaker, role: t })}
-                error={modalErrors.role}
-              />
-              <InputField
-                label="Mini Bio"
-                placeholder="Briefly describe..."
-                value={tempSpeaker.bio}
-                onChangeText={t => setTempSpeaker({ ...tempSpeaker, bio: t })}
-                error={modalErrors.bio}
-                multiline
-                numberOfLines={3}
-              />
-              <Button
-                title="Confirm Speaker"
-                onPress={handleConfirmSpeaker}
-                style={{ marginTop: 20 }}
-              />
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+            ))}
 
-      {/* Agenda Modal */}
-      <Modal visible={agendaModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback
-            onPress={() => setAgendaModalVisible(false)}
+          {/* Speaker Modal */}
+          <Modal
+            visible={speakerModalVisible}
+            transparent
+            animationType="slide"
           >
-            <View style={{ flex: 1 }} />
-          </TouchableWithoutFeedback>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalContent}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingAgenda ? 'Edit Session' : 'Add Session'}
-              </Text>
-              <TouchableOpacity onPress={() => setAgendaModalVisible(false)}>
-                <Text style={styles.modalDoneBtn}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={{ padding: 20 }}
-              contentContainerStyle={{ paddingBottom: 60 }}
-              showsVerticalScrollIndicator={false}
-            >
-              <InputField
-                label="Session Title"
-                placeholder="e.g. Opening Keynote"
-                value={tempAgenda.title}
-                onChangeText={t => setTempAgenda({ ...tempAgenda, title: t })}
-                error={modalErrors.title}
-              />
-              <InputField
-                label="Short Description"
-                placeholder="What will happen..."
-                value={tempAgenda.description}
-                onChangeText={t =>
-                  setTempAgenda({ ...tempAgenda, description: t })
-                }
-                error={modalErrors.description}
-                multiline
-                numberOfLines={2}
-              />
-              <View style={styles.timelineRow}>
-                <View style={styles.nodesContainer}>
-                  <TimeNode
-                    label="SESSION START"
-                    value={formatEventDate(agendaStartTime)}
-                    onPress={() => setShowItemStartPicker(true)}
-                  />
-                  <TimeNode
-                    label="SESSION END"
-                    value={formatEventDate(agendaEndTime)}
-                    onPress={() => setShowItemEndPicker(true)}
-                    isEnd
-                  />
-                </View>
-              </View>
-              <Button
-                title="Confirm Session"
-                onPress={handleConfirmAgenda}
-                style={{ marginTop: 24 }}
-              />
-
-              {/* iOS Session Start Picker Modal */}
-              {Platform.OS === 'ios' && showItemStartPicker && (
-                <Modal transparent animationType="slide">
-                  <TouchableWithoutFeedback
-                    onPress={() => setShowItemStartPicker(false)}
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback
+                onPress={() => setSpeakerModalVisible(false)}
+              >
+                <View style={{ flex: 1 }} />
+              </TouchableWithoutFeedback>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.modalContent}
+              >
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    {editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSpeakerModalVisible(false)}
                   >
-                    <View style={styles.modalOverlay} />
-                  </TouchableWithoutFeedback>
-                  <View style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Session Start</Text>
-                      <TouchableOpacity
+                    <Text style={styles.modalDoneBtn}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView
+                  style={{ padding: 20 }}
+                  contentContainerStyle={{ paddingBottom: 60 }}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={styles.innerMedia}>
+                    <Text style={styles.inputLabel}>Speaker Photo</Text>
+                    <ImagePickerGrid
+                      images={tempSpeaker.image ? [tempSpeaker.image] : []}
+                      onChange={imgs =>
+                        setTempSpeaker({
+                          ...tempSpeaker,
+                          image: imgs[0] || null,
+                        })
+                      }
+                      maxImages={1}
+                    />
+                  </View>
+                  <InputField
+                    label="Full Name"
+                    placeholder="e.g. Dr. John Smith"
+                    value={tempSpeaker.name}
+                    onChangeText={t =>
+                      setTempSpeaker({ ...tempSpeaker, name: t })
+                    }
+                    error={modalErrors.name}
+                  />
+                  <InputField
+                    label="Role / Title"
+                    placeholder="e.g. Senior Researcher"
+                    value={tempSpeaker.role}
+                    onChangeText={t =>
+                      setTempSpeaker({ ...tempSpeaker, role: t })
+                    }
+                    error={modalErrors.role}
+                  />
+                  <InputField
+                    label="Mini Bio"
+                    placeholder="Briefly describe..."
+                    value={tempSpeaker.bio}
+                    onChangeText={t =>
+                      setTempSpeaker({ ...tempSpeaker, bio: t })
+                    }
+                    error={modalErrors.bio}
+                    multiline
+                    numberOfLines={3}
+                  />
+                  <Button
+                    title="Confirm Speaker"
+                    onPress={handleConfirmSpeaker}
+                    style={{ marginTop: 20 }}
+                  />
+                </ScrollView>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
+
+          {/* Agenda Modal */}
+          <Modal visible={agendaModalVisible} transparent animationType="slide">
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback
+                onPress={() => setAgendaModalVisible(false)}
+              >
+                <View style={{ flex: 1 }} />
+              </TouchableWithoutFeedback>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.modalContent}
+              >
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    {editingAgenda ? 'Edit Session' : 'Add Session'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setAgendaModalVisible(false)}
+                  >
+                    <Text style={styles.modalDoneBtn}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView
+                  style={{ padding: 20 }}
+                  contentContainerStyle={{ paddingBottom: 60 }}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <InputField
+                    label="Session Title"
+                    placeholder="e.g. Opening Keynote"
+                    value={tempAgenda.title}
+                    onChangeText={t =>
+                      setTempAgenda({ ...tempAgenda, title: t })
+                    }
+                    error={modalErrors.title}
+                  />
+                  <InputField
+                    label="Short Description"
+                    placeholder="What will happen..."
+                    value={tempAgenda.description}
+                    onChangeText={t =>
+                      setTempAgenda({ ...tempAgenda, description: t })
+                    }
+                    error={modalErrors.description}
+                    multiline
+                    numberOfLines={2}
+                  />
+                  <View style={styles.timelineRow}>
+                    <View style={styles.nodesContainer}>
+                      <TimeNode
+                        label="SESSION START"
+                        value={formatEventDate(agendaStartTime)}
+                        onPress={() => setShowItemStartPicker(true)}
+                      />
+                      <TimeNode
+                        label="SESSION END"
+                        value={formatEventDate(agendaEndTime)}
+                        onPress={() => setShowItemEndPicker(true)}
+                        isEnd
+                      />
+                    </View>
+                  </View>
+                  <Button
+                    title="Confirm Session"
+                    onPress={handleConfirmAgenda}
+                    style={{ marginTop: 24 }}
+                  />
+
+                  {/* iOS Session Start Picker Modal */}
+                  {Platform.OS === 'ios' && showItemStartPicker && (
+                    <Modal transparent animationType="slide">
+                      <TouchableWithoutFeedback
                         onPress={() => setShowItemStartPicker(false)}
                       >
-                        <Text style={styles.modalDoneBtn}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.pickerWrapper}>
-                      <DateTimePicker
-                        value={agendaStartTime}
-                        mode="datetime"
-                        display="spinner"
-                        onChange={(e, d) => {
-                          if (d) setAgendaStartTime(d);
-                        }}
-                      />
-                    </View>
-                  </View>
-                </Modal>
-              )}
+                        <View style={styles.modalOverlay} />
+                      </TouchableWithoutFeedback>
+                      <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>Session Start</Text>
+                          <TouchableOpacity
+                            onPress={() => setShowItemStartPicker(false)}
+                          >
+                            <Text style={styles.modalDoneBtn}>Done</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.pickerWrapper}>
+                          <DateTimePicker
+                            value={agendaStartTime}
+                            mode="datetime"
+                            display="spinner"
+                            onChange={(e, d) => {
+                              if (d) setAgendaStartTime(d);
+                            }}
+                          />
+                        </View>
+                      </View>
+                    </Modal>
+                  )}
 
-              {/* iOS Session End Picker Modal */}
-              {Platform.OS === 'ios' && showItemEndPicker && (
-                <Modal transparent animationType="slide">
-                  <TouchableWithoutFeedback
-                    onPress={() => setShowItemEndPicker(false)}
-                  >
-                    <View style={styles.modalOverlay} />
-                  </TouchableWithoutFeedback>
-                  <View style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Session End</Text>
-                      <TouchableOpacity
+                  {/* iOS Session End Picker Modal */}
+                  {Platform.OS === 'ios' && showItemEndPicker && (
+                    <Modal transparent animationType="slide">
+                      <TouchableWithoutFeedback
                         onPress={() => setShowItemEndPicker(false)}
                       >
-                        <Text style={styles.modalDoneBtn}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.pickerWrapper}>
-                      <DateTimePicker
-                        value={agendaEndTime}
-                        mode="datetime"
-                        display="spinner"
-                        onChange={(e, d) => {
-                          if (d) setAgendaEndTime(d);
-                        }}
-                      />
-                    </View>
-                  </View>
-                </Modal>
-              )}
+                        <View style={styles.modalOverlay} />
+                      </TouchableWithoutFeedback>
+                      <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>Session End</Text>
+                          <TouchableOpacity
+                            onPress={() => setShowItemEndPicker(false)}
+                          >
+                            <Text style={styles.modalDoneBtn}>Done</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.pickerWrapper}>
+                          <DateTimePicker
+                            value={agendaEndTime}
+                            mode="datetime"
+                            display="spinner"
+                            onChange={(e, d) => {
+                              if (d) setAgendaEndTime(d);
+                            }}
+                          />
+                        </View>
+                      </View>
+                    </Modal>
+                  )}
 
-              {/* Android Native Pickers */}
-              {Platform.OS === 'android' && showItemStartPicker && (
-                <DateTimePicker
-                  value={agendaStartTime}
-                  mode={pickerMode}
-                  onChange={(e, d) => {
-                    if (e?.type === 'dismissed') {
-                      setShowItemStartPicker(false);
-                      setPickerMode('date');
-                      return;
-                    }
-                    if (d) {
-                      setAgendaStartTime(d);
-                      if (pickerMode === 'date') {
-                        setPickerMode('time');
-                      } else {
-                        setShowItemStartPicker(false);
-                        setPickerMode('date');
-                      }
-                    }
-                  }}
-                />
-              )}
-              {Platform.OS === 'android' && showItemEndPicker && (
-                <DateTimePicker
-                  value={agendaEndTime}
-                  mode={pickerMode}
-                  onChange={(e, d) => {
-                    if (e?.type === 'dismissed') {
-                      setShowItemEndPicker(false);
-                      setPickerMode('date');
-                      return;
-                    }
-                    if (d) {
-                      setAgendaEndTime(d);
-                      if (pickerMode === 'date') {
-                        setPickerMode('time');
-                      } else {
-                        setShowItemEndPicker(false);
-                        setPickerMode('date');
-                      }
-                    }
-                  }}
-                />
-              )}
-            </ScrollView>
-          </KeyboardAvoidingView>
+                  {/* Android Native Pickers */}
+                  {Platform.OS === 'android' && showItemStartPicker && (
+                    <DateTimePicker
+                      value={agendaStartTime}
+                      mode={pickerMode}
+                      onChange={(e, d) => {
+                        if (e?.type === 'dismissed') {
+                          setShowItemStartPicker(false);
+                          setPickerMode('date');
+                          return;
+                        }
+                        if (d) {
+                          setAgendaStartTime(d);
+                          if (pickerMode === 'date') {
+                            setPickerMode('time');
+                          } else {
+                            setShowItemStartPicker(false);
+                            setPickerMode('date');
+                          }
+                        }
+                      }}
+                    />
+                  )}
+                  {Platform.OS === 'android' && showItemEndPicker && (
+                    <DateTimePicker
+                      value={agendaEndTime}
+                      mode={pickerMode}
+                      onChange={(e, d) => {
+                        if (e?.type === 'dismissed') {
+                          setShowItemEndPicker(false);
+                          setPickerMode('date');
+                          return;
+                        }
+                        if (d) {
+                          setAgendaEndTime(d);
+                          if (pickerMode === 'date') {
+                            setPickerMode('time');
+                          } else {
+                            setShowItemEndPicker(false);
+                            setPickerMode('date');
+                          }
+                        }
+                      }}
+                    />
+                  )}
+                </ScrollView>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
         </View>
-      </Modal>
+      </KeyboardAvoidingView>
     </View>
-  </KeyboardAvoidingView>
-</View>
   );
 };
 

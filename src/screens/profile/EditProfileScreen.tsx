@@ -94,6 +94,9 @@ const EditProfileScreen = () => {
       cropping: true,
       includeBase64: false,
       mediaType: 'photo',
+      compressImageMaxWidth: 1024,
+      compressImageMaxHeight: 1024,
+      compressImageQuality: 0.8,
     })
       .then(image => {
         setProfileImage(image.path);

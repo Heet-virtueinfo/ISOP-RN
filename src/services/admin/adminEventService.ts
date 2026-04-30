@@ -1,23 +1,11 @@
-/**
- * src/services/admin/adminEventService.ts
- *
- * Admin event operations against the Laravel API.
- * Replaces Firebase Firestore + Cloudinary with direct API calls.
- */
-
 import apiClient from '../../config/api';
 import { AppEvent } from '../../types';
 import { normalizeEvent } from '../eventService';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type EventPayload = Omit<AppEvent, 'id' | 'createdAt' | 'updatedAt' | 'enrolledCount' | 'createdBy'>;
-
-// ---------------------------------------------------------------------------
-// Admin Event CRUD
-// ---------------------------------------------------------------------------
+export type EventPayload = Omit<
+  AppEvent,
+  'id' | 'createdAt' | 'updatedAt' | 'enrolledCount' | 'createdBy'
+>;
 
 /** GET /api/admin/events — list all events */
 export const adminGetEvents = async (): Promise<AppEvent[]> => {
@@ -63,7 +51,10 @@ export const adminCreateEvent = async (
 
     if (data.endDate) {
       const d = new Date(data.endDate);
-      form.append('end_date', d.toISOString().replace('T', ' ').substring(0, 19));
+      form.append(
+        'end_date',
+        d.toISOString().replace('T', ' ').substring(0, 19),
+      );
     }
 
     const capacity = data.maxCapacity ?? data.capacity;
@@ -84,8 +75,17 @@ export const adminCreateEvent = async (
         if (!img.startsWith('http')) {
           const filename = img.split('/').pop() ?? `image_${index}.jpg`;
           const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
-          const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-          form.append('image_files[]', { uri: img, name: filename, type: mimeType } as any);
+          const mimeType =
+            ext === 'png'
+              ? 'image/png'
+              : ext === 'webp'
+              ? 'image/webp'
+              : 'image/jpeg';
+          form.append('image_files[]', {
+            uri: img,
+            name: filename,
+            type: mimeType,
+          } as any);
         }
       });
     }
@@ -101,11 +101,10 @@ export const adminCreateEvent = async (
   }
 };
 
-/**
- * PUT /api/admin/events/:id — full update of an event.
- * Also supports POST /api/admin/events/:id (same semantics, Laravel method spoofing).
- */
-export const adminUpdateEvent = async (id: string, data: Partial<EventPayload>): Promise<AppEvent> => {
+export const adminUpdateEvent = async (
+  id: string,
+  data: Partial<EventPayload>,
+): Promise<AppEvent> => {
   try {
     const form = new FormData();
     form.append('_method', 'PUT');
@@ -122,7 +121,10 @@ export const adminUpdateEvent = async (id: string, data: Partial<EventPayload>):
 
     if (data.endDate) {
       const d = new Date(data.endDate);
-      form.append('end_date', d.toISOString().replace('T', ' ').substring(0, 19));
+      form.append(
+        'end_date',
+        d.toISOString().replace('T', ' ').substring(0, 19),
+      );
     }
 
     const capacity = data.maxCapacity ?? data.capacity;
@@ -140,11 +142,24 @@ export const adminUpdateEvent = async (id: string, data: Partial<EventPayload>):
 
     if (data.images && data.images.length > 0) {
       data.images.forEach((img, index) => {
-        if (!img.startsWith('http')) {
+        if (img.startsWith('http')) {
+          // Existing URL to keep
+          form.append('images[]', img);
+        } else {
+          // New file to upload
           const filename = img.split('/').pop() ?? `image_${index}.jpg`;
           const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
-          const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-          form.append('image_files[]', { uri: img, name: filename, type: mimeType } as any);
+          const mimeType =
+            ext === 'png'
+              ? 'image/png'
+              : ext === 'webp'
+              ? 'image/webp'
+              : 'image/jpeg';
+          form.append('image_files[]', {
+            uri: img,
+            name: filename,
+            type: mimeType,
+          } as any);
         }
       });
     }
@@ -171,9 +186,13 @@ export const adminDeleteEvent = async (id: string): Promise<void> => {
 };
 
 /** GET /api/admin/events/:eventId/participants — list participants of an event */
-export const adminGetEventParticipants = async (eventId: string): Promise<any[]> => {
+export const adminGetEventParticipants = async (
+  eventId: string,
+): Promise<any[]> => {
   try {
-    const res = await apiClient.get(`/api/admin/events/${eventId}/participants`);
+    const res = await apiClient.get(
+      `/api/admin/events/${eventId}/participants`,
+    );
     const raw = res.data.participants ?? res.data.data ?? res.data;
     return Array.isArray(raw) ? raw : [];
   } catch (error: any) {
@@ -183,7 +202,9 @@ export const adminGetEventParticipants = async (eventId: string): Promise<any[]>
 };
 
 /** GET /api/admin/events/:eventId/feedback — list feedback for an event */
-export const adminGetEventFeedback = async (eventId: string): Promise<any[]> => {
+export const adminGetEventFeedback = async (
+  eventId: string,
+): Promise<any[]> => {
   try {
     const res = await apiClient.get(`/api/admin/events/${eventId}/feedback`);
     const raw = res.data.feedback ?? res.data.data ?? res.data;
