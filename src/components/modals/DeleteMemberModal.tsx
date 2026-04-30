@@ -74,7 +74,7 @@ const DeleteMemberModal: React.FC<DeleteMemberModalProps> = ({
               <View style={styles.directiveSection}>
                 <Text style={styles.directiveTitle}>REVOKE ACCESS</Text>
                 <Text style={styles.mainTitle}>
-                  Purge Executive{'\n'}Profile?
+                  Delete Member{'\n'}Profile?
                 </Text>
               </View>
 
@@ -120,7 +120,7 @@ const DeleteMemberModal: React.FC<DeleteMemberModalProps> = ({
                   ) : (
                     <>
                       <Trash2 size={18} color="white" />
-                      <Text style={styles.deleteBtnText}>Purge Profile</Text>
+                      <Text style={styles.deleteBtnText}>Delete Profile</Text>
                     </>
                   )}
                 </TouchableOpacity>

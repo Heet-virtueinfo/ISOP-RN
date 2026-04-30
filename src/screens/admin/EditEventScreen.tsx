@@ -235,7 +235,7 @@ const EditEventScreen = () => {
   const handleDelete = () => {
     Alert.alert(
       'Delete Event',
-      'This will permanently purge this event from the ecosystem. Proceed?',
+      'This will permanently delete this event from the ecosystem. Proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -248,14 +248,14 @@ const EditEventScreen = () => {
               Toast.show({
                 type: 'success',
                 text1: 'Deleted',
-                text2: 'Event purged successfully.',
+                text2: 'Event deleted successfully.',
               });
               navigation.goBack();
             } catch (err) {
               Toast.show({
                 type: 'error',
                 text1: 'Delete Failed',
-                text2: 'Purge operation aborted.',
+                text2: 'Delete operation aborted.',
               });
             } finally {
               setDeleting(false);

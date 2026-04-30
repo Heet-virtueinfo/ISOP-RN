@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Calendar,
   BookMarked,
@@ -23,7 +23,7 @@ import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
 import UserHeader from '../../components/UserHeader';
-import { isEventActive } from '../../utils/eventHelpers';
+import { isEventActive, getEventStatus } from '../../utils/eventHelpers';
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -35,50 +35,52 @@ const HomeScreen = () => {
   const [enrollmentsCount, setEnrollmentsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!userProfile) return;
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      if (!userProfile) return;
+      let isMounted = true;
 
-    const fetchHomeData = async () => {
-      try {
-        const [events, enrollments] = await Promise.all([
-          getActiveEvents(),
-          getUserEnrollments(userProfile.uid),
-        ]);
+      const fetchHomeData = async () => {
+        try {
+          const [events, enrollments] = await Promise.all([
+            getActiveEvents(),
+            getUserEnrollments(userProfile.uid),
+          ]);
 
-        if (isMounted) {
-          setAllEvents(events);
-          setEnrollmentsCount(enrollments.length);
-          setEnrollmentIds(enrollments.map(e => e.eventId));
+          if (isMounted) {
+            setAllEvents(events);
+            setEnrollmentsCount(enrollments.length);
+            setEnrollmentIds(enrollments.map(e => e.eventId));
+
+            // Explicitly filter out any past events before rendering
+            const validEvents = events.filter(
+              event => getEventStatus(event) === 'UPCOMING',
+            );
+            setTotalEventsCount(validEvents.length);
+
+            const notEnrolled = validEvents.filter(
+              e => !enrollments.map(en => en.eventId).includes(e.id),
+            );
+            const enrolled = validEvents.filter(
+              e => enrollments.map(en => en.eventId).includes(e.id),
+            );
+
+            setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error('Home screen fetch error:', error);
+          if (isMounted) setLoading(false);
         }
-      } catch (error) {
-        console.error('Home screen fetch error:', error);
-      }
-    };
+      };
 
-    fetchHomeData();
+      fetchHomeData();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [userProfile]);
-  // Derived logic for upcoming events: Not enrolled first, then enrolled
-  useEffect(() => {
-    if (allEvents.length === 0) {
-      if (loading) setLoading(false);
-      return;
-    }
-
-    // Explicitly filter out any past events before rendering
-    const validEvents = allEvents.filter(event => isEventActive(event));
-    setTotalEventsCount(validEvents.length);
-
-    const notEnrolled = validEvents.filter(e => !enrollmentIds.includes(e.id));
-    const enrolled = validEvents.filter(e => enrollmentIds.includes(e.id));
-
-    setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
-    setLoading(false);
-  }, [allEvents, enrollmentIds]);
+      return () => {
+        isMounted = false;
+      };
+    }, [userProfile]),
+  );
 
   const navigateToEvents = () => navigation.navigate('EventList');
   const navigateToMyEvents = () => navigation.navigate('MyEventsTab');

@@ -170,15 +170,19 @@ const ProfileScreen = () => {
           </TouchableOpacity>
 
 
+          {/* Delete Account Action */}
           <TouchableOpacity
             style={styles.deleteBtn}
             activeOpacity={0.7}
             onPress={() => setShowDeleteModal(true)}
           >
             <View style={styles.deleteIconBox}>
-              <Trash2 size={16} color="rgba(239, 68, 68, 0.6)" />
+              <Trash2 size={20} color="#EF4444" />
             </View>
-            <Text style={styles.deleteText}>Delete Account</Text>
+            <View style={styles.deleteContent}>
+              <Text style={styles.deleteTextTitle}>Delete Account</Text>
+            </View>
+            <ChevronRight size={18} color="rgba(239, 68, 68, 0.3)" />
           </TouchableOpacity>
 
 
@@ -400,19 +404,21 @@ const styles = StyleSheet.create({
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    backgroundColor: 'rgba(15, 23, 42, 0.04)',
     padding: spacing.md,
     borderRadius: 24,
     marginTop: 12,
   },
   logoutIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.1)',
   },
   logoutText: {
     flex: 1,
@@ -424,25 +430,29 @@ const styles = StyleSheet.create({
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
     padding: spacing.md,
     borderRadius: 24,
-    marginTop: 4,
-    justifyContent: 'center',
+    marginTop: 8,
   },
   deleteIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.1)',
   },
-  deleteText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'rgba(239, 68, 68, 0.6)',
+  deleteContent: {
+    flex: 1,
+  },
+  deleteTextTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#EF4444',
     fontFamily: typography.fontFamily,
   },
 

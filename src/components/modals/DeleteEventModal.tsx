@@ -66,7 +66,7 @@ const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
               <View style={styles.directiveSection}>
                 <Text style={styles.directiveTitle}>SECURITY CHECK</Text>
                 <Text style={styles.mainTitle}>
-                  Permanently Purge{'\n'}This Event?
+                  Permanently Delete{'\n'}This Event?
                 </Text>
               </View>
 
@@ -95,14 +95,14 @@ const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
                 <AlertCircle size={14} color={colors.status.error} />
                 <Text style={styles.impactText}>
                   All associated student data and enrollments will be
-                  permanently purged from the ecosystem.
+                  permanently deleted from the ecosystem.
                 </Text>
               </View>
 
               {/* Executive Action Stack */}
               <View style={styles.actionStack}>
                 <TouchableOpacity
-                  style={[styles.purgeBtn, loading && styles.btnLoading]}
+                  style={[styles.deleteBtn, loading && styles.btnLoading]}
                   onPress={onConfirm}
                   disabled={loading}
                   activeOpacity={0.8}
@@ -112,7 +112,7 @@ const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
                   ) : (
                     <>
                       <Trash2 size={18} color="white" />
-                      <Text style={styles.purgeBtnText}>Delete Event</Text>
+                      <Text style={styles.deleteBtnText}>Delete Event</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   actionStack: {
     gap: 12,
   },
-  purgeBtn: {
+  deleteBtn: {
     height: 60,
     backgroundColor: colors.status.error,
     borderRadius: 20,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   btnLoading: {
     opacity: 0.8,
   },
-  purgeBtnText: {
+  deleteBtnText: {
     fontFamily: typography.fontFamily,
     fontSize: 16,
     fontWeight: '800',

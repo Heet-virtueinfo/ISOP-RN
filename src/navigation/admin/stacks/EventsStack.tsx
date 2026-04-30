@@ -7,6 +7,8 @@ import AdminHeader from '../../../components/AdminHeader';
 import AdminEventDetailScreen from '../../../screens/admin/AdminEventDetailScreen';
 import AdminLibraryScreen from '../../../screens/admin/AdminLibraryScreen';
 
+import AdminEventListScreen from '../../../screens/admin/AdminEventListScreen';
+
 const Stack = createStackNavigator();
 
 const EventsStack = () => {
@@ -20,6 +22,9 @@ const EventsStack = () => {
 
           if (route.name === 'AdminDashboard') {
             title = 'Manage Events';
+          } else if (route.name === 'AdminEventList') {
+            title = 'Event Inventory';
+            showBack = true;
           } else if (route.name === 'AdminEventDetail') {
             title = (route.params as any)?.eventTitle || 'Event Details';
             showBack = true;
@@ -39,6 +44,7 @@ const EventsStack = () => {
       }}
     >
       <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+      <Stack.Screen name="AdminEventList" component={AdminEventListScreen} />
       <Stack.Screen
         name="AdminEventDetail"
         component={AdminEventDetailScreen}

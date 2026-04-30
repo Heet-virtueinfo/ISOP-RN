@@ -94,7 +94,10 @@ const AdminDashboard = () => {
           const news = await adminGetNews();
           if (mounted) setNewsCount(news.length);
         } catch (error: any) {
-          console.error('[Dashboard] loadDashboardData failed:', error?.message);
+          console.error(
+            '[Dashboard] loadDashboardData failed:',
+            error?.message,
+          );
           if (mounted) setLoading(false);
         }
       };
@@ -103,7 +106,7 @@ const AdminDashboard = () => {
       return () => {
         mounted = false;
       };
-    }, [])
+    }, []),
   );
 
   const navigateToEdit = (eventId: string) => {
@@ -181,7 +184,11 @@ const AdminDashboard = () => {
 
         <View style={styles.bentoGrid}>
           {/* Main Module */}
-          <View style={[styles.bentoModule, styles.bentoModuleMain]}>
+          <TouchableOpacity
+            style={[styles.bentoModule, styles.bentoModuleMain]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('AdminEventList')}
+          >
             <BentoStat
               label="TOTAL EVENTS"
               value={events.length}
@@ -189,7 +196,7 @@ const AdminDashboard = () => {
               color={colors.brand.primary}
               sublabel="Ecosystem Capacity"
             />
-          </View>
+          </TouchableOpacity>
 
           {/* Side Modules */}
           <View style={styles.bentoModuleSide}>
@@ -356,20 +363,20 @@ const AdminDashboard = () => {
             {events.length === 0
               ? renderEmptyList()
               : events.map(item => (
-                <EventCard
-                  key={item.id}
-                  event={item}
-                  onPress={() =>
-                    navigation.navigate('AdminEventDetail', {
-                      eventId: item.id,
-                      eventTitle: item.title,
-                    })
-                  }
-                  onEdit={() => navigateToEdit(item.id)}
-                  onDelete={() => handleDeletePress(item)}
-                  isAdminView
-                />
-              ))}
+                  <EventCard
+                    key={item.id}
+                    event={item}
+                    onPress={() =>
+                      navigation.navigate('AdminEventDetail', {
+                        eventId: item.id,
+                        eventTitle: item.title,
+                      })
+                    }
+                    onEdit={() => navigateToEdit(item.id)}
+                    onDelete={() => handleDeletePress(item)}
+                    isAdminView
+                  />
+                ))}
           </View>
         )}
       </ScrollView>
@@ -381,7 +388,7 @@ const AdminDashboard = () => {
         event={selectedEvent}
         loading={isDeleting}
       />
-      {isDeleting && <CustomLoader overlay message="Purging Event..." />}
+      {isDeleting && <CustomLoader overlay message="Deleting Event..." />}
     </View>
   );
 };

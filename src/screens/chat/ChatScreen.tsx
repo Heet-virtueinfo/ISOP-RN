@@ -30,6 +30,34 @@ import CustomLoader from '../../components/CustomLoader';
 import { getEcho } from '../../services/echoService';
 import { notificationService } from '../../services/notificationService';
 
+const isSameDay = (date1: any, date2: any) => {
+  if (!date1 || !date2) return false;
+  const d1 = date1.toDate ? date1.toDate() : new Date(date1);
+  const d2 = date2.toDate ? date2.toDate() : new Date(date2);
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+};
+
+const formatSeparatorDate = (timestamp: any) => {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  if (isSameDay(date, now)) return 'Today';
+  if (isSameDay(date, yesterday)) return 'Yesterday';
+
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
 const ChatScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -185,12 +213,33 @@ const ChatScreen = () => {
               ref={flatListRef}
               data={messages}
               keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <MessageBubble
-                  message={item}
-                  isMe={item.senderId === user?.uid}
-                />
-              )}
+              renderItem={({ item, index }) => {
+                const messageDate = item.createdAt;
+                const nextMessage = messages[index + 1];
+                const showDateSeparator =
+                  !nextMessage ||
+                  !isSameDay(messageDate, nextMessage.createdAt);
+
+                return (
+                  <View>
+                    {showDateSeparator && (
+                      <View style={styles.dateSeparator}>
+                        <View style={styles.dateLine} />
+                        <View style={styles.dateCapsule}>
+                          <Text style={styles.dateText}>
+                            {formatSeparatorDate(messageDate)}
+                          </Text>
+                        </View>
+                        <View style={styles.dateLine} />
+                      </View>
+                    )}
+                    <MessageBubble
+                      message={item}
+                      isMe={item.senderId === user?.uid}
+                    />
+                  </View>
+                );
+              }}
               inverted
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
@@ -216,7 +265,13 @@ const ChatScreen = () => {
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
-            <Send size={20} color="white" />
+            <View
+              style={{
+                transform: [{ rotate: '45deg' }],
+              }}
+            >
+              <Send size={20} color="white" />
+            </View>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -314,6 +369,33 @@ const styles = StyleSheet.create({
   sendBtnDisabled: {
     backgroundColor: colors.text.tertiary,
     opacity: 0.5,
+  },
+  dateSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+    paddingHorizontal: spacing.md,
+  },
+  dateLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.layout.divider,
+    opacity: 0.5,
+  },
+  dateCapsule: {
+    backgroundColor: 'rgba(15, 23, 42, 0.05)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginHorizontal: 12,
+  },
+  dateText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
 

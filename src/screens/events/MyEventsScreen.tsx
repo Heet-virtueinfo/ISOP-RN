@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   BookMarked,
   Calendar,
@@ -18,7 +18,7 @@ import {
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserEnrollments } from '../../services/enrollmentService';
-import {  AppEvent, EventType } from '../../types';
+import { AppEvent, EventType } from '../../types';
 import { getEventById } from '../../services/eventService';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
@@ -49,38 +49,40 @@ const MyEventsScreen = () => {
   ];
   const statuses: StatusFilter[] = ['all', 'upcoming', 'completed'];
 
-  useEffect(() => {
-    if (!userProfile) return;
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      if (!userProfile) return;
+      let isMounted = true;
 
-    const fetchMyEvents = async () => {
-      try {
-        const enrollments = await getUserEnrollments(userProfile.uid);
-        
-        // Use the nested event data if available, otherwise fetch it
-        const eventPromises = enrollments.map(e => 
-          e.event ? Promise.resolve(e.event) : getEventById(e.eventId)
-        );
-        const eventsData = await Promise.all(eventPromises);
+      const fetchMyEvents = async () => {
+        try {
+          const enrollments = await getUserEnrollments(userProfile.uid);
 
-        if (isMounted) {
-          setEnrolledEvents(
-            eventsData.filter((e): e is AppEvent => e !== null),
+          // Use the nested event data if available, otherwise fetch it
+          const eventPromises = enrollments.map(e =>
+            e.event ? Promise.resolve(e.event) : getEventById(e.eventId),
           );
+          const eventsData = await Promise.all(eventPromises);
+
+          if (isMounted) {
+            setEnrolledEvents(
+              eventsData.filter((e): e is AppEvent => e !== null),
+            );
+          }
+        } catch (error) {
+          console.error('Error loading enrolled events:', error);
+        } finally {
+          if (isMounted) setLoading(false);
         }
-      } catch (error) {
-        console.error('Error loading enrolled events:', error);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
+      };
 
-    fetchMyEvents();
+      fetchMyEvents();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [userProfile]);
+      return () => {
+        isMounted = false;
+      };
+    }, [userProfile]),
+  );
 
   const filteredEvents = useMemo(() => {
     let result = enrolledEvents.filter(event => {
@@ -112,8 +114,8 @@ const MyEventsScreen = () => {
 
     try {
       const enrollments = await getUserEnrollments(userProfile.uid);
-      const eventPromises = enrollments.map(e => 
-        e.event ? Promise.resolve(e.event) : getEventById(e.eventId)
+      const eventPromises = enrollments.map(e =>
+        e.event ? Promise.resolve(e.event) : getEventById(e.eventId),
       );
       const eventsData = await Promise.all(eventPromises);
       setEnrolledEvents(eventsData.filter((e): e is AppEvent => e !== null));

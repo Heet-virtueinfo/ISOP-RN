@@ -301,7 +301,7 @@ const AdminLibraryScreen = () => {
       );
       Toast.show({
         type: 'success',
-        text1: 'Asset Purged',
+        text1: 'Resource Deleted',
         text2: 'Resource removed from ecosystem.',
       });
       setIsDeleteModalVisible(false);
@@ -309,7 +309,7 @@ const AdminLibraryScreen = () => {
     } catch (error) {
       Toast.show({
         type: 'error',
-        text1: 'Purge Failed',
+        text1: 'Delete Failed',
         text2: 'Resource remains in repository.',
       });
     } finally {

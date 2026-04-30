@@ -377,10 +377,10 @@ const AdminEventDetailScreen = () => {
               onPress={handleEdit}
             >
               <Edit2 size={18} color="white" />
-              <Text style={styles.actionLabel}>OPTIMIZE EVENT</Text>
+              <Text style={styles.actionLabel}>EDIT EVENT</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.purgeBtn} onPress={handleDelete}>
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
               <Trash2 size={20} color={colors.status.error} />
             </TouchableOpacity>
           </View>
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
-  purgeBtn: {
+  deleteBtn: {
     width: 52,
     height: 52,
     borderRadius: radius.xl,

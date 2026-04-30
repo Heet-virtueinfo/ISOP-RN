@@ -73,7 +73,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
       await adminDeleteUser(member.uid);
       Toast.show({
         type: 'success',
-        text1: 'Executive Purged',
+        text1: 'Member Deleted',
         text2: 'Profile removed from ecosystem.',
       });
       setIsDeleteModalVisible(false);
@@ -84,7 +84,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
     } catch (error) {
       Toast.show({
         type: 'error',
-        text1: 'Purge Failed',
+        text1: 'Delete Failed',
         text2: 'Profile remains in repository.',
       });
     } finally {
@@ -162,7 +162,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                       { color: colors.status.error },
                     ]}
                   >
-                    Purge Profile
+                    Delete Profile
                   </Text>
                 </TouchableOpacity>
               </View>
