@@ -8,6 +8,7 @@ import {
   Platform,
   Image,
   StatusBar,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MessageSquare, UserPlus, Check, X } from 'lucide-react-native';
@@ -70,9 +71,7 @@ const ChatRequestsScreen = () => {
 
           // Sync badge state globally
           if (uniqueIncoming.length === 0) {
-            import('react-native').then(({ DeviceEventEmitter }) => {
-              DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
-            });
+            DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
           }
         } catch (error) {
           if (isMounted) setLoading(false);
@@ -81,20 +80,13 @@ const ChatRequestsScreen = () => {
 
       loadData();
 
-      import('react-native').then(({ DeviceEventEmitter }) => {
-        const sub = DeviceEventEmitter.addListener('NEW_CHAT_REQUEST', () => {
-          if (isMounted) loadData();
-        });
-
-        // Cleanup the listener when focus is lost or component unmounts
-        return () => {
-          isMounted = false;
-          sub.remove();
-        };
+      const sub = DeviceEventEmitter.addListener('NEW_CHAT_REQUEST', () => {
+        if (isMounted) loadData();
       });
 
       return () => {
         isMounted = false;
+        sub.remove();
       };
     }, [user]),
   );
@@ -134,9 +126,7 @@ const ChatRequestsScreen = () => {
         setSent(uniqueSent);
         setAccepted(uniqueAccepted);
         if (uniqueIncoming.length === 0) {
-          import('react-native').then(({ DeviceEventEmitter }) => {
-            DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
-          });
+          DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
         }
       };
       await loadData();
@@ -166,9 +156,7 @@ const ChatRequestsScreen = () => {
       );
       setIncoming(uniqueIncoming);
       if (uniqueIncoming.length === 0) {
-        import('react-native').then(({ DeviceEventEmitter }) => {
-          DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
-        });
+        DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
       }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Action Failed' });
