@@ -66,14 +66,14 @@ const UserHeader: React.FC<UserHeaderProps> = ({
             )}
             {showActions && (
               <View style={styles.actionPod}>
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   style={styles.notificationBtn}
                   activeOpacity={0.7}
                   onPress={onNotificationPress}
                 >
                   <Bell size={18} color={colors.text.primary} />
                   <View style={styles.badge} />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
                 <View style={styles.profileBtn}>
                   {userProfile?.profileImage ? (
