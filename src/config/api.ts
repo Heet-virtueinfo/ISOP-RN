@@ -1,7 +1,7 @@
-import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = 'https://providing-wisdom-favored.ngrok-free.dev';
+export const BASE_URL = 'https://isop.virtueinfo.com';
 
 export const STORAGE_KEYS = {
   AUTH_TOKEN: '@auth_token',

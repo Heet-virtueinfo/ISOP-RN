@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
@@ -35,53 +36,69 @@ const HomeScreen = () => {
   const [totalEventsCount, setTotalEventsCount] = useState(0);
   const [enrollmentsCount, setEnrollmentsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchHomeData = useCallback(
+    async (isRefreshing = false) => {
+      if (!userProfile) return;
+      if (!isRefreshing) setLoading(true);
+      try {
+        const [events, enrollments] = await Promise.all([
+          getActiveEvents(),
+          getUserEnrollments(userProfile.uid),
+        ]);
+
+        setAllEvents(events);
+        setEnrollmentIds(enrollments.map(e => e.eventId));
+
+        // Explicitly filter out any past events before rendering
+        const validEvents = events.filter(
+          event =>
+            getEventStatus(event) === 'UPCOMING' ||
+            getEventStatus(event) === 'ONGOING',
+        );
+        setTotalEventsCount(validEvents.length);
+
+        // Filter enrollments to only count those for active/upcoming events
+        const activeEnrollments = enrollments.filter(en =>
+          events.some(
+            ev =>
+              ev.id === en.eventId &&
+              (getEventStatus(ev) === 'UPCOMING' ||
+                getEventStatus(ev) === 'ONGOING'),
+          ),
+        );
+        setEnrollmentsCount(activeEnrollments.length);
+
+        const notEnrolled = validEvents.filter(
+          e => !enrollments.map(en => en.eventId).includes(e.id),
+        );
+        const enrolled = validEvents.filter(e =>
+          enrollments.map(en => en.eventId).includes(e.id),
+        );
+
+        setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
+        setLoading(false);
+        setRefreshing(false);
+      } catch (error) {
+        console.error('Home screen fetch error:', error);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [userProfile],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      if (!userProfile) return;
-      let isMounted = true;
-
-      const fetchHomeData = async () => {
-        try {
-          const [events, enrollments] = await Promise.all([
-            getActiveEvents(),
-            getUserEnrollments(userProfile.uid),
-          ]);
-
-          if (isMounted) {
-            setAllEvents(events);
-            setEnrollmentsCount(enrollments.length);
-            setEnrollmentIds(enrollments.map(e => e.eventId));
-
-            // Explicitly filter out any past events before rendering
-            const validEvents = events.filter(
-              event => getEventStatus(event) === 'UPCOMING',
-            );
-            setTotalEventsCount(validEvents.length);
-
-            const notEnrolled = validEvents.filter(
-              e => !enrollments.map(en => en.eventId).includes(e.id),
-            );
-            const enrolled = validEvents.filter(
-              e => enrollments.map(en => en.eventId).includes(e.id),
-            );
-
-            setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
-            setLoading(false);
-          }
-        } catch (error) {
-          console.error('Home screen fetch error:', error);
-          if (isMounted) setLoading(false);
-        }
-      };
-
       fetchHomeData();
-
-      return () => {
-        isMounted = false;
-      };
-    }, [userProfile]),
+    }, [fetchHomeData]),
   );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchHomeData(true);
+  }, [fetchHomeData]);
 
   const navigateToEvents = () => navigation.navigate('EventList');
   const navigateToMyEvents = () => navigation.navigate('MyEventsTab');
@@ -104,6 +121,13 @@ const HomeScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.brand.primary]}
+          />
+        }
       >
         {/* Simplified Greeting Section */}
         <View style={styles.header}>

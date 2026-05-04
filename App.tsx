@@ -23,13 +23,10 @@ const App = () => {
       // navigationRef.navigate(screen, data);
     });
 
-    const init = async () => {
-      // …do some stuff (e.g. subscribe to network state, fetch data…)
-    };
+    const init = async () => {};
 
     init().finally(async () => {
       await RNBootSplash.hide({ fade: true });
-      console.log('BootSplash hidden');
     });
 
     return () => {
@@ -39,9 +36,9 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
-      <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor={colors.layout.background} 
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={colors.layout.background}
       />
       <AuthProvider>
         {!isOnline ? <NoInternetScreen /> : <AppNavigator />}
