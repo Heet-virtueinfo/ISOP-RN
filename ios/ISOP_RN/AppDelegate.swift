@@ -4,6 +4,7 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import FirebaseCore
 import UserNotifications
+import RNBootSplash
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -38,6 +39,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
       in: window,
       launchOptions: launchOptions
     )
+
+    // ✅ Initialize BootSplash — overlays the splash storyboard on the root view
+    if let rootView = window?.rootViewController?.view {
+      RNBootSplash.initWithStoryboard("BootSplash", rootView: rootView)
+    }
 
     return true
   }

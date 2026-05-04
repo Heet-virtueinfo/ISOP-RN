@@ -641,7 +641,7 @@ const EventDetailScreen = () => {
                     }
                   >
                     <Text style={styles.participantsBtnText}>
-                      View Other Participants
+                      View Other Participants ({Math.max(0, (event.enrolledCount || 0) - 1)})
                     </Text>
                     <Users size={18} color={colors.brand.primary} />
                   </TouchableOpacity>
@@ -675,7 +675,7 @@ const EventDetailScreen = () => {
                     }
                   >
                     <Text style={styles.participantsBtnText}>
-                      View Other Participants
+                      View Other Participants ({Math.max(0, (event.enrolledCount || 0) - 1)})
                     </Text>
                     <Users size={18} color={colors.brand.primary} />
                   </TouchableOpacity>
