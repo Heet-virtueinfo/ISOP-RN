@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Platform,
+  TouchableOpacity,
+} from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Shield,
   Activity,
@@ -13,18 +20,21 @@ import {
   PlusCircle,
   FilePlus,
   UserPlus,
-  FileText
+  FileText,
 } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
-import { getEvents, deleteEvent } from '../../services/eventService';
+import {
+  adminGetEvents,
+  adminDeleteEvent,
+} from '../../services/admin/adminEventService';
+import { adminGetUsers } from '../../services/admin/adminUserService';
+import { adminGetResources } from '../../services/admin/adminResourceService';
+import { adminGetNews } from '../../services/admin/adminNewsService';
 import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
 import DeleteEventModal from '../../components/modals/DeleteEventModal';
 import Toast from 'react-native-toast-message';
-import { firebaseFirestore } from '../../config/firebase';
-import { collection, onSnapshot } from '@react-native-firebase/firestore';
-import { COLLECTIONS } from '../../constants/collections';
 
 const getSafeTime = (timestamp: any) => {
   if (!timestamp) return 0;
@@ -60,35 +70,44 @@ const AdminDashboard = () => {
   const [resourceCount, setResourceCount] = useState(0);
   const [newsCount, setNewsCount] = useState(0);
 
-  useEffect(() => {
-    // 1. Core Event Listener
-    const unsubEvents = getEvents(eventsList => {
-      setEvents(eventsList);
-      setLoading(false);
-    });
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
 
-    // 2. Members Pulse
-    const unsubUsers = onSnapshot(collection(firebaseFirestore, COLLECTIONS.USERS), snap => {
-      setMemberCount(snap.size);
-    });
+      const loadDashboardData = async () => {
+        try {
+          // 1. Events
+          const eventsList = await adminGetEvents();
+          if (mounted) {
+            setEvents(eventsList);
+            setLoading(false);
+          }
+          // 2. Members count
+          const users = await adminGetUsers();
+          if (mounted) setMemberCount(users.length);
 
-    // 3. Knowledge Assets
-    const unsubResources = onSnapshot(collection(firebaseFirestore, COLLECTIONS.RESOURCES), snap => {
-      setResourceCount(snap.size);
-    });
+          // 3. Resources count
+          const resources = await adminGetResources();
+          if (mounted) setResourceCount(resources.length);
 
-    // 4. Media Impact
-    const unsubNews = onSnapshot(collection(firebaseFirestore, COLLECTIONS.NEWS), snap => {
-      setNewsCount(snap.size);
-    });
+          // 4. News count
+          const news = await adminGetNews();
+          if (mounted) setNewsCount(news.length);
+        } catch (error: any) {
+          console.error(
+            '[Dashboard] loadDashboardData failed:',
+            error?.message,
+          );
+          if (mounted) setLoading(false);
+        }
+      };
 
-    return () => {
-      unsubEvents?.();
-      unsubUsers();
-      unsubResources();
-      unsubNews();
-    };
-  }, []);
+      loadDashboardData();
+      return () => {
+        mounted = false;
+      };
+    }, []),
+  );
 
   const navigateToEdit = (eventId: string) => {
     navigation.navigate('EditEvent', { eventId });
@@ -104,7 +123,10 @@ const AdminDashboard = () => {
 
     setIsDeleting(true);
     try {
-      await deleteEvent(selectedEvent.id);
+      await adminDeleteEvent(selectedEvent.id);
+
+      // Optimistically remove from list
+      setEvents(prev => prev.filter(e => e.id !== selectedEvent.id));
 
       Toast.show({
         type: 'success',
@@ -162,7 +184,11 @@ const AdminDashboard = () => {
 
         <View style={styles.bentoGrid}>
           {/* Main Module */}
-          <View style={[styles.bentoModule, styles.bentoModuleMain]}>
+          <TouchableOpacity
+            style={[styles.bentoModule, styles.bentoModuleMain]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('AdminEventList')}
+          >
             <BentoStat
               label="TOTAL EVENTS"
               value={events.length}
@@ -170,7 +196,7 @@ const AdminDashboard = () => {
               color={colors.brand.primary}
               sublabel="Ecosystem Capacity"
             />
-          </View>
+          </TouchableOpacity>
 
           {/* Side Modules */}
           <View style={styles.bentoModuleSide}>
@@ -205,10 +231,18 @@ const AdminDashboard = () => {
           contentContainerStyle={styles.actionRow}
         >
           <TouchableOpacity
-            style={[styles.actionBubble, { borderColor: colors.brand.primary + '30' }]}
+            style={[
+              styles.actionBubble,
+              { borderColor: colors.brand.primary + '30' },
+            ]}
             onPress={() => navigation.navigate('AddEventTab')}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: colors.brand.primary + '10' }]}>
+            <View
+              style={[
+                styles.actionIconBox,
+                { backgroundColor: colors.brand.primary + '10' },
+              ]}
+            >
               <PlusCircle size={20} color={colors.brand.primary} />
             </View>
             <Text style={styles.actionText}>New Event</Text>
@@ -218,27 +252,45 @@ const AdminDashboard = () => {
             style={[styles.actionBubble, { borderColor: '#8B5CF630' }]}
             onPress={() => navigation.navigate('AdminLibrary')}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: '#8B5CF610' }]}>
+            <View
+              style={[styles.actionIconBox, { backgroundColor: '#8B5CF610' }]}
+            >
               <FilePlus size={20} color="#8B5CF6" />
             </View>
             <Text style={styles.actionText}>Add Resource</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBubble, { borderColor: colors.status.warning + '30' }]}
+            style={[
+              styles.actionBubble,
+              { borderColor: colors.status.warning + '30' },
+            ]}
             onPress={() => navigation.navigate('NewsTab')}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: colors.status.warning + '10' }]}>
+            <View
+              style={[
+                styles.actionIconBox,
+                { backgroundColor: colors.status.warning + '10' },
+              ]}
+            >
               <Megaphone size={20} color={colors.status.warning} />
             </View>
             <Text style={styles.actionText}>Post News</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBubble, { borderColor: colors.brand.secondary + '30' }]}
+            style={[
+              styles.actionBubble,
+              { borderColor: colors.brand.secondary + '30' },
+            ]}
             onPress={() => navigation.navigate('MembersTab')}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: colors.brand.secondary + '10' }]}>
+            <View
+              style={[
+                styles.actionIconBox,
+                { backgroundColor: colors.brand.secondary + '10' },
+              ]}
+            >
               <UserPlus size={20} color={colors.brand.secondary} />
             </View>
             <Text style={styles.actionText}>Members</Text>
@@ -253,7 +305,12 @@ const AdminDashboard = () => {
 
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: colors.brand.primary + '10' }]}>
+            <View
+              style={[
+                styles.statIconBox,
+                { backgroundColor: colors.brand.primary + '10' },
+              ]}
+            >
               <Users size={16} color={colors.brand.primary} />
             </View>
             <View>
@@ -263,7 +320,9 @@ const AdminDashboard = () => {
           </View>
 
           <View style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: '#8B5CF610' }]}>
+            <View
+              style={[styles.statIconBox, { backgroundColor: '#8B5CF610' }]}
+            >
               <BookOpen size={16} color="#8B5CF6" />
             </View>
             <View>
@@ -273,7 +332,12 @@ const AdminDashboard = () => {
           </View>
 
           <View style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: colors.status.warning + '10' }]}>
+            <View
+              style={[
+                styles.statIconBox,
+                { backgroundColor: colors.status.warning + '10' },
+              ]}
+            >
               <FileText size={16} color={colors.status.warning} />
             </View>
             <View>
@@ -299,20 +363,20 @@ const AdminDashboard = () => {
             {events.length === 0
               ? renderEmptyList()
               : events.map(item => (
-                <EventCard
-                  key={item.id}
-                  event={item}
-                  onPress={() =>
-                    navigation.navigate('AdminEventDetail', {
-                      eventId: item.id,
-                      eventTitle: item.title,
-                    })
-                  }
-                  onEdit={() => navigateToEdit(item.id)}
-                  onDelete={() => handleDeletePress(item)}
-                  isAdminView
-                />
-              ))}
+                  <EventCard
+                    key={item.id}
+                    event={item}
+                    onPress={() =>
+                      navigation.navigate('AdminEventDetail', {
+                        eventId: item.id,
+                        eventTitle: item.title,
+                      })
+                    }
+                    onEdit={() => navigateToEdit(item.id)}
+                    onDelete={() => handleDeletePress(item)}
+                    isAdminView
+                  />
+                ))}
           </View>
         )}
       </ScrollView>
@@ -324,7 +388,7 @@ const AdminDashboard = () => {
         event={selectedEvent}
         loading={isDeleting}
       />
-      {isDeleting && <CustomLoader overlay message="Purging Event..." />}
+      {isDeleting && <CustomLoader overlay message="Deleting Event..." />}
     </View>
   );
 };

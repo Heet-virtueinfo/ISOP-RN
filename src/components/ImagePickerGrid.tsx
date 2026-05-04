@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+} from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
 import { Camera, X } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../theme';
@@ -22,12 +29,15 @@ const ImagePickerGrid: React.FC<ImagePickerGridProps> = ({
       multiple: true,
       mediaType: 'photo',
       maxFiles: maxImages - images.length,
+      compressImageMaxWidth: 1024,
+      compressImageMaxHeight: 1024,
+      compressImageQuality: 0.8,
     })
-      .then((selectedImages) => {
-        const newPaths = selectedImages.map((img) => img.path);
+      .then(selectedImages => {
+        const newPaths = selectedImages.map(img => img.path);
         onChange([...images, ...newPaths].slice(0, maxImages));
       })
-      .catch((err) => {
+      .catch(err => {
         if (err.code !== 'E_PICKER_CANCELLED') {
           console.error(err);
         }
@@ -43,21 +53,32 @@ const ImagePickerGrid: React.FC<ImagePickerGridProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.label, error && styles.labelError]}>Event Images</Text>
+        <Text style={[styles.label, error && styles.labelError]}>
+          Event Images
+        </Text>
         <Text style={styles.countText}>
           {images.length}/{maxImages}
         </Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.grid}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.grid}
+      >
         {images.length < maxImages && (
           <TouchableOpacity
             style={[styles.addButton, error && styles.addBtnError]}
             onPress={handlePick}
             activeOpacity={0.7}
           >
-            <Camera size={28} color={error ? colors.status.error : colors.brand.primary} />
-            <Text style={[styles.addText, error && styles.addTextError]}>Add</Text>
+            <Camera
+              size={28}
+              color={error ? colors.status.error : colors.brand.primary}
+            />
+            <Text style={[styles.addText, error && styles.addTextError]}>
+              Add
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -78,7 +99,9 @@ const ImagePickerGrid: React.FC<ImagePickerGridProps> = ({
       {error ? (
         <Text style={styles.errorText}>{error}</Text>
       ) : (
-        <Text style={styles.helpText}>Pick up to {maxImages} images (first image is the cover).</Text>
+        <Text style={styles.helpText}>
+          Pick up to {maxImages} images (first image is the cover).
+        </Text>
       )}
     </View>
   );

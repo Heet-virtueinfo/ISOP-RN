@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -6,12 +7,15 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   Share,
   Linking,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from '@react-navigation/native';
 import {
   Calendar,
   MapPin,
@@ -22,7 +26,6 @@ import {
   Clock,
   User,
   Share2,
-  Heart,
   CalendarPlus,
   MessageSquare,
   Star as StarIcon,
@@ -30,19 +33,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { listenToEvent } from '../../services/eventService';
+import { getEventById } from '../../services/eventService';
 import {
   enrollInEvent,
   unenrollFromEvent,
   checkEnrollment,
 } from '../../services/enrollmentService';
 import { AppEvent, Enrollment, Feedback } from '../../types';
-import { getEventImage } from '../../utils/eventHelpers';
+import { getEventImage, formatEventDateRange } from '../../utils/eventHelpers';
 import {
   submitFeedback,
   checkUserFeedback,
 } from '../../services/feedbackService';
-import { apiService } from '../../services/apiService';
 import CustomLoader from '../../components/CustomLoader';
 import Button from '../../components/Button';
 import Toast from 'react-native-toast-message';
@@ -73,33 +75,45 @@ const EventDetailScreen = () => {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
-  useEffect(() => {
-    if (!eventId) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!eventId) return;
+      let isMounted = true;
 
-    // 1. Listen to event changes in real-time (title, description, enrolledCount)
-    const unsubscribeEvent = listenToEvent(eventId, data => {
-      setEvent(data);
-      setLoading(false);
-    });
+      const loadData = async () => {
+        try {
+          const [eventData, enrollmentData] = await Promise.all([
+            getEventById(eventId),
+            userProfile
+              ? checkEnrollment(eventId, userProfile.uid)
+              : Promise.resolve(null),
+          ]);
+          if (isMounted) {
+            setEvent(eventData);
+            setEnrollment(enrollmentData);
+            setLoading(false);
 
-    // 2. Check enrollment status one-time (or when userProfile changes)
-    const loadEnrollmentStatus = async () => {
-      if (userProfile) {
-        const enrollmentData = await checkEnrollment(eventId, userProfile.uid);
-        setEnrollment(enrollmentData);
-        if (enrollmentData) {
-          const feedbackData = await checkUserFeedback(
-            eventId,
-            userProfile.uid,
-          );
-          setUserFeedback(feedbackData);
+            if (enrollmentData && userProfile) {
+              const feedbackData = await checkUserFeedback(
+                eventId,
+                userProfile.uid,
+              );
+              if (isMounted) setUserFeedback(feedbackData);
+            }
+          }
+        } catch (error) {
+          console.error('Event detail fetch error', error);
+          if (isMounted) setLoading(false);
         }
-      }
-    };
-    loadEnrollmentStatus();
+      };
 
-    return () => unsubscribeEvent();
-  }, [eventId, userProfile]);
+      loadData();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [eventId, userProfile]),
+  );
 
   const handleEnrollmentPress = () => {
     if (!event || !userProfile) return;
@@ -136,41 +150,14 @@ const EventDetailScreen = () => {
 
   const confirmEnroll = async () => {
     if (!event || !userProfile) return;
+    setShowConfirmModal(false);
     setActionLoading(true);
     try {
       const result = await enrollInEvent(event, userProfile);
       if (result.success && result.enrollment) {
         setEnrollment(result.enrollment);
         Toast.show({ type: 'success', text1: 'Enrolled Successfully!' });
-
-        apiService
-          .sendEnrollmentEmail({
-            userEmail: userProfile.email,
-            userName: userProfile.displayName,
-            eventTitle: event.title,
-            eventDate: formatDate(event.date),
-            eventLocation: event.location,
-            eventType: event.type,
-            eventStartDate: (event.date.toDate
-              ? event.date.toDate()
-              : new Date(event.date)
-            ).toISOString(),
-            eventEndDate: (event.endDate?.toDate
-              ? event.endDate.toDate()
-              : new Date(
-                  (event.date.toDate
-                    ? event.date.toDate()
-                    : new Date(event.date)
-                  ).getTime() + 3600000,
-                )
-            ).toISOString(),
-            eventDescription: event.description,
-          })
-          .catch(err =>
-            console.warn('Enrollment email could not be sent:', err?.message),
-          );
       }
-      setShowConfirmModal(false);
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Enrollment Failed' });
     } finally {
@@ -180,13 +167,13 @@ const EventDetailScreen = () => {
 
   const confirmUnenroll = async () => {
     if (!event || !userProfile || !enrollment) return;
+    setShowUnenrollModal(false);
     setActionLoading(true);
     try {
-      await unenrollFromEvent(enrollment.id, event.id);
+      await unenrollFromEvent(enrollment.id);
       setEnrollment(null);
       setUserFeedback(null);
       Toast.show({ type: 'success', text1: 'Unenrolled Successfully' });
-      setShowUnenrollModal(false);
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Unenrollment Failed' });
     } finally {
@@ -208,31 +195,15 @@ const EventDetailScreen = () => {
     setFeedbackLoading(false);
   };
 
-  const formatDate = (timestamp: any) => {
+  const formatDate = (timestamp: any, endTimestamp?: any) => {
     if (!timestamp) return '';
-    const date =
-      typeof timestamp.toDate === 'function'
-        ? timestamp.toDate()
-        : new Date(timestamp);
-
-    const dateStr = date.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-
-    const timeStr = date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-
-    return `${dateStr} • ${timeStr}`;
+    return formatEventDateRange(timestamp, endTimestamp);
   };
 
   const handleShare = async () => {
     if (!event) return;
     try {
-      const dateStr = formatDate(event.date);
+      const dateStr = formatDate(event.date, event.endDate);
       const message = `Join me for ${event.title}!\n\n📅 Date: ${dateStr}\n📍 Location: ${event.location}\n\nCheck it out here: https://isop-app.com/events/${event.id}`;
       await Share.share({
         message,
@@ -419,7 +390,9 @@ const EventDetailScreen = () => {
               </View>
               <View style={styles.metaContent}>
                 <Text style={styles.metaLabel}>Date & Time</Text>
-                <Text style={styles.metaValue}>{formatDate(event.date)}</Text>
+                <Text style={styles.metaValue}>
+                  {formatDate(event.date, event.endDate)}
+                </Text>
               </View>
             </View>
 
@@ -513,7 +486,7 @@ const EventDetailScreen = () => {
                   >
                     {speaker.image ? (
                       <Image
-                        source={{ uri: speaker.image }}
+                        source={getImageSource(speaker.image)}
                         style={styles.speakerImage}
                       />
                     ) : (
@@ -667,7 +640,7 @@ const EventDetailScreen = () => {
                     }
                   >
                     <Text style={styles.participantsBtnText}>
-                      View Other Participants
+                      View Other Participants ({Math.max(0, (event.enrolledCount || 0) - 1)})
                     </Text>
                     <Users size={18} color={colors.brand.primary} />
                   </TouchableOpacity>
@@ -701,7 +674,7 @@ const EventDetailScreen = () => {
                     }
                   >
                     <Text style={styles.participantsBtnText}>
-                      View Other Participants
+                      View Other Participants ({Math.max(0, (event.enrolledCount || 0) - 1)})
                     </Text>
                     <Users size={18} color={colors.brand.primary} />
                   </TouchableOpacity>

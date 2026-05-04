@@ -1,17 +1,28 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { doc, getDoc, onSnapshot } from '@react-native-firebase/firestore';
-import { onAuthStateChanged, signOut } from '@react-native-firebase/auth';
-import { firebaseAuth, firebaseFirestore } from '../config/firebase';
-import { UserProfile, UserRole } from '../types';
-import { COLLECTIONS } from '../constants/collections';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserProfile } from '../types';
+import { STORAGE_KEYS } from '../config/api';
+import {
+  fetchMe,
+  getStoredUser,
+  logoutUser,
+  deleteAccount as deleteAccountApi,
+} from '../services/authService';
 import { notificationService } from '../services/notificationService';
+import { initEcho, disconnectEcho, getEcho } from '../services/echoService';
 
 interface AuthContextType {
-  user: any;
+  user: UserProfile | null;
   userProfile: UserProfile | null;
   loading: boolean;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -20,136 +31,155 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fcmInitialized = React.useRef(false);
-  const currentUserUid = React.useRef<string | null>(null);
+  const fcmInitialized = useRef(false);
+  const tokenRefreshUnsubscribe = useRef<(() => void) | null>(null);
 
-  const STORAGE_KEY_ROLE = '@user_role';
+  const applyProfile = async (profile: UserProfile) => {
+    setUserProfile(profile);
 
-  const fetchProfile = async (uid: string) => {
     try {
-      const snapshot = await getDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid));
-      if (snapshot.exists()) {
-        const data = snapshot.data() as UserProfile;
-        setUserProfile(data);
-        await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
-      } else {
-        console.warn('No user profile found in Firestore for UID:', uid);
-        setUserProfile(null);
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+      if (token) {
+        initEcho(token);
       }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
+    } catch (e) {
+      console.error('[AuthContext] Failed to initialize Echo:', e);
+    }
+
+    // Initialise FCM only for regular users
+    if (profile.role === 'user' && !fcmInitialized.current) {
+      fcmInitialized.current = true;
+      const granted = await notificationService.requestPermission();
+      if (granted) {
+        notificationService.updateUserToken(profile.uid, profile.fcmToken);
+      }
+      if (!tokenRefreshUnsubscribe.current) {
+        tokenRefreshUnsubscribe.current = notificationService.onTokenRefresh(
+          profile.uid,
+        );
+      }
     }
   };
 
-  const refreshProfile = async () => {
-    if (user?.uid) {
-      await fetchProfile(user.uid);
+  const clearProfile = () => {
+    setUserProfile(null);
+    disconnectEcho();
+    fcmInitialized.current = false;
+    if (tokenRefreshUnsubscribe.current) {
+      tokenRefreshUnsubscribe.current();
+      tokenRefreshUnsubscribe.current = null;
     }
   };
 
   useEffect(() => {
-    let profileUnsubscribe: (() => void) | null = null;
+    const restoreSession = async () => {
+      try {
+        const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
-    let tokenRefreshUnsubscribe: (() => void) | null = null;
-
-    const authUnsubscribe = onAuthStateChanged(
-      firebaseAuth,
-      async firebaseUser => {
-        setUser(firebaseUser);
-
-        if (firebaseUser) {
-          if (currentUserUid.current !== firebaseUser.uid) {
-            fcmInitialized.current = false;
-            currentUserUid.current = firebaseUser.uid;
-          }
-          if (profileUnsubscribe) profileUnsubscribe();
-
-          profileUnsubscribe = onSnapshot(
-            doc(firebaseFirestore, COLLECTIONS.USERS, firebaseUser.uid),
-            async snapshot => {
-              if (snapshot.exists()) {
-                const data = snapshot.data() as UserProfile;
-                  setUserProfile(data);
-                  await AsyncStorage.setItem(STORAGE_KEY_ROLE, data.role);
-                  if (data.role === 'user' && !fcmInitialized.current) {
-                    fcmInitialized.current = true;
-
-                    notificationService.requestPermission().then(granted => {
-                      if (granted) {
-                        notificationService.updateUserToken(
-                          firebaseUser.uid,
-                          data.fcmToken,
-                        );
-                      }
-                    });
-
-                    if (!tokenRefreshUnsubscribe) {
-                      tokenRefreshUnsubscribe =
-                        notificationService.onTokenRefresh(firebaseUser.uid);
-                    }
-                  } else if (data.role !== 'user') {
-                    if (tokenRefreshUnsubscribe) {
-                      tokenRefreshUnsubscribe();
-                      tokenRefreshUnsubscribe = null;
-                    }
-                  }
-                } else {
-                  console.warn(
-                    'No user profile found for UID:',
-                    firebaseUser.uid,
-                  );
-                  setUserProfile(null);
-                }
-                setLoading(false);
-              },
-              error => {
-                console.error('Real-time profile listener error:', error);
-                setLoading(false);
-              },
-            );
-        } else {
-          fcmInitialized.current = false;
-          currentUserUid.current = null;
-          if (profileUnsubscribe) {
-            profileUnsubscribe();
-            profileUnsubscribe = null;
-          }
-          if (tokenRefreshUnsubscribe) {
-            tokenRefreshUnsubscribe();
-            tokenRefreshUnsubscribe = null;
-          }
-          setUserProfile(null);
-          await AsyncStorage.removeItem(STORAGE_KEY_ROLE);
-          setLoading(false);
+        if (!token) {
+          return;
         }
-      },
-    );
+
+        const freshProfile = await fetchMe();
+
+        console.log('[AuthContext] Fresh profile:', freshProfile);
+
+        if (freshProfile) {
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.USER_PROFILE,
+            JSON.stringify(freshProfile),
+          );
+          await applyProfile(freshProfile);
+        } else {
+          const cachedProfile = await getStoredUser();
+          if (cachedProfile) {
+            await applyProfile(cachedProfile);
+          }
+        }
+      } catch (error) {
+        console.error('[AuthContext] Session restore error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    restoreSession();
 
     return () => {
-      authUnsubscribe();
-      if (profileUnsubscribe) profileUnsubscribe();
-      if (tokenRefreshUnsubscribe) tokenRefreshUnsubscribe();
+      if (tokenRefreshUnsubscribe.current) {
+        tokenRefreshUnsubscribe.current();
+      }
     };
   }, []);
+
+  const refreshProfile = async () => {
+    try {
+      const fresh = await fetchMe();
+      if (fresh) {
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.USER_PROFILE,
+          JSON.stringify(fresh),
+        );
+        await applyProfile(fresh);
+      }
+    } catch (error) {
+      console.error('[AuthContext] refreshProfile error:', error);
+    }
+  };
 
   const logout = async () => {
     try {
       setLoading(true);
-      await signOut(firebaseAuth);
+      if (userProfile?.role === 'user') {
+        await notificationService.deleteUserToken();
+      }
+      await logoutUser();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('[AuthContext] Logout error:', error);
     } finally {
+      clearProfile();
       setLoading(false);
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      setLoading(true);
+      if (userProfile?.role === 'user') {
+        await notificationService.deleteUserToken();
+      }
+      await deleteAccountApi();
+    } catch (error) {
+      console.error('[AuthContext] Delete account error:', error);
+    } finally {
+      clearProfile();
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userProfile && !getEcho()) {
+      AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN).then(token => {
+        if (token) {
+          initEcho(token);
+        }
+      });
+    }
+  }, [userProfile]);
+
   return (
     <AuthContext.Provider
-      value={{ user, userProfile, loading, logout, refreshProfile }}
+      value={{
+        user: userProfile,
+        userProfile,
+        loading,
+        logout,
+        deleteAccount,
+        refreshProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>

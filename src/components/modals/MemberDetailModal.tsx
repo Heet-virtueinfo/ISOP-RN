@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -26,7 +27,7 @@ import Toast from 'react-native-toast-message';
 import { colors, spacing, typography, radius } from '../../theme';
 import { AppEvent } from '../../types';
 import DeleteMemberModal from './DeleteMemberModal';
-import { deleteUserProfile } from '../../services/profileService';
+import { adminDeleteUser } from '../../services/admin/adminUserService';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -42,6 +43,7 @@ interface MemberDetailModalProps {
     events: { eventId: string; enrolledAt: any }[];
   } | null;
   eventsMap: Record<string, AppEvent>;
+  onDeleteSuccess?: (uid: string) => void;
 }
 
 const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
@@ -49,6 +51,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   onClose,
   member,
   eventsMap,
+  onDeleteSuccess,
 }) => {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -68,12 +71,23 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await deleteUserProfile(member.uid);
-      Toast.show({ type: 'success', text1: 'Executive Purged', text2: 'Profile removed from ecosystem.' });
+      await adminDeleteUser(member.uid);
+      Toast.show({
+        type: 'success',
+        text1: 'Member Deleted',
+        text2: 'Profile removed from ecosystem.',
+      });
       setIsDeleteModalVisible(false);
+      if (onDeleteSuccess && member.uid) {
+        onDeleteSuccess(member.uid);
+      }
       onClose();
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Purge Failed', text2: 'Profile remains in repository.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Delete Failed',
+        text2: 'Profile remains in repository.',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -117,7 +131,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                 <View style={styles.avatarGlass}>
                   {member.profileImage ? (
                     <Image
-                      source={{ uri: member.profileImage }}
+                      source={getImageSource(member.profileImage)}
                       style={styles.avatar}
                       resizeMode="cover"
                     />
@@ -133,14 +147,24 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                 </View>
               </View>
               <Text style={styles.displayName}>{member.displayName}</Text>
-              
+
               <View style={styles.heroActions}>
-                <TouchableOpacity 
-                  style={[styles.heroActionBtn, { borderColor: colors.status.error + '20' }]} 
+                <TouchableOpacity
+                  style={[
+                    styles.heroActionBtn,
+                    { borderColor: colors.status.error + '20' },
+                  ]}
                   onPress={() => setIsDeleteModalVisible(true)}
                 >
                   <Trash2 size={16} color={colors.status.error} />
-                  <Text style={[styles.heroActionText, { color: colors.status.error }]}>Purge Profile</Text>
+                  <Text
+                    style={[
+                      styles.heroActionText,
+                      { color: colors.status.error },
+                    ]}
+                  >
+                    Delete Profile
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -236,15 +260,21 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                               <View style={styles.dateRow}>
                                 <Clock size={12} color={colors.brand.primary} />
                                 <Text style={styles.enrolledDate}>
-                                  {ev.enrolledAt?.toDate?.()
-                                    ? ev.enrolledAt
+                                  {typeof ev.enrolledAt === 'string'
+                                    ? new Date(ev.enrolledAt).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })
+                                    : ev.enrolledAt?.toDate?.()
+                                      ? ev.enrolledAt
                                         .toDate()
                                         .toLocaleDateString('en-US', {
                                           month: 'short',
                                           day: 'numeric',
                                           year: 'numeric',
                                         })
-                                    : 'Recently'}
+                                      : 'Recently'}
                                 </Text>
                               </View>
                             </View>
@@ -267,7 +297,6 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
               )}
             </View>
 
-            <View style={{ height: spacing.xxl * 2 }} />
           </ScrollView>
         </View>
       </View>

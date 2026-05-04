@@ -1,19 +1,24 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ScrollView,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { BookMarked, Calendar, Search, ChevronDown, Check } from 'lucide-react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  BookMarked,
+  Calendar,
+  Search,
+  ChevronDown,
+  Check,
+} from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserEnrollments } from '../../services/enrollmentService';
-import { Enrollment, AppEvent, EventType } from '../../types';
+import { AppEvent, EventType } from '../../types';
 import { getEventById } from '../../services/eventService';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
@@ -31,34 +36,53 @@ const MyEventsScreen = () => {
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<'type' | 'status' | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<
+    'type' | 'status' | null
+  >(null);
 
-  const categories: (EventType | 'all')[] = ['all', 'conference', 'webinar', 'training', 'meeting'];
+  const categories: (EventType | 'all')[] = [
+    'all',
+    'conference',
+    'webinar',
+    'training',
+    'meeting',
+  ];
   const statuses: StatusFilter[] = ['all', 'upcoming', 'completed'];
 
-  useEffect(() => {
-    if (!userProfile) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!userProfile) return;
+      let isMounted = true;
 
-    const unsubscribe = getUserEnrollments(
-      userProfile.uid,
-      async enrollments => {
+      const fetchMyEvents = async () => {
         try {
-          // Fetch full event details for each enrollment
-          const eventPromises = enrollments.map(e => getEventById(e.eventId));
-          const eventsData = await Promise.all(eventPromises);
-          setEnrolledEvents(
-            eventsData.filter((e): e is AppEvent => e !== null),
+          const enrollments = await getUserEnrollments(userProfile.uid);
+
+          // Use the nested event data if available, otherwise fetch it
+          const eventPromises = enrollments.map(e =>
+            e.event ? Promise.resolve(e.event) : getEventById(e.eventId),
           );
+          const eventsData = await Promise.all(eventPromises);
+
+          if (isMounted) {
+            setEnrolledEvents(
+              eventsData.filter((e): e is AppEvent => e !== null),
+            );
+          }
         } catch (error) {
           console.error('Error loading enrolled events:', error);
         } finally {
-          setLoading(false);
+          if (isMounted) setLoading(false);
         }
-      },
-    );
+      };
 
-    return () => unsubscribe();
-  }, [userProfile]);
+      fetchMyEvents();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [userProfile]),
+  );
 
   const filteredEvents = useMemo(() => {
     let result = enrolledEvents.filter(event => {
@@ -84,10 +108,21 @@ const MyEventsScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enrolledEvents, searchQuery, selectedType, selectedStatus]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     if (!userProfile) return;
     setRefreshing(true);
-    // getUserEnrollments will re-trigger via the listener, but we can force it if needed
+
+    try {
+      const enrollments = await getUserEnrollments(userProfile.uid);
+      const eventPromises = enrollments.map(e =>
+        e.event ? Promise.resolve(e.event) : getEventById(e.eventId),
+      );
+      const eventsData = await Promise.all(eventPromises);
+      setEnrolledEvents(eventsData.filter((e): e is AppEvent => e !== null));
+    } catch (error) {
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const renderEmpty = () => {
@@ -102,7 +137,7 @@ const MyEventsScreen = () => {
         </Text>
         <Text style={styles.emptyText}>
           {searchQuery
-            ? "Try adjusting your search or filters to find your events."
+            ? 'Try adjusting your search or filters to find your events.'
             : 'Discover interesting events and join the ISoP conversation.'}
         </Text>
         <TouchableOpacity
@@ -145,7 +180,9 @@ const MyEventsScreen = () => {
                   onPress={() => setActiveDropdown('type')}
                 >
                   <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                    Type: {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}
+                    Type:{' '}
+                    {selectedType.charAt(0).toUpperCase() +
+                      selectedType.slice(1)}
                   </Text>
                   <ChevronDown size={14} color={colors.text.tertiary} />
                 </TouchableOpacity>
@@ -155,7 +192,9 @@ const MyEventsScreen = () => {
                   onPress={() => setActiveDropdown('status')}
                 >
                   <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                    Status: {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
+                    Status:{' '}
+                    {selectedStatus.charAt(0).toUpperCase() +
+                      selectedStatus.slice(1)}
                   </Text>
                   <ChevronDown size={14} color={colors.text.tertiary} />
                 </TouchableOpacity>
@@ -186,26 +225,36 @@ const MyEventsScreen = () => {
       {/* Type Filter Dropdown Modal */}
       {activeDropdown === 'type' && (
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBg} 
-            activeOpacity={1} 
-            onPress={() => setActiveDropdown(null)} 
+          <TouchableOpacity
+            style={styles.modalBg}
+            activeOpacity={1}
+            onPress={() => setActiveDropdown(null)}
           />
           <View style={styles.dropdownCard}>
             <Text style={styles.dropdownTitle}>Select Event Type</Text>
             {categories.map(cat => (
               <TouchableOpacity
                 key={cat}
-                style={[styles.dropdownOption, selectedType === cat && styles.dropdownOptionActive]}
+                style={[
+                  styles.dropdownOption,
+                  selectedType === cat && styles.dropdownOptionActive,
+                ]}
                 onPress={() => {
                   setSelectedType(cat);
                   setActiveDropdown(null);
                 }}
               >
-                <Text style={[styles.dropdownOptionText, selectedType === cat && styles.dropdownOptionTextActive]}>
+                <Text
+                  style={[
+                    styles.dropdownOptionText,
+                    selectedType === cat && styles.dropdownOptionTextActive,
+                  ]}
+                >
                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
                 </Text>
-                {selectedType === cat && <Check size={18} color={colors.brand.primary} />}
+                {selectedType === cat && (
+                  <Check size={18} color={colors.brand.primary} />
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -215,26 +264,37 @@ const MyEventsScreen = () => {
       {/* Status Filter Dropdown Modal */}
       {activeDropdown === 'status' && (
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBg} 
-            activeOpacity={1} 
-            onPress={() => setActiveDropdown(null)} 
+          <TouchableOpacity
+            style={styles.modalBg}
+            activeOpacity={1}
+            onPress={() => setActiveDropdown(null)}
           />
           <View style={styles.dropdownCard}>
             <Text style={styles.dropdownTitle}>Select Event Status</Text>
             {statuses.map(status => (
               <TouchableOpacity
                 key={status}
-                style={[styles.dropdownOption, selectedStatus === status && styles.dropdownOptionActive]}
+                style={[
+                  styles.dropdownOption,
+                  selectedStatus === status && styles.dropdownOptionActive,
+                ]}
                 onPress={() => {
                   setSelectedStatus(status);
                   setActiveDropdown(null);
                 }}
               >
-                <Text style={[styles.dropdownOptionText, selectedStatus === status && styles.dropdownOptionTextActive]}>
+                <Text
+                  style={[
+                    styles.dropdownOptionText,
+                    selectedStatus === status &&
+                      styles.dropdownOptionTextActive,
+                  ]}
+                >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </Text>
-                {selectedStatus === status && <Check size={18} color={colors.brand.primary} />}
+                {selectedStatus === status && (
+                  <Check size={18} color={colors.brand.primary} />
+                )}
               </TouchableOpacity>
             ))}
           </View>

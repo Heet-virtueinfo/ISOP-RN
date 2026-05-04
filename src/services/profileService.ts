@@ -1,27 +1,46 @@
-import { doc, updateDoc, Timestamp } from '@react-native-firebase/firestore';
-import { firebaseFirestore } from '../config/firebase';
-import { COLLECTIONS } from '../constants/collections';
-import { uploadImageToCloudinary } from './uploadService';
+import { Platform } from 'react-native';
+import apiClient from '../config/api';
 
-export const updateUserProfile = async (uid: string, data: any) => {
+export const updateUserProfile = async (data: any) => {
   try {
-    let finalData = { ...data };
+    const form = new FormData();
 
     if (data.profileImage && !data.profileImage.startsWith('http')) {
-      const imageUrl = await uploadImageToCloudinary(
-        data.profileImage,
-        'ISOP/Profile',
-      );
-      if (imageUrl) {
-        finalData.profileImage = imageUrl;
-      }
-    }
-    const updateData = {
-      ...finalData,
-      updatedAt: Timestamp.now(),
-    };
+      const filename = data.profileImage.split('/').pop() ?? 'profile.jpg';
+      const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const mimeType =
+        ext === 'png'
+          ? 'image/png'
+          : ext === 'webp'
+          ? 'image/webp'
+          : 'image/jpeg';
 
-    await updateDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), updateData);
+      const cleanUri =
+        Platform.OS === 'android' && !data.profileImage.startsWith('file://')
+          ? `file://${data.profileImage}`
+          : data.profileImage;
+
+      form.append('profile_image', {
+        uri: cleanUri,
+        name: filename,
+        type: mimeType,
+      } as any);
+    }
+
+    Object.keys(data).forEach(key => {
+      if (key !== 'profileImage' && key !== 'uid') {
+        form.append(key, data[key]);
+      }
+    });
+
+    form.append('_method', 'PUT');
+
+    await apiClient.post('/api/user/profile', form, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
     return { success: true };
   } catch (error) {
     console.error('Update User Profile Error:', error);
@@ -29,10 +48,9 @@ export const updateUserProfile = async (uid: string, data: any) => {
   }
 };
 
-export const deleteUserProfile = async (uid: string) => {
+export const deleteUserProfile = async () => {
   try {
-    const { deleteDoc } = await import('@react-native-firebase/firestore');
-    await deleteDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid));
+    await apiClient.delete('/api/user/profile');
     return { success: true };
   } catch (error) {
     console.error('Delete User Profile Error:', error);

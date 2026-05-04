@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  DeviceEventEmitter,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Users } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
-import { listenToEvent } from '../../services/eventService';
+import { getEventById } from '../../services/eventService';
 import { getEventParticipants } from '../../services/enrollmentService';
 import { Enrollment } from '../../types';
 import ParticipantCard from '../../components/ParticipantCard';
@@ -23,19 +29,48 @@ const ParticipantsScreen = () => {
 
   useEffect(() => {
     if (!eventId) return;
+    let isMounted = true;
 
-    const unsubscribeParticipants = getEventParticipants(eventId, data => {
-      setParticipants(data);
-      setLoading(false);
-    });
+    const loadData = async () => {
+      try {
+        const [participantsData, eventData] = await Promise.all([
+          getEventParticipants(eventId),
+          getEventById(eventId),
+        ]);
+        if (isMounted) {
+          console.log('Participants Data:', participantsData);
+          const filteredParticipants = participantsData.filter(
+            p => p.uid !== userProfile?.uid,
+          );
+          setParticipants(filteredParticipants);
+          if (eventData) setEventTitle(eventData.title);
+          setLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) setLoading(false);
+      }
+    };
 
-    const unsubscribeEvent = listenToEvent(eventId, eventData => {
-      if (eventData) setEventTitle(eventData.title);
-    });
+    loadData();
+
+    // Listen for real-time status updates (Accept/Reject)
+    const subAccepted = DeviceEventEmitter.addListener(
+      'REQUEST_ACCEPTED',
+      () => {
+        if (isMounted) loadData();
+      },
+    );
+    const subRejected = DeviceEventEmitter.addListener(
+      'REQUEST_REJECTED',
+      () => {
+        if (isMounted) loadData();
+      },
+    );
 
     return () => {
-      unsubscribeParticipants();
-      unsubscribeEvent();
+      isMounted = false;
+      subAccepted.remove();
+      subRejected.remove();
     };
   }, [eventId]);
 

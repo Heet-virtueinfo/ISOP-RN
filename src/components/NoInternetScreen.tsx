@@ -47,7 +47,6 @@ const NoInternetScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.layout.background} />
       
       <Animated.View 
         style={[

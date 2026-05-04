@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import AuthStack from './auth/AuthStack';
 import AdminTabs from './admin/AdminTabs';
 import UserTabs from './user/UserTabs';
-import { ADMIN_UID } from '../config/firebase';
+
 import { useAuth } from '../contexts/AuthContext';
 import CustomLoader from '../components/CustomLoader';
 import { navigationRef } from '../utils/navigationRef';
@@ -23,7 +23,7 @@ const AppNavigator = () => {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
           <Stack.Screen name="Auth" component={AuthStack} />
-        ) : user?.uid === ADMIN_UID ? (
+        ) : user?.role === 'admin' ? (
           <Stack.Screen name="Admin" component={AdminTabs} />
         ) : (
           <Stack.Screen name="User" component={UserTabs} />

@@ -18,7 +18,7 @@ import {
   ExternalLink,
   Radio,
   Bell,
-  FileText
+  FileText,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
@@ -27,11 +27,11 @@ import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { NewsArticle, NewsType } from '../../types';
 import {
-  addNewsArticle,
-  deleteNewsArticle,
-  listenToAllNews,
-  updateNewsArticle,
-} from '../../services/newsService';
+  adminCreateNews,
+  adminDeleteNews,
+  adminGetNews,
+  adminUpdateNews,
+} from '../../services/admin';
 import CustomLoader from '../../components/CustomLoader';
 import NewsCard from '../../components/NewsCard';
 import AdminHeader from '../../components/AdminHeader';
@@ -57,15 +57,29 @@ const AdminNewsScreen = () => {
 
   const [actionLoading, setActionLoading] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [articleToDelete, setArticleToDelete] = useState<NewsArticle | null>(null);
+  const [articleToDelete, setArticleToDelete] = useState<NewsArticle | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = listenToAllNews(data => {
-      setNews(data);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    let mounted = true;
+    const fetchNews = async () => {
+      try {
+        const data = await adminGetNews();
+        if (mounted) {
+          setNews(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load news:', err);
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchNews();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handlePickImage = async () => {
@@ -83,7 +97,7 @@ const AdminNewsScreen = () => {
       Toast.show({
         type: 'error',
         text1: 'Pick Failed',
-        text2: 'Failed to pick image.'
+        text2: 'Failed to pick image.',
       });
     }
   };
@@ -103,7 +117,7 @@ const AdminNewsScreen = () => {
       Toast.show({
         type: 'error',
         text1: 'Validation Error',
-        text2: 'Title and Content are required.'
+        text2: 'Title and Content are required.',
       });
       return;
     }
@@ -111,31 +125,34 @@ const AdminNewsScreen = () => {
     setActionLoading(true);
     try {
       if (editingId) {
-        await updateNewsArticle(editingId, {
+        const updated = await adminUpdateNews(editingId, {
           title,
           content,
           linkUrl,
           type: newsType,
-          imageUrl: imageUri,
+          imageFile: imageUri,
         });
+        setNews(prev =>
+          prev.map(n => (String(n.id) === String(editingId) ? updated : n)),
+        );
         Toast.show({
           type: 'success',
           text1: 'Updated',
-          text2: 'Article updated successfully!'
+          text2: 'Article updated successfully!',
         });
       } else {
-        await addNewsArticle({
+        const created = await adminCreateNews({
           title,
           content,
           linkUrl,
           type: newsType,
-          imageUrl: imageUri,
-          createdBy: userProfile?.uid || 'Admin',
+          imageFile: imageUri,
         });
+        setNews(prev => [created, ...prev]);
         Toast.show({
           type: 'success',
           text1: 'Published',
-          text2: 'Article published successfully!'
+          text2: 'Article published successfully!',
         });
       }
       handleReset();
@@ -144,7 +161,7 @@ const AdminNewsScreen = () => {
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: `Failed to ${editingId ? 'update' : 'publish'} article.`
+        text2: `Failed to ${editingId ? 'update' : 'publish'} article.`,
       });
     } finally {
       setActionLoading(false);
@@ -171,7 +188,8 @@ const AdminNewsScreen = () => {
 
     setIsDeleting(true);
     try {
-      await deleteNewsArticle(articleToDelete.id);
+      await adminDeleteNews(articleToDelete.id);
+      setNews(prev => prev.filter(n => n.id !== articleToDelete.id));
       Toast.show({
         type: 'success',
         text1: 'Deleted',
@@ -224,18 +242,34 @@ const AdminNewsScreen = () => {
               >
                 <View style={styles.typeSelector}>
                   <TouchableOpacity
-                    style={[styles.typeBtn, newsType === 'news' && styles.typeBtnActiveNews]}
+                    style={[
+                      styles.typeBtn,
+                      newsType === 'news' && styles.typeBtnActiveNews,
+                    ]}
                     onPress={() => setNewsType('news')}
                   >
-                    <Text style={[styles.typeBtnText, newsType === 'news' && styles.typeBtnTextActive]}>
+                    <Text
+                      style={[
+                        styles.typeBtnText,
+                        newsType === 'news' && styles.typeBtnTextActive,
+                      ]}
+                    >
                       EDITORIAL
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.typeBtn, newsType === 'alert' && styles.typeBtnActiveAlert]}
+                    style={[
+                      styles.typeBtn,
+                      newsType === 'alert' && styles.typeBtnActiveAlert,
+                    ]}
                     onPress={() => setNewsType('alert')}
                   >
-                    <Text style={[styles.typeBtnText, newsType === 'alert' && styles.typeBtnTextActive]}>
+                    <Text
+                      style={[
+                        styles.typeBtnText,
+                        newsType === 'alert' && styles.typeBtnTextActive,
+                      ]}
+                    >
                       URGENT ALERT
                     </Text>
                   </TouchableOpacity>
@@ -282,9 +316,20 @@ const AdminNewsScreen = () => {
                 />
 
                 <Text style={styles.label}>Cover Visual</Text>
-                <TouchableOpacity style={styles.imageUploadBtn} onPress={handlePickImage}>
+                <TouchableOpacity
+                  style={styles.imageUploadBtn}
+                  onPress={handlePickImage}
+                >
                   <Upload size={20} color={colors.brand.primary} />
-                  <Text style={[styles.imageUploadText, imageUri && { color: colors.brand.primary, fontWeight: '700' }]}>
+                  <Text
+                    style={[
+                      styles.imageUploadText,
+                      imageUri && {
+                        color: colors.brand.primary,
+                        fontWeight: '700',
+                      },
+                    ]}
+                  >
                     {imageUri ? 'Visual Attached' : 'Select Network Asset'}
                   </Text>
                 </TouchableOpacity>
@@ -292,11 +337,15 @@ const AdminNewsScreen = () => {
 
               <View style={styles.formActions}>
                 <View style={{ flex: 1 }}>
-                  <Button title="Discard" onPress={handleReset} variant="outline" />
+                  <Button
+                    title="Discard"
+                    onPress={handleReset}
+                    variant="outline"
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Button
-                    title={editingId ? "Update Intelligence" : "Broadcast"}
+                    title={editingId ? 'Update Intelligence' : 'Broadcast'}
                     onPress={handlePublish}
                     leftIcon={Send}
                     loading={actionLoading}
@@ -317,9 +366,7 @@ const AdminNewsScreen = () => {
     >
       <View style={styles.container}>
         {/* Header */}
-        <AdminHeader
-          title="Broadcast Center"
-        />
+        <AdminHeader title="Broadcast Center" />
 
         <ScrollView
           style={{ flex: 1 }}
@@ -339,21 +386,41 @@ const AdminNewsScreen = () => {
             </View>
 
             <View style={styles.pulseSecondaryRow}>
-              <View style={[styles.pulseSubCard, { backgroundColor: colors.palette.rose.bg }]}>
+              <View
+                style={[
+                  styles.pulseSubCard,
+                  { backgroundColor: colors.palette.rose.bg },
+                ]}
+              >
                 <View style={styles.pulseSubIconBox}>
                   <Bell size={18} color={colors.palette.rose.accent} />
                 </View>
-                <Text style={[styles.pulseSubValue, { color: colors.palette.rose.accent }]}>
+                <Text
+                  style={[
+                    styles.pulseSubValue,
+                    { color: colors.palette.rose.accent },
+                  ]}
+                >
                   {news.filter(n => n.type === 'alert').length}
                 </Text>
                 <Text style={styles.pulseSubLabel}>INTEL ALERTS</Text>
               </View>
 
-              <View style={[styles.pulseSubCard, { backgroundColor: colors.palette.indigo.bg }]}>
+              <View
+                style={[
+                  styles.pulseSubCard,
+                  { backgroundColor: colors.palette.indigo.bg },
+                ]}
+              >
                 <View style={styles.pulseSubIconBox}>
                   <FileText size={18} color={colors.palette.indigo.accent} />
                 </View>
-                <Text style={[styles.pulseSubValue, { color: colors.palette.indigo.accent }]}>
+                <Text
+                  style={[
+                    styles.pulseSubValue,
+                    { color: colors.palette.indigo.accent },
+                  ]}
+                >
                   {news.filter(n => n.type === 'news').length}
                 </Text>
                 <Text style={styles.pulseSubLabel}>EDITORIALS</Text>
@@ -361,13 +428,20 @@ const AdminNewsScreen = () => {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreating(true)}>
+          <TouchableOpacity
+            style={styles.createBtn}
+            onPress={() => setIsCreating(true)}
+          >
             <Plus size={20} color="white" />
             <Text style={styles.createBtnText}>Draft New Announcement</Text>
           </TouchableOpacity>
 
           {loading ? (
-            <CustomLoader message="Synchronizing transmissions..." overlay={false} style={{ marginTop: 40 }} />
+            <CustomLoader
+              message="Synchronizing transmissions..."
+              overlay={false}
+              style={{ marginTop: 40 }}
+            />
           ) : news.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No broadcasts on record.</Text>
@@ -651,7 +725,7 @@ const styles = StyleSheet.create({
   formContent: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl * 2,
-    paddingTop: spacing.lg
+    paddingTop: spacing.lg,
   },
 });
 

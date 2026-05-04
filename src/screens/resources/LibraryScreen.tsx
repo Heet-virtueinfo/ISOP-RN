@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, TextInput, TouchableOpacity, Text, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  Platform,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Search, X, Library } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { ResourceItem, ResourceCategory } from '../../types';
-import { listenToResources } from '../../services/resourceService';
+import { getResources } from '../../services/resourceService';
 import CustomLoader from '../../components/CustomLoader';
 import UserHeader from '../../components/UserHeader';
 import ResourceCard from '../../components/ResourceCard';
@@ -12,18 +20,30 @@ import ResourceCard from '../../components/ResourceCard';
 const LibraryScreen = () => {
   const navigation = useNavigation();
   const [resources, setResources] = useState<ResourceItem[]>([]);
-  const [filteredResources, setFilteredResources] = useState<ResourceItem[]>([]);
+  const [filteredResources, setFilteredResources] = useState<ResourceItem[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<ResourceCategory | 'all'>('all');
+  const [activeCategory, setActiveCategory] = useState<
+    ResourceCategory | 'all'
+  >('all');
 
   useEffect(() => {
-    const unsubscribe = listenToResources(data => {
-      setResources(data);
-      setLoading(false);
-    });
+    let isMounted = true;
+    const fetchResources = async () => {
+      const data = await getResources();
+      if (isMounted) {
+        setResources(data);
+        setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchResources();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -36,7 +56,7 @@ const LibraryScreen = () => {
       result = result.filter(
         item =>
           item.title.toLowerCase().includes(lowerQuery) ||
-          item.description.toLowerCase().includes(lowerQuery)
+          item.description.toLowerCase().includes(lowerQuery),
       );
     }
     setFilteredResources(result);
@@ -69,7 +89,12 @@ const LibraryScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="Digital Library" showBack={true} onBackPress={() => navigation.goBack()} showActions={false} />
+      <UserHeader
+        title="Digital Library"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+        showActions={false}
+      />
 
       <View style={styles.searchArea}>
         <View style={styles.searchContainer}>
@@ -83,7 +108,10 @@ const LibraryScreen = () => {
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearBtn}
+            >
               <X size={16} color={colors.text.tertiary} />
             </TouchableOpacity>
           )}
@@ -96,19 +124,23 @@ const LibraryScreen = () => {
           showsHorizontalScrollIndicator={false}
           data={categories}
           keyExtractor={item => item.value}
-          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.sm, paddingTop: spacing.sm }}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.xl,
+            paddingBottom: spacing.sm,
+            paddingTop: spacing.sm,
+          }}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[
                 styles.categoryPill,
-                activeCategory === item.value && styles.categoryPillActive
+                activeCategory === item.value && styles.categoryPillActive,
               ]}
               onPress={() => setActiveCategory(item.value)}
             >
               <Text
                 style={[
                   styles.categoryText,
-                  activeCategory === item.value && styles.categoryTextActive
+                  activeCategory === item.value && styles.categoryTextActive,
                 ]}
               >
                 {item.label}
@@ -119,7 +151,11 @@ const LibraryScreen = () => {
       </View>
 
       {loading ? (
-        <CustomLoader message="Loading Library..." overlay={false} style={{ flex: 1 }} />
+        <CustomLoader
+          message="Loading Library..."
+          overlay={false}
+          style={{ flex: 1 }}
+        />
       ) : (
         <FlatList
           data={filteredResources}

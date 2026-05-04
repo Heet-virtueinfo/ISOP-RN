@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -8,7 +9,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { Chat } from '../../types';
@@ -23,23 +24,39 @@ const ChatInboxScreen = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let isMounted = true;
 
-    const unsubscribeChats = getMyChats(user.uid, data => {
-      // Filter unique chats by other participant ID
-      const uniqueChats = data.filter((item, index, self) => {
-        const getOtherUid = (chat: Chat) => chat.participants.find(id => id !== user?.uid);
-        return index === self.findIndex(t => getOtherUid(t) === getOtherUid(item));
-      });
-      setChats(uniqueChats);
-      setLoading(false);
-    });
+      const fetchChats = async () => {
+        try {
+          const data = await getMyChats();
+          console.log('Data of fetchChats:', data);
+          if (isMounted) {
+            const uniqueChats = data.filter((item, index, self) => {
+              const getOtherUid = (chat: Chat) =>
+                chat.participants.find(id => id !== user?.uid);
+              return (
+                index ===
+                self.findIndex(t => getOtherUid(t) === getOtherUid(item))
+              );
+            });
+            setChats(uniqueChats);
+            setLoading(false);
+          }
+        } catch (error) {
+          if (isMounted) setLoading(false);
+        }
+      };
 
-    return () => {
-      unsubscribeChats();
-    };
-  }, [user]);
+      fetchChats();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [user]),
+  );
 
   const getOtherParticipant = (chat: Chat) => {
     const otherId = chat.participants.find(id => id !== user?.uid);
@@ -64,7 +81,7 @@ const ChatInboxScreen = () => {
       >
         <View style={styles.avatarContainer}>
           {other.image ? (
-            <Image source={{ uri: other.image }} style={styles.avatar} />
+            <Image source={getImageSource(other.image)} style={styles.avatar} />
           ) : (
             <View style={styles.initialsAvatarSmall}>
               <Text style={styles.initialsTextSmall}>{other.name[0]}</Text>
@@ -76,7 +93,7 @@ const ChatInboxScreen = () => {
             <Text style={styles.chatName}>{other.name}</Text>
             <Text style={styles.chatTime}>
               {item.lastMessageAt
-                ? new Date(item.lastMessageAt?.toDate()).toLocaleDateString()
+                ? new Date(item.lastMessageAt).toLocaleDateString()
                 : ''}
             </Text>
           </View>

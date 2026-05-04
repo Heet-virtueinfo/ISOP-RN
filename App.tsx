@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import AppToast from './src/components/AppToast';
@@ -6,6 +7,8 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { useNetwork } from './src/hooks/useNetwork';
 import NoInternetScreen from './src/components/NoInternetScreen';
 import { notificationService } from './src/services/notificationService';
+import { colors } from './src/theme/colors';
+import RNBootSplash from 'react-native-bootsplash';
 
 notificationService.setBackgroundMessageHandler();
 
@@ -20,6 +23,12 @@ const App = () => {
       // navigationRef.navigate(screen, data);
     });
 
+    const init = async () => {};
+
+    init().finally(async () => {
+      await RNBootSplash.hide({ fade: true });
+    });
+
     return () => {
       unsubForeground();
     };
@@ -27,6 +36,10 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={colors.layout.background}
+      />
       <AuthProvider>
         {!isOnline ? <NoInternetScreen /> : <AppNavigator />}
       </AuthProvider>

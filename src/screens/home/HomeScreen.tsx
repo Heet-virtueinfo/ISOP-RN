@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Calendar,
   BookMarked,
@@ -14,6 +15,7 @@ import {
   Sparkles,
   Newspaper,
   Library,
+  Smile,
 } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,7 +25,7 @@ import { AppEvent } from '../../types';
 import EventCard from '../../components/EventCard';
 import CustomLoader from '../../components/CustomLoader';
 import UserHeader from '../../components/UserHeader';
-import { isEventActive } from '../../utils/eventHelpers';
+import { isEventActive, getEventStatus } from '../../utils/eventHelpers';
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
@@ -34,47 +36,69 @@ const HomeScreen = () => {
   const [totalEventsCount, setTotalEventsCount] = useState(0);
   const [enrollmentsCount, setEnrollmentsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (!userProfile) return;
+  const fetchHomeData = useCallback(
+    async (isRefreshing = false) => {
+      if (!userProfile) return;
+      if (!isRefreshing) setLoading(true);
+      try {
+        const [events, enrollments] = await Promise.all([
+          getActiveEvents(),
+          getUserEnrollments(userProfile.uid),
+        ]);
 
-    // Fetch active events
-    const unsubscribeEvents = getActiveEvents(events => {
-      setAllEvents(events);
-    });
-
-    // Fetch enrollments to identify status
-    const unsubscribeEnrollments = getUserEnrollments(
-      userProfile.uid,
-      enrollments => {
-        setEnrollmentsCount(enrollments.length);
+        setAllEvents(events);
         setEnrollmentIds(enrollments.map(e => e.eventId));
-      },
-    );
 
-    return () => {
-      unsubscribeEvents();
-      unsubscribeEnrollments();
-    };
-  }, [userProfile]);
+        // Explicitly filter out any past events before rendering
+        const validEvents = events.filter(
+          event =>
+            getEventStatus(event) === 'UPCOMING' ||
+            getEventStatus(event) === 'ONGOING',
+        );
+        setTotalEventsCount(validEvents.length);
 
-  // Derived logic for upcoming events: Not enrolled first, then enrolled
-  useEffect(() => {
-    if (allEvents.length === 0) {
-      if (loading) setLoading(false);
-      return;
-    }
+        // Filter enrollments to only count those for active/upcoming events
+        const activeEnrollments = enrollments.filter(en =>
+          events.some(
+            ev =>
+              ev.id === en.eventId &&
+              (getEventStatus(ev) === 'UPCOMING' ||
+                getEventStatus(ev) === 'ONGOING'),
+          ),
+        );
+        setEnrollmentsCount(activeEnrollments.length);
 
-    // Explicitly filter out any past events before rendering
-    const validEvents = allEvents.filter(event => isEventActive(event));
-    setTotalEventsCount(validEvents.length);
+        const notEnrolled = validEvents.filter(
+          e => !enrollments.map(en => en.eventId).includes(e.id),
+        );
+        const enrolled = validEvents.filter(e =>
+          enrollments.map(en => en.eventId).includes(e.id),
+        );
 
-    const notEnrolled = validEvents.filter(e => !enrollmentIds.includes(e.id));
-    const enrolled = validEvents.filter(e => enrollmentIds.includes(e.id));
+        setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
+        setLoading(false);
+        setRefreshing(false);
+      } catch (error) {
+        console.error('Home screen fetch error:', error);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [userProfile],
+  );
 
-    setUpcomingEvents([...notEnrolled, ...enrolled].slice(0, 3));
-    setLoading(false);
-  }, [allEvents, enrollmentIds]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchHomeData();
+    }, [fetchHomeData]),
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchHomeData(true);
+  }, [fetchHomeData]);
 
   const navigateToEvents = () => navigation.navigate('EventList');
   const navigateToMyEvents = () => navigation.navigate('MyEventsTab');
@@ -97,15 +121,24 @@ const HomeScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.brand.primary]}
+          />
+        }
       >
         {/* Simplified Greeting Section */}
         <View style={styles.header}>
           <View>
             <View style={styles.greetingRow}>
               <Text style={styles.greeting}>
-                Hello, {userProfile?.displayName?.split(' ')[0] || 'Member'}{' '}
+                Hello, {userProfile?.displayName?.split(' ')[0] || 'Member'}
               </Text>
-              <Text style={styles.waveEmoji}>👋</Text>
+              <View style={{ marginLeft: 8 }}>
+                <Smile size={24} color={colors.palette.amber.accent} />
+              </View>
             </View>
             <Text style={styles.subtitle}>
               Welcome back to the ISoP community.

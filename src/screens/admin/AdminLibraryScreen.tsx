@@ -25,22 +25,22 @@ import {
   FileText,
   Globe,
   PlusCircle,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 // @ts-ignore
 import { pick, types, isCancel } from '@react-native-documents/picker';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { ResourceItem, ResourceCategory, ResourceType } from '../../types';
 import {
-  addResourceItem,
-  deleteResourceItem,
-  listenToResources,
-  updateResourceItem,
-} from '../../services/resourceService';
-import { uploadDocumentToCloudinary } from '../../services/uploadService';
+  adminGetResources,
+  adminCreateResource,
+  adminUpdateResource,
+  adminDeleteResource,
+} from '../../services/admin/adminResourceService';
+
 import CustomLoader from '../../components/CustomLoader';
 import ResourceCard from '../../components/ResourceCard';
 import AdminHeader from '../../components/AdminHeader';
@@ -80,23 +80,41 @@ const AdminLibraryScreen = () => {
 
   // Deletion state
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [resourceToDelete, setResourceToDelete] = useState<ResourceItem | null>(null);
+  const [resourceToDelete, setResourceToDelete] = useState<ResourceItem | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = listenToResources(data => {
-      setResources(data);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
+      const loadResources = async () => {
+        try {
+          const data = await adminGetResources();
+          console.log('Resources fetched:', data);
+          if (mounted) {
+            setResources(data);
+            setLoading(false);
+          }
+        } catch (error: any) {
+          console.error('[Library] loadResources failed:', error?.message);
+          if (mounted) setLoading(false);
+        }
+      };
+      loadResources();
+      return () => {
+        mounted = false;
+      };
+    }, [])
+  );
 
   // Intelligence Pulse Stats
   const stats = useMemo(() => {
     return {
       total: resources.length,
       pdfs: resources.filter(r => r.type === 'pdf').length,
-      links: resources.filter(r => r.type === 'link' || r.type === 'video').length,
+      links: resources.filter(r => r.type === 'link' || r.type === 'video')
+        .length,
       training: resources.filter(r => r.category === 'training').length,
     };
   }, [resources]);
@@ -105,10 +123,11 @@ const AdminLibraryScreen = () => {
     let result = resources;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(r =>
-        r.title.toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q) ||
-        (r.description && r.description.toLowerCase().includes(q))
+      result = result.filter(
+        r =>
+          r.title.toLowerCase().includes(q) ||
+          r.category.toLowerCase().includes(q) ||
+          (r.description && r.description.toLowerCase().includes(q)),
       );
     }
     return result;
@@ -138,18 +157,16 @@ const AdminLibraryScreen = () => {
         size: file.size ?? undefined,
       });
 
-      if (file.type?.includes('pdf')) {
-        setResourceType('pdf');
-      } else {
-        setResourceType('link');
-      }
+      // Since the picker only allows documents, we default to 'pdf' for all uploaded files.
+      // (The backend validates 'url' if type is 'link')
+      setResourceType('pdf');
     } catch (err: any) {
       if (!isCancel(err)) {
         console.error('Document picker error:', err);
         Toast.show({
           type: 'error',
           text1: 'Pick Failed',
-          text2: 'Failed to pick document.'
+          text2: 'Failed to pick document.',
         });
       }
     }
@@ -164,56 +181,92 @@ const AdminLibraryScreen = () => {
 
   const handlePublish = async () => {
     if (!title.trim()) {
-      Toast.show({ type: 'error', text1: 'Required', text2: 'Asset title is missing.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Required',
+        text2: 'Asset title is missing.',
+      });
+      return;
+    }
+
+    if (inputMode === 'file' && !pickedFile && !editingId) {
+      Toast.show({
+        type: 'error',
+        text1: 'Required',
+        text2: 'Please select a document file.',
+      });
+      return;
+    }
+
+    if (inputMode === 'url' && !url.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Required',
+        text2: 'Please provide a valid URL.',
+      });
       return;
     }
 
     setActionLoading(true);
     try {
-      let finalUrl = url;
+      let finalUrl = inputMode === 'url' ? url : '';
+      let finalLocalFile = undefined;
+      let finalType = resourceType;
 
-      if (inputMode === 'file' && pickedFile) {
-        setUploadProgress(true);
-        const uploadedUrl = await uploadDocumentToCloudinary(
-          pickedFile.uri,
-          pickedFile.name,
-          pickedFile.type,
-          'isop-library'
-        );
-        setUploadProgress(false);
-
-        if (!uploadedUrl) {
-          Toast.show({ type: 'error', text1: 'Upload Failed', text2: 'Cloud uplink failed.' });
-          setActionLoading(false);
-          return;
+      if (inputMode === 'file') {
+        finalType = 'pdf'; // Ensure it's a document type
+        if (pickedFile) {
+          setUploadProgress(true); // Optional visual cue
+          finalLocalFile = pickedFile.uri;
         }
-        finalUrl = uploadedUrl;
+      } else {
+        // Ensure it's not 'pdf' if it's an external URL
+        if (finalType === 'pdf') finalType = 'link';
       }
 
       if (editingId) {
-        await updateResourceItem(editingId, {
+        const updated = await adminUpdateResource(editingId, {
           title,
           description,
           url: finalUrl,
+          localFile: finalLocalFile,
           category,
-          type: resourceType,
+          type: finalType,
         });
-        Toast.show({ type: 'success', text1: 'Asset Updated', text2: 'Library intelligence synchronized.' });
+        // Refresh list item in-place
+        setResources(prev =>
+          prev.map(r => (String(r.id) === String(editingId) ? updated : r)),
+        );
+        Toast.show({
+          type: 'success',
+          text1: 'Asset Updated',
+          text2: 'Library intelligence synchronized.',
+        });
       } else {
-        await addResourceItem({
+        const created = await adminCreateResource({
           title,
           description,
           url: finalUrl,
+          localFile: finalLocalFile,
           category,
-          type: resourceType,
-          createdBy: userProfile?.uid || 'Admin',
+          type: finalType,
         });
-        Toast.show({ type: 'success', text1: 'Asset Published', text2: 'New intelligence added to library.' });
+        setResources(prev => [created, ...prev]);
+        Toast.show({
+          type: 'success',
+          text1: 'Asset Published',
+          text2: 'New intelligence added to library.',
+        });
       }
 
+      setSearchQuery('');
       handleReset();
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Operation Failed', text2: 'Firebase interaction error.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Operation Failed',
+        text2: 'Server interaction error.',
+      });
     } finally {
       setActionLoading(false);
       setUploadProgress(false);
@@ -242,12 +295,23 @@ const AdminLibraryScreen = () => {
 
     setIsDeleting(true);
     try {
-      await deleteResourceItem(resourceToDelete.id);
-      Toast.show({ type: 'success', text1: 'Asset Purged', text2: 'Resource removed from ecosystem.' });
+      await adminDeleteResource(resourceToDelete.id);
+      setResources(prev =>
+        prev.filter(r => String(r.id) !== String(resourceToDelete.id)),
+      );
+      Toast.show({
+        type: 'success',
+        text1: 'Resource Deleted',
+        text2: 'Resource removed from ecosystem.',
+      });
       setIsDeleteModalVisible(false);
       setResourceToDelete(null);
     } catch (error) {
-      Toast.show({ type: 'error', text1: 'Purge Failed', text2: 'Resource remains in repository.' });
+      Toast.show({
+        type: 'error',
+        text1: 'Delete Failed',
+        text2: 'Resource remains in repository.',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -275,8 +339,14 @@ const AdminLibraryScreen = () => {
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <View>
-              <Text style={styles.modalTitle}>{editingId ? 'Configure Asset' : 'Ingest Resource'}</Text>
-              <Text style={styles.modalSub}>{editingId ? 'Refining existing library intelligence' : 'Adding strategic data to ecosystem'}</Text>
+              <Text style={styles.modalTitle}>
+                {editingId ? 'Configure Asset' : 'Ingest Resource'}
+              </Text>
+              <Text style={styles.modalSub}>
+                {editingId
+                  ? 'Refining existing library intelligence'
+                  : 'Adding strategic data to ecosystem'}
+              </Text>
             </View>
             <TouchableOpacity onPress={handleReset} style={styles.closeBtn}>
               <X size={20} color={colors.text.primary} />
@@ -291,7 +361,11 @@ const AdminLibraryScreen = () => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.formContent}
             >
-              <BentoFormTile icon={Layers} title="CORE CONTEXT" isValid={title.length > 2}>
+              <BentoFormTile
+                icon={Layers}
+                title="CORE CONTEXT"
+                isValid={title.length > 2}
+              >
                 <InputField
                   label="Asset Title"
                   placeholder="e.g. Clinical Protocol 2024"
@@ -308,14 +382,33 @@ const AdminLibraryScreen = () => {
                 />
 
                 <Text style={styles.innerLabel}>Classification</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
-                  {(['guideline', 'training', 'presentation', 'other'] as ResourceCategory[]).map((cat) => (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.catScroll}
+                >
+                  {(
+                    [
+                      'guideline',
+                      'training',
+                      'presentation',
+                      'other',
+                    ] as ResourceCategory[]
+                  ).map(cat => (
                     <TouchableOpacity
                       key={cat}
-                      style={[styles.pill, category === cat && styles.pillActive]}
+                      style={[
+                        styles.pill,
+                        category === cat && styles.pillActive,
+                      ]}
                       onPress={() => setCategory(cat)}
                     >
-                      <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
+                      <Text
+                        style={[
+                          styles.pillText,
+                          category === cat && styles.pillTextActive,
+                        ]}
+                      >
                         {cat.toUpperCase()}
                       </Text>
                     </TouchableOpacity>
@@ -323,21 +416,63 @@ const AdminLibraryScreen = () => {
                 </ScrollView>
               </BentoFormTile>
 
-              <BentoFormTile icon={HardDrive} title="DATA SOURCE" isValid={inputMode === 'file' ? !!pickedFile || !!editingId : !!url}>
+              <BentoFormTile
+                icon={HardDrive}
+                title="DATA SOURCE"
+                isValid={
+                  inputMode === 'file' ? !!pickedFile || !!editingId : !!url
+                }
+              >
                 <View style={styles.modeToggleRow}>
                   <TouchableOpacity
-                    style={[styles.modeToggleBtn, inputMode === 'file' && styles.modeToggleBtnActive]}
-                    onPress={() => setInputMode('file')}
+                    style={[
+                      styles.modeToggleBtn,
+                      inputMode === 'file' && styles.modeToggleBtnActive,
+                    ]}
+                    onPress={() => {
+                      setInputMode('file');
+                      setResourceType('pdf');
+                    }}
                   >
-                    <File size={16} color={inputMode === 'file' ? 'white' : colors.text.tertiary} />
-                    <Text style={[styles.modeToggleText, inputMode === 'file' && styles.modeToggleTextActive]}>Uplink File</Text>
+                    <File
+                      size={16}
+                      color={
+                        inputMode === 'file' ? 'white' : colors.text.tertiary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.modeToggleText,
+                        inputMode === 'file' && styles.modeToggleTextActive,
+                      ]}
+                    >
+                      Uplink File
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modeToggleBtn, inputMode === 'url' && styles.modeToggleBtnActive]}
-                    onPress={() => setInputMode('url')}
+                    style={[
+                      styles.modeToggleBtn,
+                      inputMode === 'url' && styles.modeToggleBtnActive,
+                    ]}
+                    onPress={() => {
+                      setInputMode('url');
+                      setResourceType('link');
+                    }}
                   >
-                    <Link2 size={16} color={inputMode === 'url' ? 'white' : colors.text.tertiary} />
-                    <Text style={[styles.modeToggleText, inputMode === 'url' && styles.modeToggleTextActive]}>External Link</Text>
+                    <Link2
+                      size={16}
+                      color={
+                        inputMode === 'url' ? 'white' : colors.text.tertiary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.modeToggleText,
+                        inputMode === 'url' && styles.modeToggleTextActive,
+                      ]}
+                    >
+                      External Link
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
@@ -348,20 +483,34 @@ const AdminLibraryScreen = () => {
                         <FileText size={20} color={colors.brand.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.fileName} numberOfLines={1}>{pickedFile.name}</Text>
-                        <Text style={styles.fileMeta}>{formatFileSize(pickedFile.size)} • Cloud Secured</Text>
+                        <Text style={styles.fileName} numberOfLines={1}>
+                          {pickedFile.name}
+                        </Text>
+                        <Text style={styles.fileMeta}>
+                          {formatFileSize(pickedFile.size)} • Cloud Secured
+                        </Text>
                       </View>
-                      <TouchableOpacity onPress={() => setPickedFile(null)} style={styles.fileRemove}>
+                      <TouchableOpacity
+                        onPress={() => setPickedFile(null)}
+                        style={styles.fileRemove}
+                      >
                         <X size={16} color={colors.status.error} />
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <TouchableOpacity style={styles.uploadArea} onPress={handlePickDocument}>
+                    <TouchableOpacity
+                      style={styles.uploadArea}
+                      onPress={handlePickDocument}
+                    >
                       <View style={styles.uploadIconWrap}>
                         <PlusCircle size={28} color={colors.brand.primary} />
                       </View>
-                      <Text style={styles.uploadTitle}>Initialize Document Ingest</Text>
-                      <Text style={styles.uploadSub}>PDF, DOC, XLS, PPT (Max 10MB)</Text>
+                      <Text style={styles.uploadTitle}>
+                        Initialize Document Ingest
+                      </Text>
+                      <Text style={styles.uploadSub}>
+                        PDF, DOC, XLS, PPT (Max 10MB)
+                      </Text>
                     </TouchableOpacity>
                   )
                 ) : (
@@ -379,14 +528,20 @@ const AdminLibraryScreen = () => {
 
               {uploadProgress && (
                 <View style={styles.uplinkBanner}>
-                  <CustomLoader size={16} overlay={false} color={colors.brand.primary} />
-                  <Text style={styles.uplinkText}>Synchronizing with Cloud Repository...</Text>
+                  <CustomLoader
+                    size={16}
+                    overlay={false}
+                    color={colors.brand.primary}
+                  />
+                  <Text style={styles.uplinkText}>
+                    Synchronizing with Cloud Repository...
+                  </Text>
                 </View>
               )}
 
               <View style={styles.footerActions}>
                 <Button
-                  title={editingId ? "Update Intelligence" : "Broadcast Asset"}
+                  title={editingId ? 'Update Intelligence' : 'Broadcast Asset'}
                   onPress={handlePublish}
                   loading={actionLoading}
                   leftIcon={Send}
@@ -419,30 +574,50 @@ const AdminLibraryScreen = () => {
           <View style={styles.hubHeader}>
             <View>
               <Text style={styles.hubTitle}>Intelligence Pulse</Text>
-              <Text style={styles.hubSub}>{stats.total} Strategic Assets Online</Text>
+              <Text style={styles.hubSub}>
+                {stats.total} Strategic Assets Online
+              </Text>
             </View>
-            <TouchableOpacity style={styles.hubAdd} onPress={() => setIsCreating(true)}>
+            <TouchableOpacity
+              style={styles.hubAdd}
+              onPress={() => setIsCreating(true)}
+            >
               <Plus size={18} color="white" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.metricsGrid}>
             <View style={styles.metricCard}>
-              <View style={[styles.metricIcon, { backgroundColor: colors.status.error + '10' }]}>
+              <View
+                style={[
+                  styles.metricIcon,
+                  { backgroundColor: colors.status.error + '10' },
+                ]}
+              >
                 <FileText size={18} color={colors.status.error} />
               </View>
               <Text style={styles.metricValue}>{stats.pdfs}</Text>
               <Text style={styles.metricLabel}>PDF Docs</Text>
             </View>
             <View style={styles.metricCard}>
-              <View style={[styles.metricIcon, { backgroundColor: colors.brand.secondary + '10' }]}>
+              <View
+                style={[
+                  styles.metricIcon,
+                  { backgroundColor: colors.brand.secondary + '10' },
+                ]}
+              >
                 <Globe size={18} color={colors.brand.secondary} />
               </View>
               <Text style={styles.metricValue}>{stats.links}</Text>
               <Text style={styles.metricLabel}>External</Text>
             </View>
             <View style={styles.metricCard}>
-              <View style={[styles.metricIcon, { backgroundColor: colors.status.success + '10' }]}>
+              <View
+                style={[
+                  styles.metricIcon,
+                  { backgroundColor: colors.status.success + '10' },
+                ]}
+              >
                 <Layers size={18} color={colors.status.success} />
               </View>
               <Text style={styles.metricValue}>{stats.training}</Text>
@@ -468,14 +643,20 @@ const AdminLibraryScreen = () => {
         </View>
 
         {loading ? (
-          <CustomLoader message="Decrypting repository..." overlay={false} style={{ marginTop: 40 }} />
+          <CustomLoader
+            message="Decrypting repository..."
+            overlay={false}
+            style={{ marginTop: 40 }}
+          />
         ) : filteredResources.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
               <HardDrive size={40} color={colors.layout.divider} />
             </View>
             <Text style={styles.emptyText}>Intelligence repository empty.</Text>
-            <Text style={styles.emptySub}>No assets match your current parameters.</Text>
+            <Text style={styles.emptySub}>
+              No assets match your current parameters.
+            </Text>
           </View>
         ) : (
           <View style={styles.resourceList}>

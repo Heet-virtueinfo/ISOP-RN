@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, TextInput, TouchableOpacity, Text, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  Platform,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Search, X, Newspaper } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { NewsArticle } from '../../types';
-import { listenToAllNews } from '../../services/newsService';
+import { getNews } from '../../services/newsService';
 import CustomLoader from '../../components/CustomLoader';
 import UserHeader from '../../components/UserHeader';
 import NewsCard from '../../components/NewsCard';
@@ -18,12 +26,21 @@ const NewsScreen = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'news' | 'alert'>('all');
 
   useEffect(() => {
-    const unsubscribe = listenToAllNews(data => {
-      setNews(data);
-      setLoading(false);
-    });
+    let isMounted = true;
+    const fetchNews = async () => {
+      const data = await getNews();
+      console.log('[NewsScreen] fetchNews data:', data);
+      if (isMounted) {
+        setNews(data);
+        setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchNews();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -36,7 +53,7 @@ const NewsScreen = () => {
       result = result.filter(
         item =>
           item.title.toLowerCase().includes(lowerQuery) ||
-          item.content.toLowerCase().includes(lowerQuery)
+          item.content.toLowerCase().includes(lowerQuery),
       );
     }
     setFilteredNews(result);
@@ -61,7 +78,11 @@ const NewsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="News Hub" showBack={true} onBackPress={() => navigation.goBack()} />
+      <UserHeader
+        title="News Hub"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
 
       {/* Modern Filter Segment */}
       <View style={styles.navContainer}>
@@ -81,7 +102,10 @@ const NewsScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navTab, activeTab === 'alert' && styles.navTabActive]}
+            style={[
+              styles.navTab,
+              activeTab === 'alert' && styles.navTabActive,
+            ]}
             onPress={() => setActiveTab('alert')}
           >
             <Text
@@ -94,7 +118,9 @@ const NewsScreen = () => {
             </Text>
             {news.filter(n => n.type === 'alert').length > 0 && (
               <View style={[styles.countBadge, styles.countBadgeError]}>
-                <Text style={styles.countText}>{news.filter(n => n.type === 'alert').length}</Text>
+                <Text style={styles.countText}>
+                  {news.filter(n => n.type === 'alert').length}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -127,7 +153,10 @@ const NewsScreen = () => {
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearBtn}
+            >
               <X size={16} color={colors.text.tertiary} />
             </TouchableOpacity>
           )}
@@ -135,7 +164,11 @@ const NewsScreen = () => {
       </View>
 
       {loading ? (
-        <CustomLoader message="Loading News Feed..." overlay={false} style={{ flex: 1 }} />
+        <CustomLoader
+          message="Loading News Feed..."
+          overlay={false}
+          style={{ flex: 1 }}
+        />
       ) : (
         <FlatList
           data={filteredNews}

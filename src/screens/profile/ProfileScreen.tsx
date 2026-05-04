@@ -1,4 +1,5 @@
 import React from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -16,25 +17,36 @@ import {
   Phone,
   Shield,
   ChevronRight,
-  Settings,
   BookMarked,
+  Trash2,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import UserHeader from '../../components/UserHeader';
-import Button from '../../components/Button';
 import LogoutConfirmModal from '../../components/modals/LogoutConfirmModal';
+import DeleteAccountConfirmModal from '../../components/modals/DeleteAccountConfirmModal';
 
 const ProfileScreen = () => {
   const navigation = useNavigation<any>();
-  const { userProfile, logout } = useAuth();
+  const { userProfile, logout, deleteAccount } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
     await logout();
   };
+
+  const handleDeleteAccount = async () => {
+    setLoading(true);
+    await deleteAccount();
+    setLoading(false);
+    setShowDeleteModal(false);
+  };
+
+  console.log('userProfile :: ', userProfile);
 
   const ProfileItem = ({
     icon: Icon,
@@ -82,7 +94,7 @@ const ProfileScreen = () => {
               <View style={styles.avatarImageContainer}>
                 {userProfile?.profileImage ? (
                   <Image
-                    source={{ uri: userProfile.profileImage }}
+                    source={getImageSource(userProfile.profileImage)}
                     style={styles.avatarImage}
                   />
                 ) : (
@@ -134,7 +146,12 @@ const ProfileScreen = () => {
             activeOpacity={0.7}
             onPress={() => navigation.navigate('MyEventsList')}
           >
-            <View style={[styles.actionIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.08)' }]}>
+            <View
+              style={[
+                styles.actionIconContainer,
+                { backgroundColor: 'rgba(16, 185, 129, 0.08)' },
+              ]}
+            >
               <BookMarked size={20} color="#10B981" />
             </View>
             <View style={styles.actionContent}>
@@ -172,7 +189,22 @@ const ProfileScreen = () => {
               <LogOut size={20} color="#EF4444" />
             </View>
             <Text style={styles.logoutText}>Logout</Text>
-            <ChevronRight size={18} color="rgba(239, 68, 68, 0.2)" />
+            <ChevronRight size={18} color="rgba(239, 68, 68, 0.4)" />
+          </TouchableOpacity>
+
+          {/* Delete Account Action */}
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            activeOpacity={0.7}
+            onPress={() => setShowDeleteModal(true)}
+          >
+            <View style={styles.deleteIconBox}>
+              <Trash2 size={20} color="#EF4444" />
+            </View>
+            <View style={styles.deleteContent}>
+              <Text style={styles.deleteTextTitle}>Delete Account</Text>
+            </View>
+            <ChevronRight size={18} color="rgba(239, 68, 68, 0.3)" />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -181,6 +213,13 @@ const ProfileScreen = () => {
         visible={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={handleLogout}
+      />
+
+      <DeleteAccountConfirmModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteAccount}
+        loading={loading}
       />
     </View>
   );
@@ -383,25 +422,52 @@ const styles = StyleSheet.create({
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.02)',
+    backgroundColor: 'rgba(15, 23, 42, 0.04)',
     padding: spacing.md,
     borderRadius: 24,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-    marginTop: 8,
+    marginTop: 12,
   },
   logoutIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.1)',
   },
   logoutText: {
     flex: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#EF4444',
+    fontFamily: typography.fontFamily,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    padding: spacing.md,
+    borderRadius: 24,
+    marginTop: 8,
+  },
+  deleteIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  deleteContent: {
+    flex: 1,
+  },
+  deleteTextTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: '#EF4444',

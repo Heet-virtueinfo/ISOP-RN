@@ -62,7 +62,7 @@ const DeleteResourceModal: React.FC<DeleteResourceModalProps> = ({
               <View style={styles.directiveSection}>
                 <Text style={styles.directiveTitle}>CONFIRM REMOVAL</Text>
                 <Text style={styles.mainTitle}>
-                  Permanently Purge{'\n'}This Resource?
+                  Permanently Delete{'\n'}This Resource?
                 </Text>
               </View>
 
@@ -100,7 +100,7 @@ const DeleteResourceModal: React.FC<DeleteResourceModalProps> = ({
                   ) : (
                     <>
                       <Trash2 size={18} color="white" />
-                      <Text style={styles.deleteBtnText}>Purge Resource</Text>
+                      <Text style={styles.deleteBtnText}>Delete Resource</Text>
                     </>
                   )}
                 </TouchableOpacity>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -23,7 +24,10 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { colors, spacing, typography } from '../../theme';
-import { getEventFeedback, updateFeedbackStatus } from '../../services/feedbackService';
+import {
+  getEventFeedback,
+  updateFeedbackStatus,
+} from '../../services/feedbackService';
 import { Feedback } from '../../types';
 import StarRating from '../../components/StarRating';
 import CustomLoader from '../../components/CustomLoader';
@@ -38,19 +42,32 @@ const FeedbackListScreen = () => {
   const [loading, setLoading] = useState(true);
 
   // Status Management State
-  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(
+    null,
+  );
   const [isStatusModalVisible, setIsStatusModalVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = getEventFeedback(eventId, data => {
-      setFeedbacks(data);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    let isMounted = true;
+    const fetchFeedback = async () => {
+      const data = await getEventFeedback(eventId);
+      if (isMounted) {
+        setFeedbacks(data);
+        setLoading(false);
+      }
+    };
+
+    fetchFeedback();
+
+    return () => {
+      isMounted = false;
+    };
   }, [eventId]);
 
-  const handleStatusChange = async (status: 'pending' | 'reviewed' | 'resolved') => {
+  const handleStatusChange = async (
+    status: 'pending' | 'reviewed' | 'resolved',
+  ) => {
     if (!selectedFeedback) return;
 
     setIsUpdating(true);
@@ -74,14 +91,32 @@ const FeedbackListScreen = () => {
   };
 
   const statusColors = {
-    pending: { bg: colors.palette.amber.bg, text: colors.palette.amber.accent, icon: Clock },
-    reviewed: { bg: colors.palette.indigo.bg, text: colors.palette.indigo.accent, icon: Eye },
-    resolved: { bg: colors.palette.emerald.bg, text: colors.palette.emerald.accent, icon: CheckCircle2 },
+    pending: {
+      bg: colors.palette.amber.bg,
+      text: colors.palette.amber.accent,
+      icon: Clock,
+    },
+    reviewed: {
+      bg: colors.palette.indigo.bg,
+      text: colors.palette.indigo.accent,
+      icon: Eye,
+    },
+    resolved: {
+      bg: colors.palette.emerald.bg,
+      text: colors.palette.emerald.accent,
+      icon: CheckCircle2,
+    },
   };
 
   const renderFeedback = ({ item }: { item: Feedback }) => {
     const dateStr = item.createdAt?.toDate
-      ? item.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      ? item.createdAt
+          .toDate()
+          .toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
       : new Date(item.createdAt).toLocaleDateString();
 
     const currentStatus = item.status || 'pending';
@@ -91,12 +126,9 @@ const FeedbackListScreen = () => {
     return (
       <View style={styles.feedbackCard}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.avatarWrap}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={styles.avatarWrap} activeOpacity={0.7}>
             {item.userImage ? (
-              <Image source={{ uri: item.userImage }} style={styles.avatar} />
+              <Image source={getImageSource(item.userImage)} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
                 <User size={18} color={colors.brand.primary} />
@@ -106,7 +138,9 @@ const FeedbackListScreen = () => {
 
           <View style={styles.headerText}>
             <View style={styles.nameRow}>
-              <Text style={styles.userName} numberOfLines={1}>{item.userName}</Text>
+              <Text style={styles.userName} numberOfLines={1}>
+                {item.userName}
+              </Text>
               <TouchableOpacity
                 style={styles.menuBtn}
                 onPress={() => {
@@ -156,11 +190,18 @@ const FeedbackListScreen = () => {
 
   return (
     <View style={styles.container}>
-
-      <AdminHeader title="Event Reviews" showBack={true} onBackPress={() => navigation.goBack()} />
+      <AdminHeader
+        title="Event Reviews"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
 
       {loading ? (
-        <CustomLoader message="Gathering intelligence..." overlay={false} style={{ flex: 1 }} />
+        <CustomLoader
+          message="Gathering intelligence..."
+          overlay={false}
+          style={{ flex: 1 }}
+        />
       ) : (
         <FlatList
           data={feedbacks}
@@ -174,7 +215,9 @@ const FeedbackListScreen = () => {
                 <MessageSquare size={40} color={colors.text.tertiary} />
               </View>
               <Text style={styles.emptyTitle}>Secure Area Empty</Text>
-              <Text style={styles.emptyText}>No executive feedback has been registered for this event yet.</Text>
+              <Text style={styles.emptyText}>
+                No executive feedback has been registered for this event yet.
+              </Text>
             </View>
           }
         />
@@ -192,37 +235,64 @@ const FeedbackListScreen = () => {
             <View style={styles.modalHeader}>
               <View style={styles.modalIndicator} />
               <Text style={styles.modalTitle}>Mission Control</Text>
-              <Text style={styles.modalSubtitle}>Update Execution Progress</Text>
+              <Text style={styles.modalSubtitle}>
+                Update Execution Progress
+              </Text>
             </View>
 
             <View style={styles.statusOptions}>
               {(['pending', 'reviewed', 'resolved'] as const).map(status => {
                 const cfg = statusColors[status];
                 const Icon = cfg.icon;
-                const isSelected = selectedFeedback?.status === status || (!selectedFeedback?.status && status === 'pending');
+                const isSelected =
+                  selectedFeedback?.status === status ||
+                  (!selectedFeedback?.status && status === 'pending');
 
                 return (
                   <TouchableOpacity
                     key={status}
-                    style={[styles.statusOption, isSelected && { borderColor: cfg.text, backgroundColor: cfg.bg + '30' }]}
+                    style={[
+                      styles.statusOption,
+                      isSelected && {
+                        borderColor: cfg.text,
+                        backgroundColor: cfg.bg + '30',
+                      },
+                    ]}
                     onPress={() => handleStatusChange(status)}
                     disabled={isUpdating}
                   >
-                    <View style={[styles.optionIconBox, { backgroundColor: cfg.bg }]}>
+                    <View
+                      style={[
+                        styles.optionIconBox,
+                        { backgroundColor: cfg.bg },
+                      ]}
+                    >
                       <Icon size={20} color={cfg.text} />
                     </View>
                     <View style={styles.optionInfo}>
-                      <Text style={[styles.optionLabel, isSelected && { color: cfg.text }]}>
-                        Mark as {status.charAt(0).toUpperCase() + status.slice(1)}
+                      <Text
+                        style={[
+                          styles.optionLabel,
+                          isSelected && { color: cfg.text },
+                        ]}
+                      >
+                        Mark as{' '}
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
                       </Text>
                       <Text style={styles.optionDesc}>
                         {status === 'pending' && 'Awaiting initial review.'}
                         {status === 'reviewed' && 'Feedback has been analyzed.'}
-                        {status === 'resolved' && 'Corrective actions completed.'}
+                        {status === 'resolved' &&
+                          'Corrective actions completed.'}
                       </Text>
                     </View>
                     {isSelected && (
-                      <View style={[styles.checkCircle, { backgroundColor: cfg.text }]}>
+                      <View
+                        style={[
+                          styles.checkCircle,
+                          { backgroundColor: cfg.text },
+                        ]}
+                      >
                         <Check size={12} color="white" />
                       </View>
                     )}
@@ -242,7 +312,9 @@ const FeedbackListScreen = () => {
             {isUpdating && (
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color={colors.brand.primary} />
-                <Text style={styles.loadingText}>Synchronizing Repositories...</Text>
+                <Text style={styles.loadingText}>
+                  Synchronizing Repositories...
+                </Text>
               </View>
             )}
           </View>

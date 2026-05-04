@@ -7,9 +7,9 @@ import {
   Lock,
   User,
   ShieldCheck,
-  Phone,
   Camera,
   X,
+  ArrowLeft,
 } from 'lucide-react-native';
 import ImagePicker from 'react-native-image-crop-picker';
 import AuthLayout from '../../components/AuthLayout';
@@ -28,9 +28,11 @@ import {
 import { defaultCountry } from '../../utils/countries';
 import { registerUser } from '../../services/authService';
 import CustomLoader from '../../components/CustomLoader';
+import { useAuth } from '../../contexts/AuthContext';
 
 const RegisterScreen = () => {
   const navigation = useNavigation<any>();
+  const { refreshProfile } = useAuth();
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [fullName, setFullName] = useState('');
   const [countryCode, setCountryCode] = useState(defaultCountry.value);
@@ -88,6 +90,9 @@ const RegisterScreen = () => {
           profileImage,
         });
 
+        // Push the new profile into AuthContext so the navigator re-renders
+        await refreshProfile();
+
         Toast.show({
           type: 'success',
           text1: 'Registration Successful',
@@ -95,17 +100,10 @@ const RegisterScreen = () => {
         });
         // Navigation is handled automatically by AppNavigator
       } catch (error: any) {
-        let message = 'Registration failed. Please try again.';
-        if (error.code === 'auth/email-already-in-use') {
-          message = 'This email is already registered.';
-        } else if (error.code === 'auth/weak-password') {
-          message = 'The password is too weak.';
-        }
-
         Toast.show({
           type: 'error',
           text1: 'Registration Failed',
-          text2: message,
+          text2: error?.message ?? 'Registration failed. Please try again.',
         });
       } finally {
         setLoading(false);
@@ -126,14 +124,12 @@ const RegisterScreen = () => {
       cropping: true,
       includeBase64: false,
       mediaType: 'photo',
+      compressImageMaxWidth: 1024,
+      compressImageMaxHeight: 1024,
+      compressImageQuality: 0.8,
     })
       .then(image => {
         setProfileImage(image.path);
-        Toast.show({
-          type: 'success',
-          text1: 'Image selected!',
-          text2: 'Profile picture has been updated.',
-        });
       })
       .catch(err => {
         if (err.code !== 'E_PICKER_CANCELLED') {
@@ -152,6 +148,14 @@ const RegisterScreen = () => {
 
   return (
     <AuthLayout>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <ArrowLeft size={24} color={colors.text.primary} />
+      </TouchableOpacity>
+
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <ShieldCheck size={32} color={colors.brand.primary} />
@@ -281,12 +285,30 @@ const RegisterScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-      {loading && <CustomLoader overlay={true} message="Creating Profile..." />}
     </AuthLayout>
   );
 };
 
 const styles = StyleSheet.create({
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: -spacing.xl,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: colors.layout.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: colors.brand.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+  },
   header: {
     alignItems: 'center',
     marginBottom: spacing.lg,

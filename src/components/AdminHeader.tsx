@@ -1,4 +1,5 @@
 import React from 'react';
+import { getImageSource } from '../utils/imageHelpers';
 import {
   View,
   Text,
@@ -66,7 +67,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
             <TouchableOpacity style={styles.profileBtn} activeOpacity={0.8}>
               {userProfile?.profileImage ? (
                 <Image
-                  source={{ uri: userProfile.profileImage }}
+                  source={getImageSource(userProfile.profileImage)}
                   style={styles.avatar}
                 />
               ) : (

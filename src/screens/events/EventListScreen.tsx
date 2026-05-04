@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Search } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { getActiveEvents } from '../../services/eventService';
@@ -19,7 +19,7 @@ import UserHeader from '../../components/UserHeader';
 import InputField from '../../components/InputField';
 import { getUserEnrollments } from '../../services/enrollmentService';
 import { useAuth } from '../../contexts/AuthContext';
-import { isEventActive } from '../../utils/eventHelpers';
+import { isEventActive, getEventStatus } from '../../utils/eventHelpers';
 
 const EventListScreen = () => {
   const navigation = useNavigation<any>();
@@ -39,33 +39,44 @@ const EventListScreen = () => {
     'meeting',
   ];
 
-  useEffect(() => {
-    if (!userProfile) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!userProfile) return;
+      let isMounted = true;
 
-    const unsubscribeEvents = getActiveEvents(activeEvents => {
-      setEvents(activeEvents);
-      setLoading(false);
-      setRefreshing(false);
-    });
+      const loadData = async () => {
+        try {
+          const [activeEvents, enrollments] = await Promise.all([
+            getActiveEvents(),
+            getUserEnrollments(userProfile.uid),
+          ]);
 
-    const unsubscribeEnrollments = getUserEnrollments(
-      userProfile.uid,
-      enrollments => {
-        setEnrollmentIds(enrollments.map(e => e.eventId));
-      },
-    );
+          if (isMounted) {
+            setEvents(activeEvents);
+            setEnrollmentIds(enrollments.map(e => e.eventId));
+            setLoading(false);
+            setRefreshing(false);
+          }
+        } catch (error) {
+          console.error('EventList Fetch Error', error);
+          if (isMounted) {
+            setLoading(false);
+            setRefreshing(false);
+          }
+        }
+      };
 
-    return () => {
-      unsubscribeEvents();
-      unsubscribeEnrollments();
-    };
-  }, [userProfile]);
+      loadData();
 
-
+      return () => {
+        isMounted = false;
+      };
+    }, [userProfile]),
+  );
 
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
-      if (!isEventActive(event)) return false;
+      if (getEventStatus(event) !== 'UPCOMING') return false;
 
       const matchesQuery =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -75,8 +86,21 @@ const EventListScreen = () => {
     });
   }, [events, searchQuery, selectedType]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    if (!userProfile) {
+      setRefreshing(false);
+      return;
+    }
+
+    try {
+      const activeEvents = await getActiveEvents();
+      setEvents(activeEvents);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const renderEmpty = () => {
@@ -96,7 +120,11 @@ const EventListScreen = () => {
 
   return (
     <View style={styles.container}>
-      <UserHeader title="Event Feeds" />
+      <UserHeader
+        title="Upcoming Events"
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
 
       {loading && !refreshing ? (
         <CustomLoader

@@ -8,8 +8,9 @@ export interface UserProfile {
   phoneNumber?: string;
   profileImage?: string | null;
   fcmToken?: string;
-  createdAt: any;
-  updatedAt: any;
+  createdAt: string | null;
+  updatedAt: string | null;
+  joinedEventIds?: string[];
 }
 
 export type EventType = 'conference' | 'webinar' | 'training' | 'meeting';
@@ -35,13 +36,21 @@ export interface AppEvent {
   title: string;
   description: string;
   date: any;
+  time?: string;
   endDate?: any;
   location: string;
+  platform?: string;
+  meetingLink?: string;
   type: EventType;
+  ticketPrice?: number;
+  tags?: string[];
+  status?: string;
+  capacity?: number;
+  registrationDeadline?: any;
   images: string[];
   enrolledCount: number;
   maxCapacity?: number;
-  createdBy: string; // Admin UID
+  createdBy: string;
   speakers?: Speaker[];
   agenda?: AgendaItem[];
   averageRating?: number;
@@ -49,6 +58,7 @@ export interface AppEvent {
   createdAt: any;
   updatedAt: any;
 }
+
 export interface Enrollment {
   id: string;
   eventId: string;
@@ -57,6 +67,9 @@ export interface Enrollment {
   email: string;
   profileImage?: string | null;
   enrolledAt: any;
+  chatStatus?: 'none' | 'pending' | 'accepted' | 'declined' | 'self' | string | null;
+  chatDirection?: 'sent' | 'received' | string | null;
+  chatRequestId?: string | null;
 }
 
 export type ChatRequestStatus = 'pending' | 'accepted' | 'declined';
@@ -70,7 +83,7 @@ export interface ChatRequest {
   toName: string;
   toImage?: string | null;
   eventId: string;
-  participants: string[]; // [fromUid, toUid] for efficient querying
+  participants: string[];
   status: ChatRequestStatus;
   createdAt: any;
   updatedAt: any;
@@ -115,12 +128,16 @@ export interface NewsArticle {
   type: NewsType;
   imageUrl?: string | null;
   linkUrl?: string | null;
-  createdBy: string; // User ID / Admin ID
+  createdBy: string;
   createdAt: any;
   updatedAt: any;
 }
 
-export type ResourceCategory = 'guideline' | 'training' | 'presentation' | 'other';
+export type ResourceCategory =
+  | 'guideline'
+  | 'training'
+  | 'presentation'
+  | 'other';
 export type ResourceType = 'pdf' | 'video' | 'link';
 
 export interface ResourceItem {
@@ -133,5 +150,3 @@ export interface ResourceItem {
   createdBy: string;
   createdAt: any;
 }
-
-

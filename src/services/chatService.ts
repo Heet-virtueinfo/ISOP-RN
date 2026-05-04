@@ -1,22 +1,55 @@
-import {
-  doc,
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  writeBatch,
-  Timestamp,
-  FirebaseFirestoreTypes,
-} from '@react-native-firebase/firestore';
-import { firebaseFirestore } from '../config/firebase';
+import apiClient from '../config/api';
 import { ChatRequest, Chat, Message, UserProfile, Enrollment } from '../types';
-import { COLLECTIONS } from '../constants/collections';
-import { apiService } from './apiService';
+
+// Normalizer utilities
+const normalizeChatRequest = (data: any): ChatRequest => {
+  const fromUser = data.from_user || data.sender || {};
+  const toUser = data.to_user || data.receiver || data.recipient || {};
+
+  return {
+    id: String(data.id),
+    fromUid: String(
+      data.from_user_id || data.fromUid || fromUser.id || fromUser.uid,
+    ),
+    fromName:
+      fromUser.name ||
+      fromUser.display_name ||
+      fromUser.displayName ||
+      fromUser.full_name ||
+      data.from_name ||
+      data.fromName ||
+      '',
+    fromImage:
+      fromUser.profile_image ||
+      fromUser.image ||
+      data.from_image ||
+      data.fromImage ||
+      null,
+    toUid: String(data.to_user_id || data.toUid || toUser.id || toUser.uid),
+    toName:
+      toUser.name ||
+      toUser.display_name ||
+      toUser.displayName ||
+      toUser.full_name ||
+      data.to_name ||
+      data.toName ||
+      '',
+    toImage:
+      toUser.profile_image ||
+      toUser.image ||
+      data.to_image ||
+      data.toImage ||
+      null,
+    eventId: String(data.event_id || data.eventId || ''),
+    participants: data.participants || [
+      String(data.from_user_id || data.fromUid || fromUser.id || fromUser.uid),
+      String(data.to_user_id || data.toUid || toUser.id || toUser.uid),
+    ],
+    status: data.status,
+    createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+    updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+  };
+};
 
 // SEND CHAT REQUEST
 export const sendChatRequest = async (
@@ -25,259 +58,139 @@ export const sendChatRequest = async (
   eventId: string,
 ) => {
   try {
-    const fromUid = fromProfile.uid;
-    const toUid = toParticipant.uid;
+    const response = await apiClient.post('/api/user/chat-requests', {
+      to_user_id: toParticipant.uid,
+      event_id: eventId,
+    });
+    console.log('[ChatService] sendChatRequest response:', response.data);
 
-    if (fromUid === toUid)
-      return { success: false, error: 'Cannot send request to yourself' };
+    const data = response.data.data || response.data.request || response.data;
 
-    // Check if any request already exists between these two users (any status)
-    const existingRequest = await getChatRequestStatus(fromUid, toUid);
-    if (existingRequest && existingRequest.status !== 'declined') {
-      return { success: false, error: 'Request already exists' };
+    // If the backend returns a success but no clear request object, we should still reflect success in UI
+    if (data && (data.id || data.status)) {
+      return { success: true, chatRequest: normalizeChatRequest(data) };
     }
 
-    // Fetch event title from source of truth
-    const eventDoc = await getDoc(doc(firebaseFirestore, COLLECTIONS.EVENTS, eventId));
-    const eventTitle = eventDoc.exists()
-      ? (eventDoc.data() as any).title
-      : 'an event';
-
-    const requestId =
-      existingRequest?.id ||
-      doc(collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS)).id;
-    const requestRef = doc(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS, requestId);
-    const chatRequest: ChatRequest = {
-      id: requestRef.id,
-      fromUid,
-      fromName: fromProfile.displayName,
-      fromImage: fromProfile.profileImage || null,
-      toUid,
-      toName: toParticipant.displayName,
-      toImage: toParticipant.profileImage || null,
-      eventId,
-      participants: [fromUid, toUid], // For single query listening
-      status: 'pending',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+    // Fallback: the backend might just return { success: true, message: "..." }
+    // We create a temporary object so the UI updates to 'Pending'
+    return {
+      success: true,
+      chatRequest: {
+        id: 'temp-' + Date.now(),
+        fromUid: fromProfile.uid,
+        fromName: fromProfile.displayName,
+        toUid: toParticipant.uid,
+        toName: toParticipant.displayName,
+        eventId: eventId,
+        status: 'pending',
+        participants: [fromProfile.uid, toParticipant.uid],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as ChatRequest,
     };
+  } catch (error: any) {
+    const isConflict =
+      error.status === 409 ||
+      error.response?.status === 409 ||
+      error.message?.includes('already exists') ||
+      error.response?.data?.message?.includes('already exists');
 
-    await setDoc(requestRef, chatRequest);
-
-    // [NOTIFICATION] Send push notification to recipient
-    try {
-      const recipientDoc = await getDoc(doc(firebaseFirestore, COLLECTIONS.USERS, toUid));
-
-      if (recipientDoc.exists()) {
-        const recipientProfile = recipientDoc.data() as UserProfile;
-        if (recipientProfile.fcmToken) {
-          await apiService.sendNotification({
-            fcmToken: recipientProfile.fcmToken,
-            title: 'New Chat Request!',
-            body: `${fromProfile.displayName || 'Someone'
-              } wants to connect regarding ${eventTitle}`,
-            data: {
-              screen: 'RequestsTab', // Deep link to requests screen
-              chatId: chatRequest.id,
-              fromName: fromProfile.displayName,
-            },
-          });
-        }
-      }
-    } catch (notifError) {
-      console.warn('Silent failure on request notification:', notifError);
+    if (isConflict) {
+      console.log('[ChatService] Request already exists, treating as success');
+      return {
+        success: true,
+        chatRequest: {
+          id: 'existing-' + Date.now(),
+          fromUid: fromProfile.uid,
+          fromName: fromProfile.displayName,
+          toUid: toParticipant.uid,
+          toName: toParticipant.displayName,
+          eventId: eventId,
+          status: 'pending',
+          participants: [fromProfile.uid, toParticipant.uid],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as ChatRequest,
+      };
     }
 
-    return { success: true, chatRequest };
-  } catch (error) {
-    console.error('Send Chat Request Error:', error);
-    throw error;
+    console.error('Send Chat Request Error:', error?.response?.data || error);
+    return { success: false, error: 'Could not send request' };
   }
 };
 
 // GET INCOMING REQUESTS
-export const getIncomingRequests = (
-  uid: string,
-  callback: (requests: ChatRequest[]) => void,
-) => {
-  const q = query(
-    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-    where('toUid', '==', uid),
-    where('status', '==', 'pending'),
-    orderBy('createdAt', 'desc'),
-  );
-  return onSnapshot(
-    q,
-    snapshot => {
-      const requests = snapshot.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      );
-      callback(requests);
-    },
-    error => {
-      console.error('Get Incoming Requests Error:', error);
-    },
-  );
+export const getIncomingRequests = async (): Promise<ChatRequest[]> => {
+  try {
+    const response = await apiClient.get('/api/user/chat-requests/incoming');
+    const data = response.data.requests || response.data;
+    return Array.isArray(data) ? data.map(normalizeChatRequest) : [];
+  } catch (error) {
+    console.error('Get Incoming Requests Error:', error);
+    return [];
+  }
 };
 
 // GET SENT REQUESTS
-export const getSentRequests = (
-  uid: string,
-  callback: (requests: ChatRequest[]) => void,
-) => {
-  const q = query(
-    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-    where('fromUid', '==', uid),
-    where('status', '==', 'pending'),
-    orderBy('createdAt', 'desc'),
-  );
-  return onSnapshot(
-    q,
-    snapshot => {
-      const requests = snapshot.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      );
-      callback(requests);
-    },
-    error => {
-      console.error('Get Sent Requests Error:', error);
-    },
-  );
+export const getSentRequests = async (): Promise<ChatRequest[]> => {
+  try {
+    const response = await apiClient.get('/api/user/chat-requests/sent');
+    const data = response.data.requests || response.data;
+    return Array.isArray(data) ? data.map(normalizeChatRequest) : [];
+  } catch (error) {
+    console.error('Get Sent Requests Error:', error);
+    return [];
+  }
 };
 
 // GET CHAT REQUEST STATUS (To check existing connection)
 export const getChatRequestStatus = async (
   uid1: string,
   uid2: string,
+  eventId?: string,
 ): Promise<ChatRequest | null> => {
   try {
-    const shot1 = await getDocs(
-      query(
-        collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-        where('fromUid', '==', uid1),
-        where('toUid', '==', uid2),
-      ),
-    );
-
-    const shot2 = await getDocs(
-      query(
-        collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-        where('fromUid', '==', uid2),
-        where('toUid', '==', uid1),
-      ),
-    );
-
-    const requests = [
-      ...shot1.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      ),
-      ...shot2.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      ),
-    ];
-
-    const bestRequest =
-      requests.find(r => r.status === 'accepted') ||
-      requests.find(r => r.status === 'pending') ||
-      requests[0] ||
-      null;
-
-    return bestRequest;
+    const res = await apiClient.get('/api/user/chat-requests/status', {
+      params: {
+        other_user_id: uid2,
+        event_id: eventId,
+      },
+    });
+    const data = res.data.data || res.data.request || res.data;
+    if (data && data.id) {
+      return normalizeChatRequest(data);
+    }
+    return null;
   } catch (error) {
-    console.error('Get Chat Request Status Error:', error);
     return null;
   }
 };
 
-// LISTEN TO CHAT REQUEST STATUS (Real-time version)
+// SHIM for listenToChatRequestStatus - we fetch initially and map a standard clearable interval
 export const listenToChatRequestStatus = (
   uid1: string,
   uid2: string,
   callback: (request: ChatRequest | null) => void,
+  eventId?: string,
 ) => {
-  let sentData: ChatRequest[] = [];
-  let receivedData: ChatRequest[] = [];
-
-  const handleCombined = () => {
-    const combined = [...sentData, ...receivedData];
-    const bestRequest =
-      combined.find(r => r.status === 'accepted') ||
-      combined.find(r => r.status === 'pending') ||
-      combined[0] ||
-      null;
-    callback(bestRequest);
+  let isValid = true;
+  const poll = async () => {
+    if (!isValid) return;
+    const status = await getChatRequestStatus(uid1, uid2, eventId);
+    if (isValid) callback(status);
   };
-
-  const unsub1 = onSnapshot(
-    query(
-      collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-      where('fromUid', '==', uid1),
-      where('toUid', '==', uid2),
-    ),
-    s => {
-      sentData = s.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      );
-      handleCombined();
-    },
-    error => console.error('Listen Chat Request Status Error:', error),
-  );
-
-  const unsub2 = onSnapshot(
-    query(
-      collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-      where('fromUid', '==', uid2),
-      where('toUid', '==', uid1),
-    ),
-    s => {
-      receivedData = s.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      );
-      handleCombined();
-    },
-    error => console.error('Listen Chat Request Status Error:', error),
-  );
-
+  poll();
+  const interval = setInterval(poll, 15000);
   return () => {
-    unsub1();
-    unsub2();
+    isValid = false;
+    clearInterval(interval);
   };
 };
 
 // ACCEPT CHAT REQUEST
 export const acceptChatRequest = async (request: ChatRequest) => {
   try {
-    const requestRef = doc(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS, request.id);
-    const chatRef = doc(firebaseFirestore, COLLECTIONS.CHATS, request.id);
-
-    const chat: Chat = {
-      id: request.id,
-      participants: [request.fromUid, request.toUid],
-      participantNames: {
-        [request.fromUid]: request.fromName,
-        [request.toUid]: request.toName,
-      },
-      participantImages: {
-        [request.fromUid]: request.fromImage || null,
-        [request.toUid]: request.toImage || null,
-      },
-      createdAt: Timestamp.now(),
-    };
-
-    const batch = writeBatch(firebaseFirestore);
-    batch.update(requestRef, {
-      status: 'accepted',
-      updatedAt: Timestamp.now(),
-    });
-    batch.set(chatRef, chat);
-
-    await batch.commit();
+    await apiClient.patch(`/api/user/chat-requests/${request.id}/accept`);
     return { success: true };
   } catch (error) {
     console.error('Accept Chat Request Error:', error);
@@ -288,10 +201,7 @@ export const acceptChatRequest = async (request: ChatRequest) => {
 // DECLINE CHAT REQUEST
 export const declineChatRequest = async (requestId: string) => {
   try {
-    await updateDoc(doc(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS, requestId), {
-      status: 'declined',
-      updatedAt: Timestamp.now(),
-    });
+    await apiClient.patch(`/api/user/chat-requests/${requestId}/decline`);
     return { success: true };
   } catch (error) {
     console.error('Decline Chat Request Error:', error);
@@ -299,124 +209,65 @@ export const declineChatRequest = async (requestId: string) => {
   }
 };
 
-// GET ACCEPTED REQUESTS (Consolidated connections)
-export const getAcceptedRequests = (
-  uid: string,
-  callback: (requests: ChatRequest[]) => void,
-) => {
-  const sentAcceptedRef = query(
-    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-    where('fromUid', '==', uid),
-    where('status', '==', 'accepted'),
-  );
-
-  const receivedAcceptedRef = query(
-    collection(firebaseFirestore, COLLECTIONS.CHAT_REQUESTS),
-    where('toUid', '==', uid),
-    where('status', '==', 'accepted'),
-  );
-
-  let sentData: ChatRequest[] = [];
-  let receivedData: ChatRequest[] = [];
-
-  const handleCombined = () => {
-    const combined = [...sentData, ...receivedData].sort((a, b) => {
-      const timeA = a.updatedAt
-        ? typeof a.updatedAt.toMillis === 'function'
-          ? a.updatedAt.toMillis()
-          : new Date(a.updatedAt as any).getTime()
-        : 0;
-      const timeB = b.updatedAt
-        ? typeof b.updatedAt.toMillis === 'function'
-          ? b.updatedAt.toMillis()
-          : new Date(b.updatedAt as any).getTime()
-        : 0;
-      return timeB - timeA;
-    });
-
-    // Unique by ID
-    const unique = Array.from(new Map(combined.map(r => [r.id, r])).values());
-    callback(unique);
-  };
-
-  const unsub1 = onSnapshot(
-    sentAcceptedRef,
-    s => {
-      sentData = s.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      );
-      handleCombined();
-    },
-    err => console.error('Sent Accepted Listener Error:', err),
-  );
-
-  const unsub2 = onSnapshot(
-    receivedAcceptedRef,
-    s => {
-      receivedData = s.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as ChatRequest,
-      );
-      handleCombined();
-    },
-    err => console.error('Received Accepted Listener Error:', err),
-  );
-
-  return () => {
-    unsub1();
-    unsub2();
-  };
+// GET ACCEPTED REQUESTS
+export const getAcceptedRequests = async (): Promise<ChatRequest[]> => {
+  try {
+    const response = await apiClient.get('/api/user/chat-requests/accepted');
+    const data = response.data.requests || response.data;
+    return Array.isArray(data) ? data.map(normalizeChatRequest) : [];
+  } catch (error) {
+    console.error('[ChatService] getAcceptedRequests Error:', error);
+    return [];
+  }
 };
 
 // GET MY CHATS
-export const getMyChats = (uid: string, callback: (chats: Chat[]) => void) => {
-  const q = query(
-    collection(firebaseFirestore, COLLECTIONS.CHATS),
-    where('participants', 'array-contains', uid),
-    orderBy('lastMessageAt', 'desc'),
-  );
-  return onSnapshot(
-    q,
-    snapshot => {
-      const chats = snapshot.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) => doc.data() as Chat,
-      );
-      callback(chats);
-    },
-    error => {
-      console.error('Get My Chats Error:', error);
-    },
-  );
+export const getMyChats = async (): Promise<Chat[]> => {
+  try {
+    const response = await apiClient.get('/api/user/chats');
+    const data = response.data.chats || response.data;
+    return Array.isArray(data)
+      ? data.map((c: any) => {
+          const participantNames: Record<string, string> = {};
+          const participantImages: Record<string, string | null> = {};
+
+          if (Array.isArray(c.users)) {
+            c.users.forEach((user: any) => {
+              const uid = String(user.id);
+              participantNames[uid] = user.display_name || user.name || '';
+              participantImages[uid] = user.profile_image || null;
+            });
+          }
+
+          return {
+            id: String(c.id),
+            participants: Array.isArray(c.participants)
+              ? c.participants.map(String)
+              : [],
+            participantNames,
+            participantImages,
+            lastMessage: c.last_message || '',
+            lastMessageAt: c.last_message_at || c.updated_at || '',
+            createdAt: c.created_at || '',
+          } as Chat;
+        })
+      : [];
+  } catch (error) {
+    console.error('Get My Chats Error:', error);
+    return [];
+  }
 };
 
 // SEND MESSAGE
 export const sendMessage = async (
   chatId: string,
-  senderId: string,
+  senderId: string, // Kept for compatibility, backend uses token
   text: string,
 ) => {
   try {
-    const chatRef = doc(firebaseFirestore, COLLECTIONS.CHATS, chatId);
-    const messagesRef = collection(chatRef, COLLECTIONS.MESSAGES);
-
-    const messageRef = doc(messagesRef);
-    const newMessage: Message = {
-      id: messageRef.id,
-      senderId,
-      text,
-      createdAt: Timestamp.now(),
-      read: false,
-    };
-
-    const batch = writeBatch(firebaseFirestore);
-    batch.set(messageRef, newMessage);
-    batch.update(chatRef, {
-      lastMessage: text,
-      lastMessageAt: Timestamp.now(),
+    await apiClient.post(`/api/user/chats/${chatId}/messages`, {
+      text: text,
     });
-
-    await batch.commit();
     return { success: true };
   } catch (error) {
     console.error('Send Message Error:', error);
@@ -425,48 +276,31 @@ export const sendMessage = async (
 };
 
 // GET MESSAGES
-export const getMessages = (
-  chatId: string,
-  callback: (messages: Message[]) => void,
-) => {
-  const q = query(
-    collection(firebaseFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
-    orderBy('createdAt', 'desc'),
-  );
-  return onSnapshot(
-    q,
-    snapshot => {
-      const messages = snapshot.docs.map(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) =>
-          doc.data() as Message,
-      );
-      callback(messages);
-    },
-    error => {
-      console.error('Get Messages Error:', error);
-    },
-  );
+export const getMessages = async (chatId: string): Promise<Message[]> => {
+  try {
+    const response = await apiClient.get(`/api/user/chats/${chatId}/messages`);
+    console.log('messages', response.data);
+    const data = response.data.messages || response.data;
+    return Array.isArray(data)
+      ? (data.map((m: any) => ({
+          id: String(m.id),
+          senderId: String(m.sender_id || m.user_id),
+          text: m.message || m.text,
+          createdAt: m.created_at || new Date().toISOString(),
+          read: m.is_read || m.read || false,
+        })) as Message[])
+      : [];
+  } catch (error) {
+    console.error('Get Messages Error:', error);
+    return [];
+  }
 };
 
 // MARK MESSAGES AS READ
 export const markMessagesRead = async (chatId: string, uid: string) => {
   try {
-    const q = query(
-      collection(firebaseFirestore, COLLECTIONS.CHATS, chatId, COLLECTIONS.MESSAGES),
-      where('senderId', '!=', uid),
-      where('read', '==', false),
-    );
-    const unreadSnapshot = await getDocs(q);
-
-    if (!unreadSnapshot.empty) {
-      const batch = writeBatch(firebaseFirestore);
-      unreadSnapshot.docs.forEach(
-        (doc: FirebaseFirestoreTypes.QueryDocumentSnapshot) => {
-          batch.update(doc.ref, { read: true });
-        },
-      );
-      await batch.commit();
-    }
+    // The backend likely expects a call like this.
+    await apiClient.patch(`/api/user/chats/${chatId}/messages/read`);
   } catch (error) {
     console.error('Mark Messages Read Error:', error);
   }

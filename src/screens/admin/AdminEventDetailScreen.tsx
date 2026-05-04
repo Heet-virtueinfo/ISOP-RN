@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -24,9 +25,9 @@ import {
   Target,
 } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
-import { listenToEvent, deleteEvent } from '../../services/eventService';
+import { adminGetEventById, adminDeleteEvent } from '../../services/admin';
 import { AppEvent, Speaker } from '../../types';
-import { getEventImage, formatEventDate } from '../../utils/eventHelpers';
+import { getEventImage, formatEventDateRange } from '../../utils/eventHelpers';
 import CustomLoader from '../../components/CustomLoader';
 import DeleteEventModal from '../../components/modals/DeleteEventModal';
 import SpeakerBioModal from '../../components/modals/SpeakerBioModal';
@@ -45,14 +46,27 @@ const AdminEventDetailScreen = () => {
   const [showSpeakerModal, setShowSpeakerModal] = useState(false);
 
   useEffect(() => {
-    if (!eventId) return;
+    let mounted = true;
 
-    const unsubscribe = listenToEvent(eventId, data => {
-      setEvent(data);
-      setLoading(false);
-    });
+    const loadEvent = async () => {
+      if (!eventId) return;
+      try {
+        const data = await adminGetEventById(eventId);
+        if (mounted) {
+          setEvent(data);
+          setLoading(false);
+        }
+      } catch (error: any) {
+        console.error('[AdminEventDetail] loadEvent failed:', error?.message);
+        if (mounted) setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    loadEvent();
+
+    return () => {
+      mounted = false;
+    };
   }, [eventId]);
 
   const handleEdit = () => {
@@ -68,7 +82,7 @@ const AdminEventDetailScreen = () => {
     if (!event) return;
     setIsDeleting(true);
     try {
-      await deleteEvent(event.id);
+      await adminDeleteEvent(event.id);
       setDeleteModalVisible(false);
       Toast.show({
         type: 'success',
@@ -206,10 +220,10 @@ const AdminEventDetailScreen = () => {
               >
                 <Calendar size={18} color={colors.palette.indigo.accent} />
               </View>
-              <View>
-                <Text style={styles.metaNodeLabel}>EVENT DATE</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.metaNodeLabel}>EVENT SCHEDULE</Text>
                 <Text style={styles.metaNodeValue}>
-                  {formatEventDate(event.date)}
+                  {formatEventDateRange(event.date, event.endDate)}
                 </Text>
               </View>
             </View>
@@ -269,7 +283,7 @@ const AdminEventDetailScreen = () => {
                     <View style={styles.speakerImageWrap}>
                       {speaker.image ? (
                         <Image
-                          source={{ uri: speaker.image }}
+                          source={getImageSource(speaker.image)}
                           style={styles.speakerImage}
                         />
                       ) : (
@@ -364,10 +378,10 @@ const AdminEventDetailScreen = () => {
               onPress={handleEdit}
             >
               <Edit2 size={18} color="white" />
-              <Text style={styles.actionLabel}>OPTIMIZE EVENT</Text>
+              <Text style={styles.actionLabel}>EDIT EVENT</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.purgeBtn} onPress={handleDelete}>
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
               <Trash2 size={20} color={colors.status.error} />
             </TouchableOpacity>
           </View>
@@ -755,7 +769,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
-  purgeBtn: {
+  deleteBtn: {
     width: 52,
     height: 52,
     borderRadius: radius.xl,

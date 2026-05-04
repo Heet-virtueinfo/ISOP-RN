@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Animated } from 'react-native';
+import { StyleSheet, Animated, DeviceEventEmitter } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { getIncomingRequests } from '../services/chatService';
 
@@ -10,12 +10,35 @@ const ChatRequestBadge = () => {
 
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
 
-    const unsubscribe = getIncomingRequests(user.uid, requests => {
-      setHasRequests(requests.length > 0);
+    const fetchReqs = async () => {
+      try {
+        const requests = await getIncomingRequests();
+        if (isMounted) {
+          setHasRequests(requests.length > 0);
+        }
+      } catch (err) {}
+    };
+
+    // Fetch exactly once on mount to get the initial state
+    fetchReqs();
+
+    // Listen for new push notifications to show the badge immediately
+    const newRequestSub = DeviceEventEmitter.addListener('NEW_CHAT_REQUEST', () => {
+      if (isMounted) setHasRequests(true);
     });
 
-    return () => unsubscribe();
+    // Listen for clearing the badge (e.g., when the user views the requests)
+    const clearRequestSub = DeviceEventEmitter.addListener('CHAT_REQUESTS_CLEARED', () => {
+      if (isMounted) setHasRequests(false);
+    });
+
+    return () => {
+      isMounted = false;
+      newRequestSub.remove();
+      clearRequestSub.remove();
+    };
   }, [user]);
 
   useEffect(() => {

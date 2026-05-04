@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -16,7 +17,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import InputField from '../../components/InputField';
 import PhoneInputField from '../../components/PhoneInputField';
 import Button from '../../components/Button';
-import { colors, spacing, typography, radius } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { validatePhone, validateName } from '../../utils/validation';
 import { splitPhoneNumber } from '../../utils/countries';
@@ -26,7 +27,7 @@ import UserHeader from '../../components/UserHeader';
 
 const EditProfileScreen = () => {
   const navigation = useNavigation<any>();
-  const { userProfile } = useAuth();
+  const { userProfile, refreshProfile } = useAuth();
   const phoneParts = splitPhoneNumber(userProfile?.phoneNumber || '');
 
   const [profileImage, setProfileImage] = useState<string | null>(
@@ -61,11 +62,13 @@ const EditProfileScreen = () => {
     if (validate() && userProfile) {
       setLoading(true);
       try {
-        await updateUserProfile(userProfile.uid, {
-          displayName: fullName,
-          phoneNumber: `${countryCode}${mobile}`,
+        await updateUserProfile({
+          display_name: fullName,
+          phone_number: `${countryCode}${mobile}`,
           profileImage,
         });
+
+        await refreshProfile();
 
         Toast.show({
           type: 'success',
@@ -92,6 +95,9 @@ const EditProfileScreen = () => {
       cropping: true,
       includeBase64: false,
       mediaType: 'photo',
+      compressImageMaxWidth: 1024,
+      compressImageMaxHeight: 1024,
+      compressImageQuality: 0.8,
     })
       .then(image => {
         setProfileImage(image.path);
@@ -138,7 +144,7 @@ const EditProfileScreen = () => {
             >
               {profileImage ? (
                 <Image
-                  source={{ uri: profileImage }}
+                  source={getImageSource(profileImage)}
                   style={styles.avatarImage}
                 />
               ) : (

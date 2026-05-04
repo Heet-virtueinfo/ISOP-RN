@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -10,10 +11,17 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from '@react-navigation/native';
 import { ChevronLeft, Send, Image as ImageIcon } from 'lucide-react-native';
-import { colors, spacing, typography, radius } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getMessages,
@@ -23,10 +31,41 @@ import {
 import { Message } from '../../types';
 import MessageBubble from '../../components/MessageBubble';
 import CustomLoader from '../../components/CustomLoader';
+import { getEcho } from '../../services/echoService';
+import { notificationService } from '../../services/notificationService';
+
+const isSameDay = (date1: any, date2: any) => {
+  if (!date1 || !date2) return false;
+  const d1 = date1.toDate ? date1.toDate() : new Date(date1);
+  const d2 = date2.toDate ? date2.toDate() : new Date(date2);
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+};
+
+const formatSeparatorDate = (timestamp: any) => {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  if (isSameDay(date, now)) return 'Today';
+  if (isSameDay(date, yesterday)) return 'Yesterday';
+
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
 
 const ChatScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { chatId, otherUserName, otherUserImage } = route.params;
 
@@ -35,18 +74,84 @@ const ChatScreen = () => {
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    if (!chatId) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!chatId) return;
+      notificationService.setActiveChatId(chatId);
+      let isMounted = true;
 
-    const unsubscribe = getMessages(chatId, data => {
-      setMessages(data);
-      setLoading(false);
-      // Mark as read after messages load
-      if (user) markMessagesRead(chatId, user.uid);
-    });
+      const fetchMessages = async () => {
+        try {
+          const data = await getMessages(chatId);
+          if (isMounted) {
+            setMessages(data);
+            setLoading(false);
+            // Only mark as read if there are unread messages from the other user
+            const hasUnread = data.some(
+              m => !m.read && m.senderId !== user?.uid,
+            );
+            if (user && hasUnread) {
+              markMessagesRead(chatId, user.uid);
+            }
+          }
+        } catch (error) {
+          if (isMounted) setLoading(false);
+        }
+      };
 
-    return () => unsubscribe();
-  }, [chatId, user]);
+      fetchMessages();
+
+      const pusher = getEcho();
+      if (!pusher) return;
+
+      // In native Pusher, we manually join the private channel
+      const channelName = `private-chat.${chatId}`;
+      const eventName = 'App\\Events\\MessageSent';
+
+      pusher.subscribe({
+        channelName,
+        onEvent: (event: any) => {
+          if (event.eventName === eventName) {
+            try {
+              const data =
+                typeof event.data === 'string'
+                  ? JSON.parse(event.data)
+                  : event.data;
+              console.log('[ChatScreen] Real-Time Message Received:', data);
+
+              const newMessage: Message = {
+                id: String(data.id),
+                senderId: String(data.sender_id || data.senderId),
+                text: data.text || data.message || '',
+                createdAt:
+                  data.created_at || data.createdAt || new Date().toISOString(),
+                read: false,
+              };
+
+              setMessages(prev => {
+                // Prevent duplicates
+                if (prev.some(m => m.id === newMessage.id)) return prev;
+                return [newMessage, ...prev];
+              });
+
+              // Mark as read if it's from the other person
+              if (user && newMessage.senderId !== user.uid) {
+                markMessagesRead(chatId, user.uid);
+              }
+            } catch (e) {
+              console.error('[ChatScreen] Error parsing Pusher event data:', e);
+            }
+          }
+        },
+      });
+
+      return () => {
+        notificationService.setActiveChatId(null);
+        isMounted = false;
+        pusher.unsubscribe({ channelName });
+      };
+    }, [chatId, user]),
+  );
 
   const handleSend = async () => {
     if (!inputText.trim() || !user) return;
@@ -55,9 +160,12 @@ const ChatScreen = () => {
     setInputText(''); // Optimistic clear
 
     try {
+      // The Pusher listener will catch the sent message instantly and push it to the screen.
       await sendMessage(chatId, user.uid, text);
     } catch (error) {
       console.error('Send message error:', error);
+      // Optional: restore text on failure
+      setInputText(text);
     }
   };
 
@@ -71,29 +179,31 @@ const ChatScreen = () => {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity
-        onPress={handleBack}
-        style={styles.backBtn}
-      >
-        <ChevronLeft size={24} color={colors.text.primary} />
-      </TouchableOpacity>
+    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+          <ChevronLeft size={24} color={colors.text.primary} />
+        </TouchableOpacity>
 
-      <View style={styles.userInfo}>
-        {otherUserImage ? (
-          <Image source={{ uri: otherUserImage }} style={styles.headerAvatar} />
-        ) : (
-          <View style={styles.initialsAvatar}>
-            <Text style={styles.initialsText}>{otherUserName[0]}</Text>
-          </View>
-        )}
-        <Text style={styles.headerName}>{otherUserName}</Text>
+        <View style={styles.userInfo}>
+          {otherUserImage ? (
+            <Image
+              source={getImageSource(otherUserImage)}
+              style={styles.headerAvatar}
+            />
+          ) : (
+            <View style={styles.initialsAvatar}>
+              <Text style={styles.initialsText}>{otherUserName[0]}</Text>
+            </View>
+          )}
+          <Text style={styles.headerName}>{otherUserName}</Text>
+        </View>
       </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {renderHeader()}
 
       <KeyboardAvoidingView
@@ -113,12 +223,33 @@ const ChatScreen = () => {
               ref={flatListRef}
               data={messages}
               keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <MessageBubble
-                  message={item}
-                  isMe={item.senderId === user?.uid}
-                />
-              )}
+              renderItem={({ item, index }) => {
+                const messageDate = item.createdAt;
+                const nextMessage = messages[index + 1];
+                const showDateSeparator =
+                  !nextMessage ||
+                  !isSameDay(messageDate, nextMessage.createdAt);
+
+                return (
+                  <View>
+                    {showDateSeparator && (
+                      <View style={styles.dateSeparator}>
+                        <View style={styles.dateLine} />
+                        <View style={styles.dateCapsule}>
+                          <Text style={styles.dateText}>
+                            {formatSeparatorDate(messageDate)}
+                          </Text>
+                        </View>
+                        <View style={styles.dateLine} />
+                      </View>
+                    )}
+                    <MessageBubble
+                      message={item}
+                      isMe={item.senderId === user?.uid}
+                    />
+                  </View>
+                );
+              }}
               inverted
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
@@ -144,11 +275,17 @@ const ChatScreen = () => {
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
-            <Send size={20} color="white" />
+            <View
+              style={{
+                transform: [{ rotate: '45deg' }],
+              }}
+            >
+              <Send size={20} color="white" />
+            </View>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -157,13 +294,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.layout.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
+  headerContainer: {
     backgroundColor: colors.layout.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.layout.divider,
+  },
+  header: {
+    height: 56, // Fixed height for the content area
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
   },
   backBtn: {
     width: 40,
@@ -242,6 +382,33 @@ const styles = StyleSheet.create({
   sendBtnDisabled: {
     backgroundColor: colors.text.tertiary,
     opacity: 0.5,
+  },
+  dateSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+    paddingHorizontal: spacing.md,
+  },
+  dateLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.layout.divider,
+    opacity: 0.5,
+  },
+  dateCapsule: {
+    backgroundColor: 'rgba(15, 23, 42, 0.05)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginHorizontal: 12,
+  },
+  dateText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
 

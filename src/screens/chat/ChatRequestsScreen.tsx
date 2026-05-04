@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -8,8 +9,9 @@ import {
   Platform,
   Image,
   StatusBar,
+  DeviceEventEmitter,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MessageSquare, UserPlus, Check, X } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,10 +26,6 @@ import { ChatRequest, UserProfile } from '../../types';
 import CustomLoader from '../../components/CustomLoader';
 import Toast from 'react-native-toast-message';
 import UserHeader from '../../components/UserHeader';
-import { apiService } from '../../services/apiService';
-import { doc, getDoc } from '@react-native-firebase/firestore';
-import { firebaseFirestore } from '../../config/firebase';
-import { COLLECTIONS } from '../../constants/collections';
 
 const ChatRequestsScreen = () => {
   const navigation = useNavigation<any>();
@@ -40,80 +38,100 @@ const ChatRequestsScreen = () => {
     'incoming',
   );
   const [actionLoading, setActionLoading] = useState(false);
-  useEffect(() => {
-    if (!user) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let isMounted = true;
 
-    const unsubscribeIncoming = getIncomingRequests(user.uid, data => {
-      const uniqueData = data.filter(
-        (item, index, self) =>
-          index === self.findIndex(t => t.fromUid === item.fromUid),
-      );
-      setIncoming(uniqueData);
-      if (activeTab === 'incoming') setLoading(false);
-    });
+      const loadData = async () => {
+        try {
+          const [incomingReqs, sentReqs, acceptedReqs] = await Promise.all([
+            getIncomingRequests(),
+            getSentRequests(),
+            getAcceptedRequests(),
+          ]);
+          if (!isMounted) return;
+          const uniqueIncoming = incomingReqs.filter(
+            (item, index, self) =>
+              index === self.findIndex(t => t.fromUid === item.fromUid),
+          );
+          const uniqueSent = sentReqs.filter(
+            (item, index, self) =>
+              index === self.findIndex(t => t.toUid === item.toUid),
+          );
+          const uniqueAccepted = acceptedReqs.filter((item, index, self) => {
+            const getUid = (req: ChatRequest) =>
+              req.fromUid === user.uid ? req.toUid : req.fromUid;
+            return index === self.findIndex(t => getUid(t) === getUid(item));
+          });
 
-    const unsubscribeSent = getSentRequests(user.uid, data => {
-      const uniqueData = data.filter(
-        (item, index, self) =>
-          index === self.findIndex(t => t.toUid === item.toUid),
-      );
-      setSent(uniqueData);
-      if (activeTab === 'sent') setLoading(false);
-    });
+          setIncoming(uniqueIncoming);
+          setSent(uniqueSent);
+          setAccepted(uniqueAccepted);
+          setLoading(false);
 
-    const unsubscribeAccepted = getAcceptedRequests(user.uid, data => {
-      const uniqueData = data.filter((item, index, self) => {
-        const getUid = (req: ChatRequest) =>
-          req.fromUid === user.uid ? req.toUid : req.fromUid;
-        return index === self.findIndex(t => getUid(t) === getUid(item));
+          // Sync badge state globally
+          if (uniqueIncoming.length === 0) {
+            DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
+          }
+        } catch (error) {
+          if (isMounted) setLoading(false);
+        }
+      };
+
+      loadData();
+
+      const sub = DeviceEventEmitter.addListener('NEW_CHAT_REQUEST', () => {
+        if (isMounted) loadData();
       });
-      setAccepted(uniqueData);
-      if (activeTab === 'accepted') setLoading(false);
-    });
 
-    return () => {
-      unsubscribeIncoming();
-      unsubscribeSent();
-      unsubscribeAccepted();
-    };
-  }, [user, activeTab]);
+      return () => {
+        isMounted = false;
+        sub.remove();
+      };
+    }, [user]),
+  );
 
   const handleAccept = async (request: ChatRequest) => {
     setActionLoading(true);
     try {
       await acceptChatRequest(request);
 
-      // [NOTIFICATION] Notify original sender
-      try {
-        const senderSnapshot = await getDoc(
-          doc(firebaseFirestore, COLLECTIONS.USERS, request.fromUid),
-        );
-
-        if (senderSnapshot.exists()) {
-          const senderProfile = senderSnapshot.data() as UserProfile;
-          if (senderProfile.fcmToken) {
-            await apiService.sendNotification({
-              fcmToken: senderProfile.fcmToken,
-              title: 'Request Accepted!',
-              body: `${request.toName || 'Someone'
-                } accepted your chat request. Start the conversation!`,
-              data: {
-                screen: 'Chat',
-                chatId: request.id,
-                otherUserName: request.toName || 'Someone',
-              },
-            });
-          }
-        }
-      } catch (notifError) {
-        console.warn('Acceptance notification failed:', notifError);
-      }
-
       Toast.show({
         type: 'success',
         text1: 'Connection Established',
         text2: `Now chatting with ${request.fromName}`,
       });
+      // Refresh the list
+      const loadData = async () => {
+        const [incomingReqs, sentReqs, acceptedReqs] = await Promise.all([
+          getIncomingRequests(),
+          getSentRequests(),
+          getAcceptedRequests(),
+        ]);
+        const uniqueIncoming = incomingReqs.filter(
+          (item, index, self) =>
+            index === self.findIndex(t => t.fromUid === item.fromUid),
+        );
+        const uniqueSent = sentReqs.filter(
+          (item, index, self) =>
+            index === self.findIndex(t => t.toUid === item.toUid),
+        );
+        const uniqueAccepted = acceptedReqs.filter((item, index, self) => {
+          const getUid = (req: ChatRequest) =>
+            req.fromUid === user?.uid ? req.toUid : req.fromUid;
+          return index === self.findIndex(t => getUid(t) === getUid(item));
+        });
+
+        setIncoming(uniqueIncoming);
+        setSent(uniqueSent);
+        setAccepted(uniqueAccepted);
+        if (uniqueIncoming.length === 0) {
+          DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
+        }
+      };
+      await loadData();
+
       navigation.navigate('Chat', {
         chatId: request.id,
         otherUserName: request.fromName,
@@ -130,41 +148,17 @@ const ChatRequestsScreen = () => {
     try {
       await declineChatRequest(request.id);
 
-      // [NOTIFICATION] Notify original sender about the decline
-      try {
-        const senderSnapshot = await getDoc(
-          doc(firebaseFirestore, COLLECTIONS.USERS, request.fromUid),
-        );
-
-        if (senderSnapshot.exists()) {
-          const senderProfile = senderSnapshot.data() as UserProfile;
-          if (senderProfile.fcmToken) {
-            // Fetch event title from source of truth
-            const eventSnapshot = await getDoc(
-              doc(firebaseFirestore, COLLECTIONS.EVENTS, request.eventId),
-            );
-            const eventTitle = eventSnapshot.exists()
-              ? (eventSnapshot.data() as any).title
-              : 'Event';
-
-            await apiService.sendNotification({
-              fcmToken: senderProfile.fcmToken,
-              title: 'Request Declined',
-              body: `${request.toName || 'Someone'
-                } declined your chat request.`,
-              data: {
-                screen: 'Participants', // Updated target screen
-                eventId: request.eventId,
-                eventTitle,
-              },
-            });
-          }
-        }
-      } catch (notifError) {
-        console.warn('Decline notification failed:', notifError);
-      }
-
       Toast.show({ type: 'success', text1: 'Request Declined' });
+      // Refresh the list
+      const incomingReqs = await getIncomingRequests();
+      const uniqueIncoming = incomingReqs.filter(
+        (item, index, self) =>
+          index === self.findIndex(t => t.fromUid === item.fromUid),
+      );
+      setIncoming(uniqueIncoming);
+      if (uniqueIncoming.length === 0) {
+        DeviceEventEmitter.emit('CHAT_REQUESTS_CLEARED');
+      }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Action Failed' });
     }
@@ -177,19 +171,19 @@ const ChatRequestsScreen = () => {
     const name = isIncoming
       ? item.fromName
       : isAccepted
-        ? item.fromUid === user?.uid
-          ? item.toName
-          : item.fromName
-        : item.toName;
+      ? item.fromUid === user?.uid
+        ? item.toName
+        : item.fromName
+      : item.toName;
     const image = isIncoming
       ? item.fromImage
       : isSent
+      ? item.toImage
+      : isAccepted
+      ? item.fromUid === user?.uid
         ? item.toImage
-        : isAccepted
-          ? item.fromUid === user?.uid
-            ? item.toImage
-            : item.fromImage
-          : item.toImage;
+        : item.fromImage
+      : item.toImage;
 
     return (
       <View style={styles.cardWrapper}>
@@ -197,7 +191,7 @@ const ChatRequestsScreen = () => {
           <View style={styles.cardHeader}>
             <View style={styles.avatarWrapper}>
               {image ? (
-                <Image source={{ uri: image }} style={styles.avatarImage} />
+                <Image source={getImageSource(image)} style={styles.avatarImage} />
               ) : (
                 <View style={styles.initialsAvatar}>
                   <Text style={styles.avatarText}>
@@ -210,7 +204,14 @@ const ChatRequestsScreen = () => {
 
             <View style={styles.userInfo}>
               <Text style={styles.userName} numberOfLines={1}>
-                {name}
+                {name || 'Member'}
+              </Text>
+              <Text style={styles.userRole}>
+                {isSent
+                  ? 'Request Sent'
+                  : isIncoming
+                  ? 'Wants to Connect'
+                  : 'Connection Active'}
               </Text>
             </View>
 
@@ -342,8 +343,8 @@ const ChatRequestsScreen = () => {
             activeTab === 'incoming'
               ? incoming
               : activeTab === 'sent'
-                ? sent
-                : accepted
+              ? sent
+              : accepted
           }
           keyExtractor={item => item.id}
           renderItem={renderRequestItem}
@@ -363,8 +364,8 @@ const ChatRequestsScreen = () => {
                   {activeTab === 'incoming'
                     ? 'No one has reached out yet. Why not start the conversation?'
                     : activeTab === 'sent'
-                      ? 'Your sent requests will appear here. Start reaching out to peers!'
-                      : 'Collaborations and established connections will sync here.'}
+                    ? 'Your sent requests will appear here. Start reaching out to peers!'
+                    : 'Collaborations and established connections will sync here.'}
                 </Text>
               </View>
             ) : null
@@ -519,6 +520,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: colors.text.primary,
+  },
+  userRole: {
+    fontFamily: typography.fontFamily,
+    fontSize: 11,
+    color: colors.text.tertiary,
+    marginTop: 2,
   },
   cardActions: {
     marginLeft: 12,

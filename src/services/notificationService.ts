@@ -1,4 +1,5 @@
-import { doc, updateDoc, Timestamp } from '@react-native-firebase/firestore';
+import { firebaseMessaging } from '../config/firebase';
+import { updateFcmToken } from './authService';
 import {
   onMessage,
   onTokenRefresh,
@@ -10,13 +11,19 @@ import {
   registerDeviceForRemoteMessages,
   isDeviceRegisteredForRemoteMessages,
 } from '@react-native-firebase/messaging';
-import { firebaseMessaging, firebaseFirestore } from '../config/firebase';
-import { COLLECTIONS } from '../constants/collections';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform, DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import * as navigationRef from '../utils/navigationRef';
 
 class NotificationService {
+  private activeChatId: string | null = null;
+
+  setActiveChatId(id: string | null) {
+    this.activeChatId = id;
+    console.log('[NotificationService] Active Chat ID set to:', id);
+  }
+
   async requestPermission(): Promise<boolean> {
     try {
       if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -60,31 +67,49 @@ class NotificationService {
   async updateUserToken(uid: string, existingToken?: string) {
     try {
       const newToken = await this.getFCMToken();
-      
-      // Only update if we have a token AND it's different from the existing one
-      if (newToken && uid && newToken !== existingToken) {
-        console.log('[NotificationService] New token detected. Updating Firestore...');
-        await updateDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), {
-          fcmToken: newToken,
-          updatedAt: Timestamp.now(),
-        });
+
+      if (newToken && uid) {
+        if (newToken !== existingToken) {
+          console.log(
+            `[NotificationService] Token mismatch detected (Server: ${existingToken?.slice(
+              0,
+              10,
+            )}... Device: ${newToken.slice(0, 10)}...). Updating...`,
+          );
+        } else {
+          console.log(
+            '[NotificationService] Token matches local profile. Syncing with API anyway for reliability...',
+          );
+        }
+
+        await updateFcmToken(newToken);
+        console.log('[NotificationService] FCM Token synced successfully.');
       } else {
-        console.log('[NotificationService] Token matches existing one. Skipping update.');
+        console.warn(
+          '[NotificationService] Cannot update token: newToken or uid is missing.',
+          { hasToken: !!newToken, hasUid: !!uid },
+        );
       }
     } catch (error) {
-      console.error('Update User Token Error:', error);
+      console.error('[NotificationService] Update User Token Error:', error);
     }
   }
 
+  async deleteUserToken() {
+    try {
+      console.log('[NotificationService] Clearing FCM token from server...');
+      await updateFcmToken(null);
+      console.log('[NotificationService] FCM token cleared successfully.');
+    } catch (error) {
+      console.error('[NotificationService] Error clearing FCM token:', error);
+    }
+  }
 
   onTokenRefresh(uid: string) {
     return onTokenRefresh(firebaseMessaging, async token => {
       console.log('FCM Token Refreshed:', token);
       if (uid) {
-        await updateDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), {
-          fcmToken: token,
-          updatedAt: Timestamp.now(),
-        });
+        await updateFcmToken(token);
       }
     });
   }
@@ -103,6 +128,20 @@ class NotificationService {
     // 1. Listen for FCM messages
     const unsubscribeFCM = onMessage(firebaseMessaging, async remoteMessage => {
       console.log('A new FCM message arrived (Foreground)!', remoteMessage);
+
+      // Check if we should suppress this notification (user is already in this chat)
+      const incomingChatId =
+        remoteMessage.data?.chatId || remoteMessage.data?.chat_id;
+      if (
+        incomingChatId &&
+        String(incomingChatId) === String(this.activeChatId)
+      ) {
+        console.log(
+          '[NotificationService] Suppressing foreground notification for active chat:',
+          this.activeChatId,
+        );
+        return;
+      }
 
       if (remoteMessage.notification) {
         const { title, body } = remoteMessage.notification;
@@ -128,6 +167,16 @@ class NotificationService {
           },
         });
       }
+
+      if (remoteMessage.data) {
+        if (remoteMessage.data.type === 'CHAT_REQUEST') {
+          DeviceEventEmitter.emit('NEW_CHAT_REQUEST', remoteMessage.data);
+        } else if (remoteMessage.data.type === 'REQUEST_ACCEPTED') {
+          DeviceEventEmitter.emit('REQUEST_ACCEPTED', remoteMessage.data);
+        } else if (remoteMessage.data.type === 'REQUEST_REJECTED') {
+          DeviceEventEmitter.emit('REQUEST_REJECTED', remoteMessage.data);
+        }
+      }
     });
 
     // 2. Listen for Notifee foreground events (e.g. user tapping the notification)
@@ -138,9 +187,8 @@ class NotificationService {
             'User pressed notification in foreground',
             detail.notification,
           );
-          // If you have a callback for navigation, you can trigger it here
-          if (detail.notification?.data?.screen) {
-            // handle navigation
+          if (detail.notification) {
+            this.processNotificationData(detail.notification);
           }
           break;
       }
@@ -162,11 +210,10 @@ class NotificationService {
     callback: (screen: string, data?: any) => void,
   ) {
     // 1. If app was opened from a "quit" state via FCM
-    const initialNotification =
-      await getInitialNotification(firebaseMessaging);
+    const initialNotification = await getInitialNotification(firebaseMessaging);
     if (initialNotification) {
       console.log('Opened from quit state (FCM):', initialNotification);
-      this.processNotificationData(initialNotification, callback);
+      await this.processNotificationData(initialNotification, callback);
     }
 
     // 2. If app was opened from a "quit" state via Notifee
@@ -176,7 +223,7 @@ class NotificationService {
         'Opened from quit state (Notifee):',
         initialNotifee.notification,
       );
-      this.processNotificationData(initialNotifee.notification, callback);
+      await this.processNotificationData(initialNotifee.notification, callback);
     }
 
     // 3. If app was in background
@@ -186,15 +233,76 @@ class NotificationService {
     });
   }
 
-  private processNotificationData(
+  private async processNotificationData(
     remoteMessage: any,
     callback?: (screen: string, data?: any) => void,
   ) {
-    const { data } = remoteMessage;
+    const { data, messageId, notification } = remoteMessage;
+    const currentId =
+      messageId ||
+      (notification && notification.id) ||
+      (remoteMessage && remoteMessage.id);
+
+    if (currentId) {
+      const lastId = await AsyncStorage.getItem('LAST_NOTIFICATION_ID');
+      if (lastId === currentId) {
+        console.log(
+          '[NotificationService] Notification already handled, skipping:',
+          currentId,
+        );
+        return;
+      }
+      await AsyncStorage.setItem('LAST_NOTIFICATION_ID', currentId);
+    }
+
     console.log('[NotificationService] Processing data:', data);
 
-    if (data && data.screen === 'Participants') {
-      console.log('[NotificationService] Navigating to Participants screen');
+    // 1. New Event Created
+    if (data && (data.type === 'EVENT_PUBLISHED' || data.eventId)) {
+      console.log(
+        `[NotificationService] Navigating to Event Detail: ${data.eventId}`,
+      );
+      navigationRef.navigate('User', {
+        screen: 'HomeTab',
+        params: {
+          screen: 'EventDetail',
+          params: { eventId: data.eventId },
+        },
+      });
+    }
+
+    // 2. Incoming Chat Request
+    if (
+      data &&
+      (data.type === 'CHAT_REQUEST' || data.screen === 'RequestsTab')
+    ) {
+      console.log('[NotificationService] Navigating to Requests (Networking)');
+      navigationRef.navigate('User', {
+        screen: 'RequestsTab',
+        params: { screen: 'ChatRequests' },
+      });
+    }
+
+    // 3. Request Accepted
+    if (
+      data &&
+      (data.type === 'REQUEST_ACCEPTED' || data.screen === 'ChatsTab')
+    ) {
+      console.log('[NotificationService] Navigating to Chat Inbox (Accepted)');
+      navigationRef.navigate('User', {
+        screen: 'ChatsTab',
+        params: { screen: 'ChatInbox' },
+      });
+    }
+
+    // 4. Request Rejected - Redirect to Participants List
+    if (
+      data &&
+      (data.type === 'REQUEST_REJECTED' || data.screen === 'HomeTab')
+    ) {
+      console.log(
+        '[NotificationService] Navigating to Participants list (Rejected)',
+      );
       navigationRef.navigate('User', {
         screen: 'HomeTab',
         params: {
@@ -202,14 +310,11 @@ class NotificationService {
           params: { eventId: data.eventId, eventTitle: data.eventTitle },
         },
       });
-    } else if (data && data.screen === 'RequestsTab') {
-      console.log('[NotificationService] Navigating to RequestsTab');
-      navigationRef.navigate('User', {
-        screen: 'RequestsTab',
-        params: { screen: 'ChatRequests' },
-      });
-    } else if (data && data.screen === 'Chat') {
-      console.log('[NotificationService] Navigating to Chat screen');
+    }
+
+    // 5. New Message - Redirect to Specific Chat
+    if (data && (data.type === 'NEW_MESSAGE' || data.screen === 'Chat')) {
+      console.log(`[NotificationService] Navigating to Chat: ${data.chatId}`);
       navigationRef.navigate('User', {
         screen: 'ChatsTab',
         params: {
@@ -221,19 +326,21 @@ class NotificationService {
           },
         },
       });
-    } else if (data && data.eventId) {
-      console.log(`[NotificationService] Attempting deep-link to event: ${data.eventId}`);
-      // Navigate through the hierarchy: Root (User) -> Tab (HomeTab) -> Screen (EventDetail)
+    }
+
+    // 6. News Broadcast - Redirect to News Screen
+    if (
+      data &&
+      (data.type === 'NEWS_BROADCAST' || data.screen === 'NewsScreen')
+    ) {
+      console.log('[NotificationService] Navigating to NewsScreen');
       navigationRef.navigate('User', {
         screen: 'HomeTab',
         params: {
-          screen: 'EventDetail',
-          params: { eventId: data.eventId },
+          screen: 'NewsScreen',
+          params: { articleId: data.newsId },
         },
       });
-    } else if (data && data.screen) {
-      console.log(`[NotificationService] Attempting generic screen-link to: ${data.screen}`);
-      navigationRef.navigate(data.screen, data);
     }
 
     if (callback && data && data.screen) {

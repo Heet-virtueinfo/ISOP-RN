@@ -1,6 +1,7 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { Platform, NativeModules } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { normalizeUrl } from '../utils/urlHelpers';
 
 const isNativeModuleAvailable = !!NativeModules.ReactNativeBlobUtil;
 
@@ -34,14 +35,17 @@ export const downloadFile = async (url: string, fileName: string) => {
       text2: `Saving "${cleanFileName}"...`,
     });
 
+    const { uri: normalizedUrl, headers: ngrokHeaders } = normalizeUrl(url);
+
     // Use direct fetch with browser mimicking headers
     const res = await ReactNativeBlobUtil.config({
       path: filePath,
       followRedirect: true,
-    }).fetch('GET', url, {
+    }).fetch('GET', normalizedUrl, {
       'User-Agent':
         'Mozilla/5.0 (Linux; Android 10; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Mobile Safari/537.36',
       Accept: '*/*',
+      ...ngrokHeaders,
     });
 
     const status = res.info().status;
