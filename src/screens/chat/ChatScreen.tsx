@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -10,7 +11,10 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import {
   useRoute,
   useNavigation,
@@ -175,20 +179,25 @@ const ChatScreen = () => {
   };
 
   const renderHeader = () => (
-    <View style={[styles.header, {paddingTop: insets.top}]}>
-      <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-        <ChevronLeft size={24} color={colors.text.primary} />
-      </TouchableOpacity>
+    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+          <ChevronLeft size={24} color={colors.text.primary} />
+        </TouchableOpacity>
 
-      <View style={styles.userInfo}>
-        {otherUserImage ? (
-          <Image source={{ uri: otherUserImage }} style={styles.headerAvatar} />
-        ) : (
-          <View style={styles.initialsAvatar}>
-            <Text style={styles.initialsText}>{otherUserName[0]}</Text>
-          </View>
-        )}
-        <Text style={styles.headerName}>{otherUserName}</Text>
+        <View style={styles.userInfo}>
+          {otherUserImage ? (
+            <Image
+              source={getImageSource(otherUserImage)}
+              style={styles.headerAvatar}
+            />
+          ) : (
+            <View style={styles.initialsAvatar}>
+              <Text style={styles.initialsText}>{otherUserName[0]}</Text>
+            </View>
+          )}
+          <Text style={styles.headerName}>{otherUserName}</Text>
+        </View>
       </View>
     </View>
   );
@@ -285,13 +294,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.layout.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
+  headerContainer: {
     backgroundColor: colors.layout.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.layout.divider,
+  },
+  header: {
+    height: 56, // Fixed height for the content area
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
   },
   backBtn: {
     width: 40,

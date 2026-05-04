@@ -1,4 +1,5 @@
 import React from 'react';
+import { getImageSource } from '../utils/imageHelpers';
 import {
   View,
   Text,
@@ -77,7 +78,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({
                 <View style={styles.profileBtn}>
                   {userProfile?.profileImage ? (
                     <Image
-                      source={{ uri: userProfile.profileImage }}
+                      source={getImageSource(userProfile.profileImage)}
                       style={styles.avatar}
                     />
                   ) : (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -82,7 +83,7 @@ const DeleteMemberModal: React.FC<DeleteMemberModalProps> = ({
               <View style={styles.memberCard}>
                 <View style={styles.memberInfoRow}>
                   {member.profileImage ? (
-                    <Image source={{ uri: member.profileImage }} style={styles.avatar} />
+                    <Image source={getImageSource(member.profileImage)} style={styles.avatar} />
                   ) : (
                     <View style={styles.avatarPlaceholder}>
                       <Text style={styles.initials}>{initials}</Text>

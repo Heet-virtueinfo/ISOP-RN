@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -62,7 +63,7 @@ const MemberCard = ({
       <View style={cardStyles.avatarContainer}>
         {member.profileImage ? (
           <Image
-            source={{ uri: member.profileImage }}
+            source={getImageSource(member.profileImage)}
             style={cardStyles.avatar}
           />
         ) : (

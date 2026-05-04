@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -60,8 +61,6 @@ const EventDetailScreen = () => {
   const { userProfile } = useAuth();
   const { eventId } = route.params;
   const insets = useSafeAreaInsets();
-  console.log('userProfile', userProfile);
-  console.log('Event Id:', eventId);
 
   const [event, setEvent] = useState<AppEvent | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -89,8 +88,6 @@ const EventDetailScreen = () => {
               ? checkEnrollment(eventId, userProfile.uid)
               : Promise.resolve(null),
           ]);
-          console.log('Event Data:', eventData);
-          console.log('Enrollment Data:', enrollmentData);
           if (isMounted) {
             setEvent(eventData);
             setEnrollment(enrollmentData);
@@ -393,7 +390,9 @@ const EventDetailScreen = () => {
               </View>
               <View style={styles.metaContent}>
                 <Text style={styles.metaLabel}>Date & Time</Text>
-                <Text style={styles.metaValue}>{formatDate(event.date, event.endDate)}</Text>
+                <Text style={styles.metaValue}>
+                  {formatDate(event.date, event.endDate)}
+                </Text>
               </View>
             </View>
 
@@ -487,7 +486,7 @@ const EventDetailScreen = () => {
                   >
                     {speaker.image ? (
                       <Image
-                        source={{ uri: speaker.image }}
+                        source={getImageSource(speaker.image)}
                         style={styles.speakerImage}
                       />
                     ) : (

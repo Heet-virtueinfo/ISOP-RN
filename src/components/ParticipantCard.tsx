@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getImageSource } from '../utils/imageHelpers';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MessageSquare, UserCheck } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
@@ -158,7 +159,7 @@ const ParticipantCard = ({
       <View style={styles.avatarContainer}>
         {participant.profileImage ? (
           <Image
-            source={{ uri: participant.profileImage }}
+            source={getImageSource(participant.profileImage)}
             style={styles.avatar}
           />
         ) : (

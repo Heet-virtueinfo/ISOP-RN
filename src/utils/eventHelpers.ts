@@ -1,3 +1,4 @@
+import { getImageSource } from './imageHelpers';
 import { AppEvent, EventType } from '../types';
 
 export const getEventPlaceholder = (type: EventType) => {
@@ -17,7 +18,8 @@ export const getEventPlaceholder = (type: EventType) => {
 
 export const getEventImage = (event: AppEvent) => {
   if (event.images && event.images.length > 0) {
-    return { uri: event.images[0] };
+    const source = getImageSource(event.images[0]);
+    return source || getEventPlaceholder(event.type);
   }
   return getEventPlaceholder(event.type);
 };

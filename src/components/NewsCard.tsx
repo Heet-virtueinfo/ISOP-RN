@@ -1,4 +1,5 @@
 import React from 'react';
+import { getImageSource } from '../utils/imageHelpers';
 import {
   View,
   Text,
@@ -59,7 +60,7 @@ const NewsCard = ({ article, onPress, isAdmin, onEdit, onDelete }: NewsCardProps
     >
       <View style={styles.imageWrapper}>
         {article.imageUrl ? (
-          <Image source={{ uri: article.imageUrl }} style={styles.image} />
+          <Image source={getImageSource(article.imageUrl)} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
             {isAlert ? (

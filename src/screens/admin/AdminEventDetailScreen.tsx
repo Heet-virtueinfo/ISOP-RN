@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -282,7 +283,7 @@ const AdminEventDetailScreen = () => {
                     <View style={styles.speakerImageWrap}>
                       {speaker.image ? (
                         <Image
-                          source={{ uri: speaker.image }}
+                          source={getImageSource(speaker.image)}
                           style={styles.speakerImage}
                         />
                       ) : (

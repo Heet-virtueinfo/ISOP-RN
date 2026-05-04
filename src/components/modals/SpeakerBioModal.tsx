@@ -1,4 +1,5 @@
 import React from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -58,7 +59,7 @@ const SpeakerBioModal: React.FC<SpeakerBioModalProps> = ({
                   <View style={styles.imageContainer}>
                     {speaker.image ? (
                       <Image
-                        source={{ uri: speaker.image }}
+                        source={getImageSource(speaker.image)}
                         style={styles.speakerImage}
                       />
                     ) : (

@@ -35,7 +35,7 @@ import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import EventTypePicker from '../../components/EventTypePicker';
 import ImagePickerGrid from '../../components/ImagePickerGrid';
-import { adminCreateEvent } from '../../services/admin';
+import { adminCreateEvent, adminUploadSpeakerImage } from '../../services/admin';
 import { formatEventDate } from '../../utils/eventHelpers';
 import BentoFormTile from '../../components/BentoFormTile';
 
@@ -177,10 +177,37 @@ const CreateEventScreen = () => {
         agenda,
       });
 
+      // Upload speaker images if any
+      if (event && event.id && event.speakers && speakers.length > 0) {
+        for (let i = 0; i < speakers.length; i++) {
+          const localSpeaker = speakers[i];
+          // Match by index - assuming server preserves order
+          const serverSpeaker = event.speakers[i];
+          if (
+            localSpeaker.image &&
+            !localSpeaker.image.startsWith('http') &&
+            serverSpeaker
+          ) {
+            try {
+              await adminUploadSpeakerImage(
+                event.id,
+                serverSpeaker.id,
+                localSpeaker.image,
+              );
+            } catch (imgError) {
+              console.error(
+                `Failed to upload image for speaker ${localSpeaker.name}:`,
+                imgError,
+              );
+            }
+          }
+        }
+      }
+
       Toast.show({
         type: 'success',
         text1: 'Event Created',
-        text2: 'The event has been successfully published.',
+        text2: 'The event and speakers have been successfully published.',
       });
 
       resetForm();

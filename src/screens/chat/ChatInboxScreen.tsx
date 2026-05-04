@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -80,7 +81,7 @@ const ChatInboxScreen = () => {
       >
         <View style={styles.avatarContainer}>
           {other.image ? (
-            <Image source={{ uri: other.image }} style={styles.avatar} />
+            <Image source={getImageSource(other.image)} style={styles.avatar} />
           ) : (
             <View style={styles.initialsAvatarSmall}>
               <Text style={styles.initialsTextSmall}>{other.name[0]}</Text>

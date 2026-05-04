@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -143,7 +144,7 @@ const EditProfileScreen = () => {
             >
               {profileImage ? (
                 <Image
-                  source={{ uri: profileImage }}
+                  source={getImageSource(profileImage)}
                   style={styles.avatarImage}
                 />
               ) : (

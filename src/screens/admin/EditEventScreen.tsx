@@ -40,6 +40,7 @@ import {
   adminGetEventById,
   adminUpdateEvent,
   adminDeleteEvent,
+  adminUploadSpeakerImage,
 } from '../../services/admin';
 import { formatEventDate } from '../../utils/eventHelpers';
 import BentoFormTile from '../../components/BentoFormTile';
@@ -201,7 +202,7 @@ const EditEventScreen = () => {
 
     setSaving(true);
     try {
-      await adminUpdateEvent(eventId, {
+      const updatedEvent = await adminUpdateEvent(eventId, {
         title,
         description,
         location,
@@ -213,6 +214,32 @@ const EditEventScreen = () => {
         speakers,
         agenda,
       });
+
+      // Upload speaker images for any that are still local URIs
+      if (updatedEvent && updatedEvent.speakers && speakers.length > 0) {
+        for (let i = 0; i < speakers.length; i++) {
+          const localSpeaker = speakers[i];
+          const serverSpeaker = updatedEvent.speakers[i];
+          if (
+            localSpeaker.image &&
+            !localSpeaker.image.startsWith('http') &&
+            serverSpeaker
+          ) {
+            try {
+              await adminUploadSpeakerImage(
+                eventId,
+                serverSpeaker.id,
+                localSpeaker.image,
+              );
+            } catch (imgError) {
+              console.error(
+                `Failed to upload image for speaker ${localSpeaker.name}:`,
+                imgError,
+              );
+            }
+          }
+        }
+      }
 
       Toast.show({
         type: 'success',
@@ -712,9 +739,39 @@ const EditEventScreen = () => {
                 <Text style={styles.inputLabel}>Speaker Photo</Text>
                 <ImagePickerGrid
                   images={tempSpeaker.image ? [tempSpeaker.image] : []}
-                  onChange={imgs =>
-                    setTempSpeaker({ ...tempSpeaker, image: imgs[0] || null })
-                  }
+                  onChange={async imgs => {
+                    const newImage = imgs[0] || null;
+                    setTempSpeaker({ ...tempSpeaker, image: newImage });
+
+                    // If existing speaker and event, upload immediately
+                    // We check if ID is likely a server ID (usually numeric or long string, not random 9-char)
+                    // But simpler check: if it was already in editingSpeaker
+                    if (
+                      newImage &&
+                      !newImage.startsWith('http') &&
+                      eventId &&
+                      editingSpeaker &&
+                      editingSpeaker.id === tempSpeaker.id
+                    ) {
+                      try {
+                        const res = await adminUploadSpeakerImage(
+                          eventId,
+                          tempSpeaker.id,
+                          newImage,
+                        );
+                        const uploadedUrl =
+                          res.image_url || res.image || res.data?.image_url;
+                        if (uploadedUrl) {
+                          setTempSpeaker(prev => ({
+                            ...prev,
+                            image: uploadedUrl,
+                          }));
+                        }
+                      } catch (err) {
+                        console.error('Failed to upload speaker image:', err);
+                      }
+                    }
+                  }}
                   maxImages={1}
                 />
               </View>

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -190,7 +191,7 @@ const ChatRequestsScreen = () => {
           <View style={styles.cardHeader}>
             <View style={styles.avatarWrapper}>
               {image ? (
-                <Image source={{ uri: image }} style={styles.avatarImage} />
+                <Image source={getImageSource(image)} style={styles.avatarImage} />
               ) : (
                 <View style={styles.initialsAvatar}>
                   <Text style={styles.avatarText}>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -130,7 +131,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                 <View style={styles.avatarGlass}>
                   {member.profileImage ? (
                     <Image
-                      source={{ uri: member.profileImage }}
+                      source={getImageSource(member.profileImage)}
                       style={styles.avatar}
                       resizeMode="cover"
                     />

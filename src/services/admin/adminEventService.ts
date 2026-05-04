@@ -214,3 +214,36 @@ export const adminGetEventFeedback = async (
     throw error;
   }
 };
+
+/** POST /api/admin/events/:eventId/speakers/:speakerId/image — upload speaker image */
+export const adminUploadSpeakerImage = async (
+  eventId: string,
+  speakerId: string,
+  imageUri: string,
+): Promise<any> => {
+  try {
+    const form = new FormData();
+    const filename = imageUri.split('/').pop() ?? 'speaker_image.jpg';
+    const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const mimeType =
+      ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+    form.append('file', {
+      uri: imageUri,
+      name: filename,
+      type: mimeType,
+    } as any);
+
+    const res = await apiClient.post(
+      `/api/admin/events/${eventId}/speakers/${speakerId}/image`,
+      form,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
+    return res.data;
+  } catch (error: any) {
+    console.error('[Admin] adminUploadSpeakerImage failed:', error?.message);
+    throw error;
+  }
+};

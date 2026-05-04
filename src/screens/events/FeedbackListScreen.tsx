@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getImageSource } from '../../utils/imageHelpers';
 import {
   View,
   Text,
@@ -127,7 +128,7 @@ const FeedbackListScreen = () => {
         <View style={styles.header}>
           <TouchableOpacity style={styles.avatarWrap} activeOpacity={0.7}>
             {item.userImage ? (
-              <Image source={{ uri: item.userImage }} style={styles.avatar} />
+              <Image source={getImageSource(item.userImage)} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
                 <User size={18} color={colors.brand.primary} />
