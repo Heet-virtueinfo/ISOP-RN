@@ -15,12 +15,8 @@ class MainActivity : ReactActivity() {
    */
   override fun getMainComponentName(): String = "ISOP_RN"
 
-  /**
-   * Initialize RNBootSplash with the BootTheme before React Native renders
-   * to prevent the white flash on cold start.
-   */
   override fun onCreate(savedInstanceState: Bundle?) {
-    RNBootSplash.init(this, R.style.BootTheme)
+    RNBootSplash.init(this, R.style.BootTheme) // ⬅️ Pass the themeResId
     super.onCreate(savedInstanceState)
   }
 
@@ -31,4 +27,3 @@ class MainActivity : ReactActivity() {
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
 }
-

@@ -7,14 +7,13 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { useNetwork } from './src/hooks/useNetwork';
 import NoInternetScreen from './src/components/NoInternetScreen';
 import { notificationService } from './src/services/notificationService';
-import BootSplash from 'react-native-bootsplash';
 import { colors } from './src/theme/colors';
+import RNBootSplash from 'react-native-bootsplash';
 
 notificationService.setBackgroundMessageHandler();
 
 const App = () => {
   const { isOnline } = useNetwork();
-  const [isSplashHidden, setIsSplashHidden] = useState(false);
 
   React.useEffect(() => {
     // Setup foreground and initial notification handlers
@@ -24,9 +23,13 @@ const App = () => {
       // navigationRef.navigate(screen, data);
     });
 
-    // Hide splash screen with a smooth fade once the app is ready
-    BootSplash.hide({ fade: true }).then(() => {
-      setIsSplashHidden(true);
+    const init = async () => {
+      // …do some stuff (e.g. subscribe to network state, fetch data…)
+    };
+
+    init().finally(async () => {
+      await RNBootSplash.hide({ fade: true });
+      console.log('BootSplash hidden');
     });
 
     return () => {
@@ -37,8 +40,8 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <StatusBar 
-        barStyle={isSplashHidden ? 'dark-content' : 'light-content'} 
-        backgroundColor={isSplashHidden ? colors.layout.background : colors.brand.primaryDark} 
+        barStyle="dark-content" 
+        backgroundColor={colors.layout.background} 
       />
       <AuthProvider>
         {!isOnline ? <NoInternetScreen /> : <AppNavigator />}
