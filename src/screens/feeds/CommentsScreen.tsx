@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Image,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -22,6 +23,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  getPostComments,
+  addComment,
+  toggleCommentLike,
+  FeedComment,
+} from '../../services/feedService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +101,15 @@ const SAMPLE_COMMENTS: Comment[] = [
 
 // ─── Reply Card ───────────────────────────────────────────────────────────────
 
-const ReplyCard = ({ reply }: { reply: Reply }) => (
+const ReplyCard = ({
+  reply,
+  currentUserId,
+  onReply,
+}: {
+  reply: FeedComment;
+  currentUserId: string;
+  onReply: (comment: FeedComment) => void;
+}) => (
   <View style={styles.replyCard}>
     <View style={[styles.replyAvatar, { backgroundColor: reply.authorColor }]}>
       <Text style={styles.replyAvatarText}>{reply.authorInitials}</Text>
@@ -103,7 +118,6 @@ const ReplyCard = ({ reply }: { reply: Reply }) => (
       <View style={styles.replyHeader}>
         <View style={styles.replyAuthorMeta}>
           <Text style={styles.replyAuthorName}>{reply.authorName}</Text>
-          <Text style={styles.replyAuthorRole}>{reply.authorRole}</Text>
         </View>
         <Text style={styles.replyTime}>{reply.timeAgo}</Text>
       </View>
@@ -112,10 +126,18 @@ const ReplyCard = ({ reply }: { reply: Reply }) => (
         <TouchableOpacity style={styles.replyActionBtn} activeOpacity={0.7}>
           <Text style={styles.replyActionText}>Like</Text>
         </TouchableOpacity>
-        <Text style={styles.dot}>•</Text>
-        <TouchableOpacity style={styles.replyActionBtn} activeOpacity={0.7}>
-          <Text style={styles.replyActionText}>Reply</Text>
-        </TouchableOpacity>
+        {reply.authorId !== currentUserId && (
+          <>
+            <Text style={styles.dot}>•</Text>
+            <TouchableOpacity
+              style={styles.replyActionBtn}
+              activeOpacity={0.7}
+              onPress={() => onReply(reply)}
+            >
+              <Text style={styles.replyActionText}>Reply</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   </View>
@@ -123,16 +145,40 @@ const ReplyCard = ({ reply }: { reply: Reply }) => (
 
 // ─── Comment Card ─────────────────────────────────────────────────────────────
 
-const CommentCard = ({ comment }: { comment: Comment }) => {
+const CommentCard = ({
+  comment,
+  currentUserId,
+  onLikeToggle,
+  onReply,
+}: {
+  comment: FeedComment;
+  currentUserId: string;
+  onLikeToggle: (id: string, liked: boolean, count: number) => void;
+  onReply: (comment: FeedComment) => void;
+}) => {
   const [liked, setLiked] = useState(comment.liked);
   const [likeCount, setLikeCount] = useState(comment.likes);
   const [repliesExpanded, setRepliesExpanded] = useState(false);
+  const [liking, setLiking] = useState(false);
 
-  const handleLike = () => {
-    setLiked(prev => {
-      setLikeCount(c => (prev ? c - 1 : c + 1));
-      return !prev;
-    });
+  const handleLike = async () => {
+    if (liking) return;
+    const newLiked = !liked;
+    setLiked(newLiked);
+    setLikeCount(c => (newLiked ? c + 1 : c - 1));
+    setLiking(true);
+    try {
+      const result = await toggleCommentLike(comment.id);
+      setLiked(result.liked);
+      setLikeCount(result.likeCount);
+      onLikeToggle(comment.id, result.liked, result.likeCount);
+    } catch {
+      // revert
+      setLiked(!newLiked);
+      setLikeCount(c => (newLiked ? c - 1 : c + 1));
+    } finally {
+      setLiking(false);
+    }
   };
 
   return (
@@ -146,7 +192,6 @@ const CommentCard = ({ comment }: { comment: Comment }) => {
           <View style={styles.commentMetaRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.commentAuthorName}>{comment.authorName}</Text>
-              <Text style={styles.commentAuthorRole}>{comment.authorRole}</Text>
             </View>
             <Text style={styles.commentTime}>{comment.timeAgo}</Text>
           </View>
@@ -168,11 +213,19 @@ const CommentCard = ({ comment }: { comment: Comment }) => {
                 Like
               </Text>
             </TouchableOpacity>
-            <Text style={styles.dot}>•</Text>
-            <TouchableOpacity style={styles.commentActionBtn} activeOpacity={0.7}>
-              <CornerDownRight size={14} color={colors.text.tertiary} />
-              <Text style={styles.commentActionText}>Reply</Text>
-            </TouchableOpacity>
+            {comment.authorId !== currentUserId && (
+              <>
+                <Text style={styles.dot}>•</Text>
+                <TouchableOpacity
+                  style={styles.commentActionBtn}
+                  activeOpacity={0.7}
+                  onPress={() => onReply(comment)}
+                >
+                  <CornerDownRight size={14} color={colors.text.tertiary} />
+                  <Text style={styles.commentActionText}>Reply</Text>
+                </TouchableOpacity>
+              </>
+            )}
             {likeCount > 0 && (
               <>
                 <Text style={styles.dot}>•</Text>
@@ -190,22 +243,13 @@ const CommentCard = ({ comment }: { comment: Comment }) => {
       {comment.replies.length > 0 && (
         <View style={styles.repliesSection}>
           {comment.replies.map(r => (
-            <ReplyCard key={r.id} reply={r} />
+            <ReplyCard
+              key={r.id}
+              reply={r}
+              currentUserId={currentUserId}
+              onReply={onReply}
+            />
           ))}
-
-          {!!comment.hiddenReplies && !repliesExpanded && (
-            <TouchableOpacity
-              style={styles.expandRepliesBtn}
-              onPress={() => setRepliesExpanded(true)}
-              activeOpacity={0.7}
-            >
-              <ChevronDown size={15} color={colors.brand.primaryLight} />
-              <Text style={styles.expandRepliesText}>
-                Expand {comment.hiddenReplies} more{' '}
-                {comment.hiddenReplies === 1 ? 'reply' : 'replies'}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       )}
     </View>
@@ -220,21 +264,86 @@ const CommentsScreen = () => {
   const insets = useSafeAreaInsets();
   const { userProfile } = useAuth();
 
+  const postId: string = route.params?.postId || '';
   const postAuthorName: string = route.params?.postAuthorName || 'this member';
   const postContext: string =
     route.params?.postContext || 'post on adverse event clustering in phase III trials';
 
-  const [comments] = useState<Comment[]>(SAMPLE_COMMENTS);
+  const [comments, setComments] = useState<FeedComment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState<FeedComment | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const getInitial = () =>
     userProfile?.displayName?.charAt(0).toUpperCase() || 'U';
 
-  const handleSend = () => {
-    if (!newComment.trim()) return;
-    // TODO: integrate with Firestore
+  // Load comments from API
+  useEffect(() => {
+    if (!postId) { setLoading(false); return; }
+    getPostComments(postId, 1)
+      .then(result => setComments(result.comments))
+      .catch(err => console.error('[CommentsScreen] load error:', err))
+      .finally(() => setLoading(false));
+  }, [postId]);
+
+  const handleLikeToggle = (id: string, liked: boolean, count: number) => {
+    setComments(prev =>
+      prev.map(c => (c.id === id ? { ...c, liked, likes: count } : c)),
+    );
+  };
+
+  const handleReply = (comment: FeedComment) => {
+    setReplyingTo(comment);
+    setNewComment(`@${comment.authorName} `);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const handleSend = async () => {
+    if (!newComment.trim() || sending) return;
+    setSending(true);
+    // Optimistic insert
+    const optimistic: FeedComment = {
+      id: `tmp_${Date.now()}`,
+      authorId: userProfile?.uid ?? '',
+      authorName: userProfile?.displayName ?? 'You',
+      authorRole: '',
+      authorInitials: getInitial(),
+      authorColor: '#1E3A8A',
+      authorProfileImage: userProfile?.profileImage ?? null,
+      timeAgo: 'Just now',
+      createdAt: new Date().toISOString(),
+      content: newComment.trim(),
+      likes: 0,
+      liked: false,
+      parentId: replyingTo?.id || null,
+      replies: [],
+    };
+    setComments(prev => {
+      if (replyingTo) {
+        // If it's a reply, we add it to the parent's replies list (simplified for now as top-level append)
+        return [optimistic, ...prev];
+      }
+      return [optimistic, ...prev];
+    });
+    const pId = replyingTo?.id || null;
     setNewComment('');
+    setReplyingTo(null);
+    try {
+      const saved = await addComment(postId, optimistic.content, pId);
+      if (saved) {
+        setComments(prev =>
+          prev.map(c => c.id === optimistic.id ? saved : c),
+        );
+      }
+    } catch {
+      // Remove optimistic on failure and restore input
+      setComments(prev => prev.filter(c => c.id !== optimistic.id));
+      setNewComment(optimistic.content);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -260,24 +369,62 @@ const CommentsScreen = () => {
         keyboardVerticalOffset={0}
       >
         {/* ── Comments List ──────────────────────────────────────────────────── */}
-        <FlatList
-          data={comments}
-          keyExtractor={item => item.id}
-          ListHeaderComponent={
-            <View style={styles.contextBanner}>
-              <Text style={styles.contextText}>
-                {'Replying to '}
-                <Text style={styles.contextAuthor}>{postAuthorName}'s </Text>
-                {postContext}.
+        {loading ? (
+          <View style={styles.centerLoader}>
+            <ActivityIndicator size="large" color={colors.brand.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={comments}
+            keyExtractor={item => item.id}
+            ListHeaderComponent={
+              <View style={styles.contextBanner}>
+                <Text style={styles.contextText}>
+                  {'Replying to '}
+                  <Text style={styles.contextAuthor}>{postAuthorName}'s </Text>
+                  {postContext}.
+                </Text>
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <CommentCard
+                comment={item}
+                currentUserId={userProfile?.uid || ''}
+                onLikeToggle={handleLikeToggle}
+                onReply={handleReply}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
+
+        {/* ── Reply Indicator (LinkedIn Style) ───────────────────────────── */}
+        {replyingTo && (
+          <View style={styles.replyIndicator}>
+            <View style={styles.replyIndicatorContent}>
+              <Text style={styles.replyToName} numberOfLines={1}>
+                Replying to {replyingTo.authorName}
+              </Text>
+              <Text style={styles.replyToText} numberOfLines={1}>
+                {replyingTo.content}
               </Text>
             </View>
-          }
-          renderItem={({ item }) => <CommentCard comment={item} />}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          keyboardShouldPersistTaps="handled"
-        />
+            <TouchableOpacity 
+              style={styles.cancelReplyBtn}
+              onPress={() => setReplyingTo(null)}
+            >
+              <Text style={styles.cancelReplyText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Input Bar ──────────────────────────────────────────────────────── */}
         <View
@@ -306,17 +453,22 @@ const CommentsScreen = () => {
               onChangeText={setNewComment}
               returnKeyType="send"
               onSubmitEditing={handleSend}
+              editable={!sending}
             />
             <TouchableOpacity
               style={[
                 styles.sendBtn,
-                !newComment.trim() && styles.sendBtnDisabled,
+                (!newComment.trim() || sending) && styles.sendBtnDisabled,
               ]}
               onPress={handleSend}
-              disabled={!newComment.trim()}
+              disabled={!newComment.trim() || sending}
               activeOpacity={0.8}
             >
-              <Send size={16} color="white" />
+              {sending ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Send size={16} color="white" />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -332,6 +484,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F0F2F5',
   },
+  centerLoader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyState: { alignItems: 'center', paddingTop: 60 },
+  emptyText: { fontFamily: typography.fontFamily, fontSize: 15, color: colors.text.tertiary },
 
   // Header
   header: {
@@ -628,6 +783,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendBtnDisabled: { backgroundColor: colors.text.tertiary },
+  
+  // Reply Indicator
+  replyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.layout.surfaceElevated,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.layout.divider,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.brand.primary,
+  },
+  replyIndicatorContent: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  replyToName: {
+    fontFamily: typography.fontFamily,
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.brand.primary,
+    marginBottom: 2,
+  },
+  replyToText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 12,
+    color: colors.text.secondary,
+    fontStyle: 'italic',
+  },
+  cancelReplyBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelReplyText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.text.secondary,
+  },
 });
 
 export default CommentsScreen;

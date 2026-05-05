@@ -10,6 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {
   X,
@@ -24,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { repostPost } from '../../services/feedService';
 
 type Audience = 'Public' | 'Anyone' | 'Connections';
 
@@ -46,10 +48,20 @@ const SharePostScreen = () => {
 
   const handlePost = async () => {
     setPosting(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(() => r(null), 1200));
-    setPosting(false);
-    navigation.goBack();
+    try {
+      if (originalPost?.id) {
+        await repostPost(
+          originalPost.id,
+          postText.trim() || undefined,
+          audience.toLowerCase(),
+        );
+      }
+      navigation.goBack();
+    } catch (err: any) {
+      Alert.alert('Repost Failed', err?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setPosting(false);
+    }
   };
 
   const audiences: Audience[] = ['Public', 'Anyone', 'Connections'];

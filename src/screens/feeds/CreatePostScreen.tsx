@@ -18,9 +18,6 @@ import {
   Globe,
   ChevronDown,
   ImagePlus,
-  Video,
-  FileText,
-  BarChart2,
   MoreHorizontal,
   MessageSquare,
 } from 'lucide-react-native';
@@ -29,6 +26,7 @@ import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { createPost, uploadMedia } from '../../services/feedService';
 
 type Audience = 'Public' | 'Anyone' | 'Connections';
 
@@ -38,7 +36,9 @@ const CreatePostScreen = () => {
   const { userProfile } = useAuth();
 
   const [postText, setPostText] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<
+    { uri: string; name?: string; type?: string }[]
+  >([]);
   const [audience, setAudience] = useState<Audience>('Public');
   const [allowComments, setAllowComments] = useState(true);
   const [posting, setPosting] = useState(false);
@@ -49,17 +49,34 @@ const CreatePostScreen = () => {
   const getInitial = () =>
     userProfile?.displayName?.charAt(0).toUpperCase() || 'U';
 
-  // ── Image Picker ─────────────────────────────────────────────────────────────
-
   const handlePickImage = () => {
     launchImageLibrary(
-      { mediaType: 'photo', selectionLimit: 4, quality: 0.8 },
+      {
+        mediaType: 'photo',
+        selectionLimit: 4,
+        quality: 0.8,
+        maxWidth: 1200,
+        maxHeight: 1200,
+      },
       response => {
         if (response.didCancel || response.errorCode) return;
-        const uris = (response.assets || [])
-          .map(a => a.uri)
-          .filter(Boolean) as string[];
-        setImages(prev => [...prev, ...uris].slice(0, 4));
+        const selected = (response.assets || [])
+          .map(a => {
+            console.log(
+              `[Picker] Resized file size: ${
+                a.fileSize
+                  ? (a.fileSize / 1024 / 1024).toFixed(2) + ' MB'
+                  : 'unknown'
+              }`,
+            );
+            return {
+              uri: a.uri || '',
+              name: a.fileName,
+              type: a.type,
+            };
+          })
+          .filter(img => !!img.uri);
+        setImages(prev => [...prev, ...selected].slice(0, 4));
       },
     );
   };
@@ -68,21 +85,43 @@ const CreatePostScreen = () => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────────
-
   const handlePost = async () => {
     if (!postText.trim() && images.length === 0) {
       Alert.alert('Empty Post', 'Write something or add an image to post.');
       return;
     }
     setPosting(true);
-    // TODO: integrate with Firestore feedService
-    await new Promise(r => setTimeout(() => r(null), 1200));
-    setPosting(false);
-    navigation.goBack();
-  };
+    try {
+      // 1. Upload each picked image and collect media objects
+      const mediaItems = await Promise.all(
+        images.map(async (img, index) => {
+          const uploaded = await uploadMedia(img, 'image');
+          return uploaded ? { ...uploaded, order: index } : null;
+        }),
+      );
+      const validMedia = mediaItems.filter(Boolean) as NonNullable<
+        (typeof mediaItems)[0]
+      >[];
 
-  // ── Image Grid ────────────────────────────────────────────────────────────────
+      // 2. Create post with content + media
+      await createPost({
+        content: postText.trim(),
+        visibility: audience.toLowerCase(),
+        allow_comments: allowComments,
+        is_article: false,
+        media: validMedia,
+      });
+
+      navigation.goBack();
+    } catch (err: any) {
+      Alert.alert(
+        'Post Failed',
+        err?.message ?? 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setPosting(false);
+    }
+  };
 
   const renderImageGrid = () => {
     if (images.length === 0) return null;
@@ -95,7 +134,11 @@ const CreatePostScreen = () => {
             onPress={() => handleRemoveImage(0)}
             activeOpacity={0.9}
           >
-            <Image source={{ uri: images[0] }} style={styles.imageFullWidth} resizeMode="cover" />
+            <Image
+              source={{ uri: images[0].uri }}
+              style={styles.imageFullWidth}
+              resizeMode="cover"
+            />
             <View style={styles.imageRemoveBadge}>
               <X size={12} color="white" />
             </View>
@@ -107,14 +150,18 @@ const CreatePostScreen = () => {
     if (images.length === 2) {
       return (
         <View style={[styles.imageGrid, styles.imageRow]}>
-          {images.map((uri, i) => (
+          {images.map((img, i) => (
             <TouchableOpacity
               key={i}
               style={styles.imageHalf}
               onPress={() => handleRemoveImage(i)}
               activeOpacity={0.9}
             >
-              <Image source={{ uri }} style={styles.imageHalf} resizeMode="cover" />
+              <Image
+                source={{ uri: img.uri }}
+                style={styles.imageHalf}
+                resizeMode="cover"
+              />
               <View style={styles.imageRemoveBadge}>
                 <X size={12} color="white" />
               </View>
@@ -130,14 +177,18 @@ const CreatePostScreen = () => {
     return (
       <View style={styles.imageGrid}>
         <View style={styles.imageRow}>
-          {topRow.map((uri, i) => (
+          {topRow.map((img, i) => (
             <TouchableOpacity
               key={i}
               style={styles.imageHalf}
               onPress={() => handleRemoveImage(i)}
               activeOpacity={0.9}
             >
-              <Image source={{ uri }} style={styles.imageHalf} resizeMode="cover" />
+              <Image
+                source={{ uri: img.uri }}
+                style={styles.imageHalf}
+                resizeMode="cover"
+              />
               <View style={styles.imageRemoveBadge}>
                 <X size={12} color="white" />
               </View>
@@ -145,16 +196,24 @@ const CreatePostScreen = () => {
           ))}
         </View>
         <View style={styles.imageRow}>
-          {bottomRow.map((uri, i) => (
+          {bottomRow.map((img, i) => (
             <TouchableOpacity
               key={i + 2}
-              style={bottomRow.length === 1 ? styles.imageFullWidth : styles.imageHalf}
+              style={
+                bottomRow.length === 1
+                  ? styles.imageFullWidth
+                  : styles.imageHalf
+              }
               onPress={() => handleRemoveImage(i + 2)}
               activeOpacity={0.9}
             >
               <Image
-                source={{ uri }}
-                style={bottomRow.length === 1 ? styles.imageFullWidth : styles.imageHalf}
+                source={{ uri: img.uri }}
+                style={
+                  bottomRow.length === 1
+                    ? styles.imageFullWidth
+                    : styles.imageHalf
+                }
                 resizeMode="cover"
               />
               <View style={styles.imageRemoveBadge}>
@@ -166,8 +225,6 @@ const CreatePostScreen = () => {
       </View>
     );
   };
-
-  // ── Audience Picker ───────────────────────────────────────────────────────────
 
   const audiences: Audience[] = ['Public', 'Anyone', 'Connections'];
 
@@ -260,7 +317,11 @@ const CreatePostScreen = () => {
                 >
                   <Globe
                     size={14}
-                    color={audience === a ? colors.brand.primary : colors.text.tertiary}
+                    color={
+                      audience === a
+                        ? colors.brand.primary
+                        : colors.text.tertiary
+                    }
                   />
                   <Text
                     style={[
@@ -299,13 +360,21 @@ const CreatePostScreen = () => {
           <Switch
             value={allowComments}
             onValueChange={setAllowComments}
-            trackColor={{ false: colors.layout.divider, true: colors.brand.primaryLight }}
+            trackColor={{
+              false: colors.layout.divider,
+              true: colors.brand.primaryLight,
+            }}
             thumbColor="white"
           />
         </View>
 
         {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
-        <View style={[styles.toolbar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+        <View
+          style={[
+            styles.toolbar,
+            { paddingBottom: Math.max(insets.bottom, spacing.sm) },
+          ]}
+        >
           <TouchableOpacity
             style={styles.toolbarBtn}
             onPress={handlePickImage}
