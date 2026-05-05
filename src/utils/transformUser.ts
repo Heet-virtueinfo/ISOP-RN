@@ -3,7 +3,7 @@ import { UserProfile } from '../types';
 export const transformUser = (raw: any): UserProfile => ({
   uid: String(raw.id ?? raw.uid ?? ''),
   email: raw.email ?? '',
-  displayName: raw.display_name ?? '',
+  displayName: raw.display_name ?? raw.full_name ?? '',
   role: raw.role ?? 'user',
   phoneNumber: raw.phone_number ?? raw.phone ?? raw.phoneNumber ?? undefined,
   profileImage: raw.profile_image ?? raw.profileImage ?? null,

@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
+import Toast from 'react-native-toast-message';
 import { Camera, X } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../theme';
 
@@ -34,7 +35,17 @@ const ImagePickerGrid: React.FC<ImagePickerGridProps> = ({
       compressImageQuality: 0.8,
     })
       .then(selectedImages => {
-        const newPaths = selectedImages.map(img => img.path);
+        const validImages = selectedImages.filter(img => img.size <= 2 * 1024 * 1024);
+        
+        if (validImages.length < selectedImages.length) {
+          Toast.show({
+            type: 'info',
+            text1: 'Some Images Too Large',
+            text2: 'One or more images were skipped because they exceed 2MB.',
+          });
+        }
+
+        const newPaths = validImages.map(img => img.path);
         onChange([...images, ...newPaths].slice(0, maxImages));
       })
       .catch(err => {

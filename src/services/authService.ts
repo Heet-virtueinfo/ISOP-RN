@@ -38,39 +38,21 @@ const clearSession = async (): Promise<void> => {
 export const registerUser = async (
   data: RegisterPayload,
 ): Promise<{ success: boolean; user: UserProfile }> => {
-  const form = new FormData();
-  form.append('full_name', data.fullName);
-  form.append('email', data.email);
-  form.append('password', data.password);
-  form.append('mobile', `${data.countryCode}${data.mobile}`);
+  console.log('data', data);
+  const payload = {
+    full_name: data.fullName,
+    email: data.email,
+    password: data.password,
+    country_code: data.countryCode,
+    mobile: data.mobile,
+    phone_number: `${data.countryCode}${data.mobile}`,
+    profile_image:
+      data.profileImage
+        ? data.profileImage
+        : 'https://api.isop.com/storage/media/profiles/default.jpg',
+  };
 
-  if (data.profileImage) {
-    const filename = data.profileImage.split('/').pop() ?? 'profile.jpg';
-    const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const mimeType =
-      ext === 'png'
-        ? 'image/png'
-        : ext === 'webp'
-        ? 'image/webp'
-        : 'image/jpeg';
-
-    const cleanUri =
-      Platform.OS === 'android' && !data.profileImage.startsWith('file://')
-        ? `file://${data.profileImage}`
-        : data.profileImage;
-
-    form.append('profile_image', {
-      uri: cleanUri,
-      name: filename,
-      type: mimeType,
-    } as any);
-  }
-
-  const response = await apiClient.post('/api/auth/register', form, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await apiClient.post('/api/auth/register', payload);
 
   const token: string = response.data.token;
   const user: UserProfile = transformUser(response.data.user ?? response.data);

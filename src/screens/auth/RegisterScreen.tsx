@@ -129,6 +129,14 @@ const RegisterScreen = () => {
       compressImageQuality: 0.8,
     })
       .then(image => {
+        if (image.size > 2 * 1024 * 1024) {
+          Toast.show({
+            type: 'error',
+            text1: 'Image Too Large',
+            text2: 'Please select an image smaller than 2MB.',
+          });
+          return;
+        }
         setProfileImage(image.path);
       })
       .catch(err => {

@@ -55,14 +55,14 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
 
           {/* RIGHT — notification + avatar */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.notificationBtn}
               activeOpacity={0.7}
               onPress={() => console.log('Notifications')}
             >
               <Bell size={20} color={colors.text.primary} />
               <View style={styles.badge} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity style={styles.profileBtn} activeOpacity={0.8}>
               {userProfile?.profileImage ? (

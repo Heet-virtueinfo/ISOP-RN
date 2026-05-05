@@ -694,7 +694,7 @@ const CreateEventScreen = () => {
                 <View style={{ flex: 1 }} />
               </TouchableWithoutFeedback>
               <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.modalContent}
               >
                 <View style={styles.modalHeader}>
@@ -711,6 +711,7 @@ const CreateEventScreen = () => {
                   style={{ padding: 20 }}
                   contentContainerStyle={{ paddingBottom: 60 }}
                   showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
                 >
                   <View style={styles.innerMedia}>
                     <Text style={styles.inputLabel}>Speaker Photo</Text>
@@ -773,7 +774,7 @@ const CreateEventScreen = () => {
                 <View style={{ flex: 1 }} />
               </TouchableWithoutFeedback>
               <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.modalContent}
               >
                 <View style={styles.modalHeader}>
@@ -790,6 +791,7 @@ const CreateEventScreen = () => {
                   style={{ padding: 20 }}
                   contentContainerStyle={{ paddingBottom: 60 }}
                   showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
                 >
                   <InputField
                     label="Session Title"

@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Image,
 } from 'react-native';
 import {
   Upload,
@@ -316,23 +317,25 @@ const AdminNewsScreen = () => {
                 />
 
                 <Text style={styles.label}>Cover Visual</Text>
-                <TouchableOpacity
-                  style={styles.imageUploadBtn}
-                  onPress={handlePickImage}
-                >
-                  <Upload size={20} color={colors.brand.primary} />
-                  <Text
-                    style={[
-                      styles.imageUploadText,
-                      imageUri && {
-                        color: colors.brand.primary,
-                        fontWeight: '700',
-                      },
-                    ]}
+                {imageUri ? (
+                  <View style={styles.imagePreviewContainer}>
+                    <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                    <TouchableOpacity
+                      style={styles.removeImageBtn}
+                      onPress={() => setImageUri(null)}
+                    >
+                      <X size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.imageUploadBtn}
+                    onPress={handlePickImage}
                   >
-                    {imageUri ? 'Visual Attached' : 'Select Network Asset'}
-                  </Text>
-                </TouchableOpacity>
+                    <Upload size={20} color={colors.brand.primary} />
+                    <Text style={styles.imageUploadText}>Select Network Asset</Text>
+                  </TouchableOpacity>
+                )}
               </BentoFormTile>
 
               <View style={styles.formActions}>
@@ -726,6 +729,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl * 2,
     paddingTop: spacing.lg,
+  },
+  imagePreviewContainer: {
+    width: '100%',
+    height: 180,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: colors.ui.inputBorder,
+    marginTop: spacing.xs,
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
 });
 
