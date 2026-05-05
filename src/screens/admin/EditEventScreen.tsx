@@ -45,6 +45,8 @@ import {
 import { formatEventDate } from '../../utils/eventHelpers';
 import BentoFormTile from '../../components/BentoFormTile';
 
+import AppToast from '../../components/AppToast';
+
 const TimeNode = ({ label, value, onPress, isEnd = false, error }: any) => (
   <TouchableOpacity
     style={[styles.timeNode, error && styles.timeNodeError]}
@@ -682,7 +684,8 @@ const EditEventScreen = () => {
                 />
               </View>
             </View>
-          </Modal>
+            <AppToast />
+</Modal>
         ) : (
           <DateTimePicker
             value={openDatePicker ? date : endDate || new Date()}
@@ -803,7 +806,8 @@ const EditEventScreen = () => {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+        <AppToast />
+</Modal>
 
       {/* Agenda Modal */}
       <Modal visible={agendaModalVisible} transparent animationType="slide">
@@ -888,7 +892,8 @@ const EditEventScreen = () => {
                       />
                     </View>
                   </View>
-                </Modal>
+                  <AppToast />
+</Modal>
               )}
 
               {/* iOS Session End Picker Modal */}
@@ -919,7 +924,8 @@ const EditEventScreen = () => {
                       />
                     </View>
                   </View>
-                </Modal>
+                  <AppToast />
+</Modal>
               )}
 
               {/* Android Native Pickers */}
@@ -968,7 +974,8 @@ const EditEventScreen = () => {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+        <AppToast />
+</Modal>
     </View>
   );
 };

@@ -13,6 +13,8 @@ import { AlertCircle, Trash2, X, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { ResourceItem } from '../../types';
 
+import AppToast from '../AppToast';
+
 const { width } = Dimensions.get('window');
 
 interface DeleteResourceModalProps {
@@ -118,7 +120,8 @@ const DeleteResourceModal: React.FC<DeleteResourceModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

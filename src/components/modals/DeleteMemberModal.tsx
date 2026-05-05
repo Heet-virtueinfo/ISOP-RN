@@ -14,6 +14,8 @@ import {
 import { AlertCircle, Trash2, X, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 
+import AppToast from '../AppToast';
+
 const { width } = Dimensions.get('window');
 
 interface DeleteMemberModalProps {
@@ -139,7 +141,8 @@ const DeleteMemberModal: React.FC<DeleteMemberModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

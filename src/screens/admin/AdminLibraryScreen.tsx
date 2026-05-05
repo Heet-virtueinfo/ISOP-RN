@@ -49,6 +49,8 @@ import DeleteResourceModal from '../../components/modals/DeleteResourceModal';
 import BentoFormTile from '../../components/BentoFormTile';
 import InputField from '../../components/InputField';
 
+import AppToast from '../../components/AppToast';
+
 type InputMode = 'url' | 'file';
 
 const AdminLibraryScreen = () => {
@@ -552,7 +554,8 @@ const AdminLibraryScreen = () => {
           </KeyboardAvoidingView>
         </View>
       </View>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 
   return (

@@ -33,6 +33,8 @@ import StarRating from '../../components/StarRating';
 import CustomLoader from '../../components/CustomLoader';
 import AdminHeader from '../../components/AdminHeader';
 
+import AppToast from '../../components/AppToast';
+
 const FeedbackListScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -319,7 +321,8 @@ const FeedbackListScreen = () => {
             )}
           </View>
         </View>
-      </Modal>
+        <AppToast />
+</Modal>
     </View>
   );
 };

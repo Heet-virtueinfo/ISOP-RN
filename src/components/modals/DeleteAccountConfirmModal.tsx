@@ -11,6 +11,8 @@ import {
 import { Trash2, X, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 
+import AppToast from '../AppToast';
+
 const { width } = Dimensions.get('window');
 
 interface DeleteAccountConfirmModalProps {
@@ -95,7 +97,8 @@ const DeleteAccountConfirmModal: React.FC<DeleteAccountConfirmModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

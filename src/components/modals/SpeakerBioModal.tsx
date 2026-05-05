@@ -16,6 +16,8 @@ import { X, User, Briefcase, Info } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { Speaker } from '../../types';
 
+import AppToast from '../AppToast';
+
 const { width, height } = Dimensions.get('window');
 
 interface SpeakerBioModalProps {
@@ -99,7 +101,8 @@ const SpeakerBioModal: React.FC<SpeakerBioModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

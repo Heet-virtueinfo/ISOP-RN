@@ -15,6 +15,8 @@ import { colors, spacing, typography } from '../../theme';
 import { AppEvent } from '../../types';
 import { getEventImage } from '../../utils/eventHelpers';
 
+import AppToast from '../AppToast';
+
 const { width } = Dimensions.get('window');
 
 interface DeleteEventModalProps {
@@ -130,7 +132,8 @@ const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

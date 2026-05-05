@@ -12,6 +12,8 @@ import { EventType } from '../types';
 import { colors, spacing, typography, radius } from '../theme';
 import { getEventTypeLabel } from '../utils/eventHelpers';
 
+import AppToast from './AppToast';
+
 interface EventTypePickerProps {
   selectedType: EventType;
   onSelect: (type: EventType) => void;
@@ -112,7 +114,8 @@ const EventTypePicker: React.FC<EventTypePickerProps> = ({
             </View>
           </View>
         </Pressable>
-      </Modal>
+        <AppToast />
+</Modal>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>

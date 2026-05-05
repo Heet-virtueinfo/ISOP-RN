@@ -13,6 +13,8 @@ import { AlertCircle, Trash2, X, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { NewsArticle } from '../../types';
 
+import AppToast from '../AppToast';
+
 const { width } = Dimensions.get('window');
 
 interface DeleteNewsModalProps {
@@ -115,7 +117,8 @@ const DeleteNewsModal: React.FC<DeleteNewsModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

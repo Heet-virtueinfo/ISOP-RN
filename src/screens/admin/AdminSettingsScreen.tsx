@@ -20,6 +20,8 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 
+import AppToast from '../../components/AppToast';
+
 const AdminSettingsScreen = () => {
   const { userProfile, logout } = useAuth();
   const navigation = useNavigation<any>();
@@ -190,7 +192,8 @@ const AdminSettingsScreen = () => {
             </View>
           </View>
         </View>
-      </Modal>
+        <AppToast />
+</Modal>
     </ScrollView>
   );
 };

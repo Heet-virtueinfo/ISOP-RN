@@ -29,6 +29,8 @@ import { AppEvent } from '../../types';
 import DeleteMemberModal from './DeleteMemberModal';
 import { adminDeleteUser } from '../../services/admin/adminUserService';
 
+import AppToast from '../AppToast';
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface MemberDetailModalProps {
@@ -308,7 +310,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
         member={member}
         loading={isDeleting}
       />
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

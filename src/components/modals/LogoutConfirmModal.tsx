@@ -12,6 +12,8 @@ import {
 import { LogOut, X, AlertCircle } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 
+import AppToast from '../AppToast';
+
 const { width } = Dimensions.get('window');
 
 interface LogoutConfirmModalProps {
@@ -94,7 +96,8 @@ const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

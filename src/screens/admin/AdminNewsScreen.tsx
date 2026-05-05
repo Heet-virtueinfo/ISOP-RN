@@ -41,6 +41,8 @@ import DeleteNewsModal from '../../components/modals/DeleteNewsModal';
 import BentoFormTile from '../../components/BentoFormTile';
 import InputField from '../../components/InputField';
 
+import AppToast from '../../components/AppToast';
+
 const AdminNewsScreen = () => {
   const navigation = useNavigation();
   const { userProfile } = useAuth();
@@ -359,7 +361,8 @@ const AdminNewsScreen = () => {
           </KeyboardAvoidingView>
         </View>
       </View>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 
   return (

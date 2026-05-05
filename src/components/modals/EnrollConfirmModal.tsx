@@ -13,6 +13,8 @@ import { CheckCircle2, X, AlertCircle } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../theme';
 import CustomLoader from '../CustomLoader';
 
+import AppToast from '../AppToast';
+
 const { width } = Dimensions.get('window');
 
 interface EnrollConfirmModalProps {
@@ -113,7 +115,8 @@ const EnrollConfirmModal: React.FC<EnrollConfirmModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 

@@ -16,6 +16,8 @@ import { colors, spacing, typography, radius } from '../../theme';
 import Button from '../Button';
 import StarRating from '../StarRating';
 
+import AppToast from '../AppToast';
+
 interface LeaveFeedbackModalProps {
   visible: boolean;
   onClose: () => void;
@@ -103,7 +105,8 @@ const LeaveFeedbackModal: React.FC<LeaveFeedbackModalProps> = ({
           </KeyboardAvoidingView>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+      <AppToast />
+</Modal>
   );
 };
 
