@@ -299,6 +299,22 @@ const CreatePostScreen = () => {
             </View>
           </View>
 
+          {/* ── Text Input ────────────────────────────────────────────────── */}
+          <TextInput
+            ref={inputRef}
+            style={styles.textInput}
+            placeholder="Share an update, clinical observation, or recent finding..."
+            placeholderTextColor={colors.text.tertiary}
+            multiline
+            autoFocus
+            value={postText}
+            onChangeText={setPostText}
+            textAlignVertical="top"
+          />
+
+          {/* ── Image Grid ────────────────────────────────────────────────── */}
+          {renderImageGrid()}
+
           {/* ── Audience Dropdown ──────────────────────────────────────────── */}
           {showAudiencePicker && (
             <View style={styles.audienceDropdown}>
@@ -335,22 +351,6 @@ const CreatePostScreen = () => {
               ))}
             </View>
           )}
-
-          {/* ── Text Input ────────────────────────────────────────────────── */}
-          <TextInput
-            ref={inputRef}
-            style={styles.textInput}
-            placeholder="Share an update, clinical observation, or recent finding..."
-            placeholderTextColor={colors.text.tertiary}
-            multiline
-            autoFocus
-            value={postText}
-            onChangeText={setPostText}
-            textAlignVertical="top"
-          />
-
-          {/* ── Image Grid ────────────────────────────────────────────────── */}
-          {renderImageGrid()}
         </ScrollView>
 
         {/* ── Allow Comments Toggle ─────────────────────────────────────────── */}
@@ -369,12 +369,7 @@ const CreatePostScreen = () => {
         </View>
 
         {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
-        <View
-          style={[
-            styles.toolbar,
-            { paddingBottom: Math.max(insets.bottom, spacing.sm) },
-          ]}
-        >
+        <View style={[styles.toolbar, { paddingBottom: Math.max(spacing.sm) }]}>
           <TouchableOpacity
             style={styles.toolbarBtn}
             onPress={handlePickImage}
@@ -395,11 +390,11 @@ const CreatePostScreen = () => {
             <BarChart2 size={24} color={colors.text.secondary} />
           </TouchableOpacity> */}
 
-          {images.length > 0 && (
+          {/* {images.length > 0 && (
             <TouchableOpacity style={styles.toolbarBtn} activeOpacity={0.7}>
               <MoreHorizontal size={24} color={colors.text.secondary} />
             </TouchableOpacity>
-          )}
+          )} */}
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -530,11 +525,16 @@ const styles = StyleSheet.create({
 
   // Audience dropdown
   audienceDropdown: {
+    position: 'absolute',
+    top: 60,
+    left: spacing.md,
+    width: 200,
+    zIndex: 100,
+    elevation: 5,
     backgroundColor: colors.layout.surface,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.layout.divider,
-    marginBottom: spacing.md,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -543,7 +543,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
-      android: { elevation: 4 },
     }),
   },
   audienceOption: {

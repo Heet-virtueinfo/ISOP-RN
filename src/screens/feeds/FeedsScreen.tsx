@@ -23,10 +23,14 @@ import {
   ListCheck,
   Send,
   MoreHorizontal,
-  Pencil,
   Search,
   Repeat2,
   Check,
+  Repeat1,
+  PlusCircle,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -35,6 +39,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import UserHeader from '../../components/UserHeader';
 import {
   getTrendingFeed,
+  getFeed,
   togglePostLike,
   repostPost as repostPostAPI,
   FeedPost,
@@ -59,7 +64,13 @@ const renderTextWithHashtags = (text: string) => {
   );
 };
 
-const MediaGrid = ({ media }: { media: FeedMedia[] }) => {
+const MediaGrid = ({
+  media,
+  onPressImage,
+}: {
+  media: FeedMedia[];
+  onPressImage: (index: number, images: FeedMedia[]) => void;
+}) => {
   if (!media || media.length === 0) return null;
 
   const images = media.filter(m => m.type === 'image');
@@ -68,11 +79,16 @@ const MediaGrid = ({ media }: { media: FeedMedia[] }) => {
   if (images.length === 1) {
     return (
       <View style={styles.mediaGrid}>
-        <Image
-          source={{ uri: images[0].url }}
-          style={styles.imageFullWidth}
-          resizeMode="cover"
-        />
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => onPressImage(0, images)}
+        >
+          <Image
+            source={{ uri: images[0].url }}
+            style={styles.imageFullWidth}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
       </View>
     );
   }
@@ -80,16 +96,28 @@ const MediaGrid = ({ media }: { media: FeedMedia[] }) => {
   if (images.length === 2) {
     return (
       <View style={[styles.mediaGrid, styles.mediaRow]}>
-        <Image
-          source={{ uri: images[0].url }}
+        <TouchableOpacity
+          activeOpacity={0.9}
           style={styles.imageHalf}
-          resizeMode="cover"
-        />
-        <Image
-          source={{ uri: images[1].url }}
+          onPress={() => onPressImage(0, images)}
+        >
+          <Image
+            source={{ uri: images[0].url }}
+            style={styles.imageFullSize}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.9}
           style={styles.imageHalf}
-          resizeMode="cover"
-        />
+          onPress={() => onPressImage(1, images)}
+        >
+          <Image
+            source={{ uri: images[1].url }}
+            style={styles.imageFullSize}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
       </View>
     );
   }
@@ -101,20 +129,32 @@ const MediaGrid = ({ media }: { media: FeedMedia[] }) => {
       <View style={styles.mediaGrid}>
         <View style={styles.mediaRow}>
           {topRow.map((img, i) => (
-            <Image
+            <TouchableOpacity
               key={i}
-              source={{ uri: img.url }}
+              activeOpacity={0.9}
               style={styles.imageHalf}
-              resizeMode="cover"
-            />
+              onPress={() => onPressImage(i, images)}
+            >
+              <Image
+                source={{ uri: img.url }}
+                style={styles.imageFullSize}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
           ))}
         </View>
         <View style={styles.mediaRow}>
-          <Image
-            source={{ uri: bottomRow[0].url }}
+          <TouchableOpacity
+            activeOpacity={0.9}
             style={styles.imageFullWidth}
-            resizeMode="cover"
-          />
+            onPress={() => onPressImage(2, images)}
+          >
+            <Image
+              source={{ uri: bottomRow[0].url }}
+              style={styles.imageFullWidth}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -128,17 +168,28 @@ const MediaGrid = ({ media }: { media: FeedMedia[] }) => {
     <View style={styles.mediaGrid}>
       <View style={styles.mediaRow}>
         {topRow.map((img, i) => (
-          <Image
+          <TouchableOpacity
             key={i}
-            source={{ uri: img.url }}
+            activeOpacity={0.9}
             style={styles.imageHalf}
-            resizeMode="cover"
-          />
+            onPress={() => onPressImage(i, images)}
+          >
+            <Image
+              source={{ uri: img.url }}
+              style={styles.imageFullSize}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
         ))}
       </View>
       <View style={styles.mediaRow}>
         {bottomRow.map((img, i) => (
-          <View key={i} style={styles.imageHalf}>
+          <TouchableOpacity
+            key={i}
+            activeOpacity={0.9}
+            style={styles.imageHalf}
+            onPress={() => onPressImage(i + 2, images)}
+          >
             <Image
               source={{ uri: img.url }}
               style={styles.imageFullSize}
@@ -149,7 +200,7 @@ const MediaGrid = ({ media }: { media: FeedMedia[] }) => {
                 <Text style={styles.mediaOverlayText}>+{extra}</Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
     </View>
@@ -161,11 +212,13 @@ const PostCard = ({
   onRepost,
   onShare,
   onLikeToggle,
+  onPressImage,
 }: {
   post: FeedPost;
   onRepost: () => void;
   onShare: () => void;
   onLikeToggle: (postId: string, liked: boolean, count?: number) => void;
+  onPressImage: (index: number, images: FeedMedia[]) => void;
 }) => {
   const navigation = useNavigation<any>();
   const [liking, setLiking] = useState(false);
@@ -207,8 +260,23 @@ const PostCard = ({
 
   return (
     <View style={styles.card}>
+      {/* Repost Indicator (only for simple reposts without thoughts) */}
+      {post.originalPost && !post.content && (
+        <View style={styles.repostedIndicator}>
+          <Repeat2 size={12} color={colors.text.tertiary} />
+          <Text style={styles.repostedIndicatorText}>
+            {post.authorName} reposted
+          </Text>
+        </View>
+      )}
+
       {/* Author Row */}
-      <View style={styles.authorRow}>
+      <View
+        style={[
+          styles.authorRow,
+          post.originalPost && !post.content && styles.authorRowInstantRepost,
+        ]}
+      >
         <View
           style={[styles.authorAvatar, { backgroundColor: post.authorColor }]}
         >
@@ -234,7 +302,7 @@ const PostCard = ({
       <View style={styles.postContent}>
         {renderTextWithHashtags(post.content)}
 
-        <MediaGrid media={post.media} />
+        <MediaGrid media={post.media} onPressImage={onPressImage} />
 
         {/* Original post preview (repost) */}
         {post.originalPost && (
@@ -255,13 +323,29 @@ const PostCard = ({
                   {post.originalPost.authorName}
                 </Text>
                 <Text style={styles.repostPreviewRole} numberOfLines={1}>
-                  {post.originalPost.authorRole}
+                  {post.originalPost.authorRole} • {post.originalPost.timeAgo}
                 </Text>
               </View>
             </View>
-            <Text style={styles.repostPreviewContent} numberOfLines={3}>
-              {post.originalPost.content}
-            </Text>
+            <View style={styles.repostPreviewBody}>
+              <Text
+                style={[
+                  styles.repostPreviewContent,
+                  post.originalPost.imageUrl &&
+                    styles.repostPreviewContentWithImage,
+                ]}
+                numberOfLines={3}
+              >
+                {post.originalPost.content}
+              </Text>
+              {post.originalPost.imageUrl && (
+                <Image
+                  source={{ uri: post.originalPost.imageUrl }}
+                  style={styles.repostPreviewImage}
+                  resizeMode="cover"
+                />
+              )}
+            </View>
           </View>
         )}
 
@@ -319,10 +403,15 @@ const PostCard = ({
           activeOpacity={0.7}
           onPress={onRepost}
         >
-          <Repeat2
-            size={16}
-            color={post.reposted ? colors.brand.primary : colors.text.tertiary}
-          />
+          {post.originalPost?.reposted || post.reposted ? (
+            <Repeat1
+              size={16}
+              color={colors.brand.primary}
+              fill={colors.brand.primary}
+            />
+          ) : (
+            <Repeat2 size={16} color={colors.text.tertiary} />
+          )}
           <Text
             style={[
               styles.actionLabel,
@@ -357,8 +446,12 @@ const FeedsScreen = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [activeTab, setActiveTab] = useState<'trending' | 'my_feed'>(
+    'trending',
+  );
 
   const [showRepostModal, setShowRepostModal] = useState(false);
+  const [showConfirmUndoModal, setShowConfirmUndoModal] = useState(false);
   const [repostTargetPost, setRepostTargetPost] = useState<FeedPost | null>(
     null,
   );
@@ -367,47 +460,63 @@ const FeedsScreen = () => {
   const [showToast, setShowToast] = useState(false);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
+  // Image Viewer State
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerImages, setViewerImages] = useState<FeedMedia[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+
   // ── Fetch Feed ──────────────────────────────────────────────────────────────
 
-  const loadFeed = useCallback(async (page: number, replace: boolean) => {
-    try {
-      const result = await getTrendingFeed(page);
-      const newPosts = result.posts.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-      setPosts(prev => (replace ? newPosts : [...prev, ...newPosts]));
-      setCurrentPage(result.currentPage);
-      setHasMore(result.hasMore);
-    } catch (err) {
-      console.error('[FeedsScreen] loadFeed error:', err);
-    }
-  }, []);
+  const loadFeed = useCallback(
+    async (page: number, replace: boolean, tab: 'trending' | 'my_feed') => {
+      try {
+        const result =
+          tab === 'trending'
+            ? await getTrendingFeed(page)
+            : await getFeed(page);
+        const newPosts = result.posts.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        console.log('newPosts', newPosts);
+        setPosts(prev => (replace ? newPosts : [...prev, ...newPosts]));
+        setCurrentPage(result.currentPage);
+        setHasMore(result.hasMore);
+      } catch (err) {
+        console.error('[FeedsScreen] loadFeed error:', err);
+      }
+    },
+    [],
+  );
 
   const handleInitialLoad = useCallback(async () => {
     setLoading(true);
-    await loadFeed(1, true);
+    await loadFeed(1, true, activeTab);
     setLoading(false);
-  }, [loadFeed]);
+  }, [loadFeed, activeTab]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadFeed(1, true);
+    await loadFeed(1, true, activeTab);
     setRefreshing(false);
-  }, [loadFeed]);
+  }, [loadFeed, activeTab]);
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
-    await loadFeed(currentPage + 1, false);
+    await loadFeed(currentPage + 1, false, activeTab);
     setLoadingMore(false);
-  }, [loadingMore, hasMore, currentPage, loadFeed]);
+  }, [loadingMore, hasMore, currentPage, loadFeed, activeTab]);
 
   useFocusEffect(
     useCallback(() => {
       handleInitialLoad();
     }, [handleInitialLoad]),
   );
+
+  useEffect(() => {
+    handleInitialLoad();
+  }, [activeTab]);
 
   // ── Real-Time Updates (Pusher) ────────────────────────────────────────────
   useEffect(() => {
@@ -485,11 +594,21 @@ const FeedsScreen = () => {
     [],
   );
 
+  const handlePressImage = useCallback((index: number, images: FeedMedia[]) => {
+    setViewerImages(images);
+    setViewerIndex(index);
+    setViewerVisible(true);
+  }, []);
+
   // ── Repost ────────────────────────────────────────────────────────────────
 
   const handleOpenRepost = (post: FeedPost) => {
     setRepostTargetPost(post);
-    setShowRepostModal(true);
+    if (post.reposted || post.originalPost?.reposted) {
+      setShowConfirmUndoModal(true);
+    } else {
+      setShowRepostModal(true);
+    }
   };
 
   const handleRepost = async (postId: string) => {
@@ -539,22 +658,26 @@ const FeedsScreen = () => {
 
   const handleInstantRepost = async () => {
     if (!repostTargetPost || reposting) return;
+    const isUndoing = !!repostTargetPost.reposted;
     setShowRepostModal(false);
     setReposting(true);
     try {
       await repostPostAPI(repostTargetPost.id);
       Toast.show({
         type: 'success',
-        text1: 'Post Reposted',
-        text2: 'Shared successfully to your feed.',
+        text1: isUndoing ? 'Repost Removed' : 'Post Reposted',
+        text2: isUndoing
+          ? 'Post removed from your feed.'
+          : 'Shared successfully to your feed.',
       });
       handleInitialLoad();
     } catch (err: any) {
       const errorMessage =
-        err.response?.data?.message || 'Could not repost. Please try again.';
+        err.response?.data?.message ||
+        'Could not process request. Please try again.';
       Toast.show({
         type: 'error',
-        text1: 'Repost Failed',
+        text1: isUndoing ? 'Undo Failed' : 'Repost Failed',
         text2: errorMessage,
       });
     } finally {
@@ -594,6 +717,43 @@ const FeedsScreen = () => {
     <View style={styles.container}>
       <UserHeader title="Feeds" />
 
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'trending' && styles.tabButtonActive,
+          ]}
+          onPress={() => setActiveTab('trending')}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'trending' && styles.tabTextActive,
+            ]}
+          >
+            Trending
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'my_feed' && styles.tabButtonActive,
+          ]}
+          onPress={() => setActiveTab('my_feed')}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'my_feed' && styles.tabTextActive,
+            ]}
+          >
+            My Feed
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <View style={styles.centerLoader}>
           <ActivityIndicator size="large" color={colors.brand.primary} />
@@ -608,6 +768,7 @@ const FeedsScreen = () => {
               onRepost={() => handleOpenRepost(item)}
               onShare={() => handleOpenShare(item)}
               onLikeToggle={handleLikeToggle}
+              onPressImage={handlePressImage}
             />
           )}
           ListHeaderComponent={<ListHeader />}
@@ -640,7 +801,7 @@ const FeedsScreen = () => {
         activeOpacity={0.85}
         onPress={() => navigation.navigate('CreatePost')}
       >
-        <Pencil size={22} color="white" />
+        <PlusCircle size={22} color="white" />
       </TouchableOpacity>
 
       {/* Success Toast */}
@@ -684,7 +845,12 @@ const FeedsScreen = () => {
             <TouchableOpacity
               style={styles.repostOption}
               activeOpacity={0.75}
-              onPress={handleRepostWithThoughts}
+              onPress={
+                repostTargetPost?.reposted
+                  ? handleInstantRepost
+                  : handleRepostWithThoughts
+              }
+              disabled={reposting}
             >
               <View style={styles.repostOptionIcon}>
                 <ListCheck size={20} color={colors.brand.primary} />
@@ -724,7 +890,137 @@ const FeedsScreen = () => {
           </Pressable>
         </Pressable>
       </Modal>
+      {/* Confirmation Modal for Undoing Repost */}
+      <Modal
+        visible={showConfirmUndoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConfirmUndoModal(false)}
+      >
+        <Pressable
+          style={styles.confirmOverlay}
+          onPress={() => setShowConfirmUndoModal(false)}
+        >
+          <View style={styles.confirmModal}>
+            <Text style={styles.confirmTitle}>Undo Repost?</Text>
+            <Text style={styles.confirmSub}>
+              Are you sure you want to remove this repost from your feed?
+            </Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnCancel]}
+                onPress={() => setShowConfirmUndoModal(false)}
+              >
+                <Text style={styles.confirmBtnCancelText}>No</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnYes]}
+                onPress={() => {
+                  setShowConfirmUndoModal(false);
+                  handleInstantRepost();
+                }}
+              >
+                <Text style={styles.confirmBtnYesText}>Yes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Image Viewer Modal */}
+      <FullImageViewer
+        visible={viewerVisible}
+        images={viewerImages}
+        index={viewerIndex}
+        onClose={() => setViewerVisible(false)}
+        onIndexChange={setViewerIndex}
+      />
     </View>
+  );
+};
+
+const FullImageViewer = ({
+  visible,
+  images,
+  index,
+  onClose,
+  onIndexChange,
+}: {
+  visible: boolean;
+  images: FeedMedia[];
+  index: number;
+  onClose: () => void;
+  onIndexChange: (index: number) => void;
+}) => {
+  if (!visible || images.length === 0) return null;
+
+  const currentImage = images[index];
+
+  const handleNext = () => {
+    if (index < images.length - 1) {
+      onIndexChange(index + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (index > 0) {
+      onIndexChange(index - 1);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.viewerContainer}>
+        <TouchableOpacity
+          style={styles.viewerCloseBtn}
+          onPress={onClose}
+          activeOpacity={0.7}
+        >
+          <X size={28} color="white" />
+        </TouchableOpacity>
+
+        <View style={styles.viewerContent}>
+          {images.length > 1 && index > 0 && (
+            <TouchableOpacity
+              style={styles.viewerNavBtnLeft}
+              onPress={handlePrev}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={30} color="white" />
+            </TouchableOpacity>
+          )}
+
+          <Image
+            source={{ uri: currentImage.url }}
+            style={styles.viewerImage}
+            resizeMode="contain"
+          />
+
+          {images.length > 1 && index < images.length - 1 && (
+            <TouchableOpacity
+              style={styles.viewerNavBtnRight}
+              onPress={handleNext}
+              activeOpacity={0.7}
+            >
+              <ChevronRight size={30} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {images.length > 1 && (
+          <View style={styles.viewerPagination}>
+            <Text style={styles.viewerPaginationText}>
+              {index + 1} / {images.length}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Modal>
   );
 };
 
@@ -738,6 +1034,35 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: 15,
     color: colors.text.tertiary,
+  },
+
+  // Tabs
+  tabContainer: {
+    flexDirection: 'row',
+    margin: spacing.md,
+    backgroundColor: colors.layout.surface,
+    borderRadius: radius.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: radius.md - 2,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.brand.primary,
+  },
+  tabText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.secondary,
+  },
+  tabTextActive: {
+    color: 'white',
   },
 
   // Search
@@ -786,6 +1111,87 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: spacing.md,
     paddingBottom: spacing.sm,
+  },
+  authorRowInstantRepost: {
+    paddingBottom: 0,
+    paddingTop: spacing.xs,
+  },
+  repostedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  repostedIndicatorText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+  },
+  confirmModal: {
+    width: '85%',
+    backgroundColor: colors.layout.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+      },
+      android: { elevation: 10 },
+    }),
+  },
+  confirmTitle: {
+    fontFamily: typography.fontFamily,
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  confirmSub: {
+    fontFamily: typography.fontFamily,
+    fontSize: 14,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing.xl,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    width: '100%',
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmBtnCancel: {
+    backgroundColor: colors.layout.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+  },
+  confirmBtnYes: {
+    backgroundColor: '#EF4444', // Red for destructive action
+  },
+  confirmBtnCancelText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text.secondary,
+  },
+  confirmBtnYesText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 15,
+    fontWeight: '700',
+    color: 'white',
   },
   authorAvatar: {
     width: 46,
@@ -920,6 +1326,19 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontFamily: typography.fontFamily,
   },
+  repostPreviewBody: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  repostPreviewContentWithImage: {
+    flex: 1,
+  },
+  repostPreviewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: radius.sm,
+    backgroundColor: colors.layout.divider,
+  },
 
   reactionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   emojiGroup: { flexDirection: 'row' },
@@ -987,6 +1406,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   repostSheet: {
     backgroundColor: colors.layout.surface,
@@ -1093,15 +1518,70 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#0EA5E9',
+    backgroundColor: colors.brand.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   toastText: {
-    fontFamily: typography.fontFamily,
-    fontSize: 14,
     fontWeight: '500',
     color: 'white',
+  },
+
+  // Image Viewer
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  viewerCloseBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    right: 20,
+    zIndex: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 8,
+    borderRadius: 20,
+  },
+  viewerNavBtnLeft: {
+    position: 'absolute',
+    left: 10,
+    zIndex: 20,
+    backgroundColor: colors.brand.primary,
+    borderRadius: 25,
+    padding: 5,
+  },
+  viewerNavBtnRight: {
+    position: 'absolute',
+    right: 10,
+    zIndex: 20,
+    backgroundColor: colors.brand.primary,
+    borderRadius: 25,
+    padding: 5,
+  },
+  viewerPagination: {
+    position: 'absolute',
+    bottom: 60,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  viewerPaginationText: {
+    fontFamily: typography.fontFamily,
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 
