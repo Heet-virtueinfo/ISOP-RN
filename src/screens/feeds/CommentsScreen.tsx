@@ -28,78 +28,9 @@ import {
   addComment,
   toggleCommentLike,
   FeedComment,
+  normalizeComment,
 } from '../../services/feedService';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Reply {
-  id: string;
-  authorName: string;
-  authorRole: string;
-  authorInitials: string;
-  authorColor: string;
-  timeAgo: string;
-  content: string;
-}
-
-interface Comment {
-  id: string;
-  authorName: string;
-  authorRole: string;
-  authorInitials: string;
-  authorColor: string;
-  timeAgo: string;
-  content: string;
-  likes: number;
-  liked: boolean;
-  replies: Reply[];
-  hiddenReplies?: number;
-}
-
-// ─── Sample Data ──────────────────────────────────────────────────────────────
-
-const SAMPLE_COMMENTS: Comment[] = [
-  {
-    id: 'c1',
-    authorName: 'Dr. Michael Chen',
-    authorRole: 'Senior Medical Director, Oncology',
-    authorInitials: 'MC',
-    authorColor: '#1E3A8A',
-    timeAgo: '2h ago',
-    content:
-      'Excellent breakdown. We observed a similar pattern with the secondary biomarkers in the Q3 cohort. Have you cross-referenced these findings with the latest EMA safety updates?',
-    likes: 12,
-    liked: false,
-    replies: [
-      {
-        id: 'r1',
-        authorName: 'Sarah Jenkins',
-        authorRole: 'Lead Pharmacovigilance Scientist',
-        authorInitials: 'SJ',
-        authorColor: '#0EA5E9',
-        timeAgo: '1h ago',
-        content:
-          '@Dr. Michael Chen We did. The EMA bulletin from last week highlights a minor discrepancy in the reporting timeline, but the core clustering remains statistically significant.',
-      },
-    ],
-    hiddenReplies: 2,
-  },
-  {
-    id: 'c2',
-    authorName: 'Dr. James Wilson',
-    authorRole: 'Global Head of Drug Safety',
-    authorInitials: 'JW',
-    authorColor: '#475569',
-    timeAgo: '45m ago',
-    content:
-      "This is critical insight. We need to ensure these signals are integrated into the upcoming PSUR. I've flagged this thread for the regulatory team review tomorrow morning.",
-    likes: 0,
-    liked: false,
-    replies: [],
-  },
-];
-
-// ─── Reply Card ───────────────────────────────────────────────────────────────
+import { getEcho } from '../../services/echoService';
 
 const ReplyCard = ({
   reply,
@@ -143,8 +74,6 @@ const ReplyCard = ({
   </View>
 );
 
-// ─── Comment Card ─────────────────────────────────────────────────────────────
-
 const CommentCard = ({
   comment,
   currentUserId,
@@ -185,7 +114,12 @@ const CommentCard = ({
     <View style={styles.commentCard}>
       {/* Author */}
       <View style={styles.commentTop}>
-        <View style={[styles.commentAvatar, { backgroundColor: comment.authorColor }]}>
+        <View
+          style={[
+            styles.commentAvatar,
+            { backgroundColor: comment.authorColor },
+          ]}
+        >
           <Text style={styles.commentAvatarText}>{comment.authorInitials}</Text>
         </View>
         <View style={styles.commentMeta}>
@@ -209,7 +143,12 @@ const CommentCard = ({
                 color={liked ? colors.brand.primary : colors.text.tertiary}
                 fill={liked ? colors.brand.primary : 'transparent'}
               />
-              <Text style={[styles.commentActionText, liked && styles.commentActionTextActive]}>
+              <Text
+                style={[
+                  styles.commentActionText,
+                  liked && styles.commentActionTextActive,
+                ]}
+              >
                 Like
               </Text>
             </TouchableOpacity>
@@ -230,7 +169,11 @@ const CommentCard = ({
               <>
                 <Text style={styles.dot}>•</Text>
                 <View style={styles.likeCountRow}>
-                  <ThumbsUp size={13} color={colors.brand.primaryLight} fill={colors.brand.primaryLight} />
+                  <ThumbsUp
+                    size={13}
+                    color={colors.brand.primaryLight}
+                    fill={colors.brand.primaryLight}
+                  />
                   <Text style={styles.likeCountText}>{likeCount}</Text>
                 </View>
               </>
@@ -256,8 +199,6 @@ const CommentCard = ({
   );
 };
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-
 const CommentsScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -267,7 +208,8 @@ const CommentsScreen = () => {
   const postId: string = route.params?.postId || '';
   const postAuthorName: string = route.params?.postAuthorName || 'this member';
   const postContext: string =
-    route.params?.postContext || 'post on adverse event clustering in phase III trials';
+    route.params?.postContext ||
+    'post on adverse event clustering in phase III trials';
 
   const [comments, setComments] = useState<FeedComment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -281,12 +223,89 @@ const CommentsScreen = () => {
 
   // Load comments from API
   useEffect(() => {
-    if (!postId) { setLoading(false); return; }
+    if (!postId) {
+      setLoading(false);
+      return;
+    }
     getPostComments(postId, 1)
       .then(result => setComments(result.comments))
       .catch(err => console.error('[CommentsScreen] load error:', err))
       .finally(() => setLoading(false));
   }, [postId]);
+  // ── Real-Time Updates (Pusher) ────────────────────────────────────────────
+  useEffect(() => {
+    let isActive = true;
+    const channelName = `post.${postId}`;
+    const eventName = 'CommentCreated';
+
+    const setupPusher = async () => {
+      if (!postId) return;
+      const pusher = getEcho();
+      if (!pusher) return;
+
+      try {
+        await pusher.subscribe({
+          channelName,
+          onEvent: (event: any) => {
+            if (!isActive) return;
+            if (event.eventName === eventName) {
+              try {
+                const data =
+                  typeof event.data === 'string'
+                    ? JSON.parse(event.data)
+                    : event.data;
+                const incoming = normalizeComment(data);
+
+                setComments(current => {
+                  // Deduplicate: Check if ID already exists
+                  const exists =
+                    current.some(c => c.id === incoming.id) ||
+                    current.some(c =>
+                      c.replies.some(r => r.id === incoming.id),
+                    );
+                  if (exists) return current;
+
+                  // Ignore if it's from the current user (handleSend already manages this)
+                  if (incoming.authorId === userProfile?.uid) return current;
+
+                  // Handle Nested Reply
+                  if (incoming.parentId) {
+                    return current.map(c => {
+                      // Check if this is the root parent OR contains the target parent
+                      if (
+                        c.id === incoming.parentId ||
+                        c.replies.some(r => r.id === incoming.parentId)
+                      ) {
+                        return { ...c, replies: [...c.replies, incoming] };
+                      }
+                      return c;
+                    });
+                  }
+
+                  // Handle Top-level Comment
+                  return [incoming, ...current];
+                });
+              } catch (err) {
+                console.error('[CommentsScreen] Real-time parse error:', err);
+              }
+            }
+          },
+        });
+      } catch (err) {
+        console.error('[CommentsScreen] Pusher subscribe error:', err);
+      }
+    };
+
+    setupPusher();
+
+    return () => {
+      isActive = false;
+      const pusher = getEcho();
+      if (pusher) {
+        pusher.unsubscribe({ channelName });
+      }
+    };
+  }, [postId, userProfile?.uid]);
 
   const handleLikeToggle = (id: string, liked: boolean, count: number) => {
     setComments(prev =>
@@ -322,8 +341,15 @@ const CommentsScreen = () => {
     };
     setComments(prev => {
       if (replyingTo) {
-        // If it's a reply, we add it to the parent's replies list (simplified for now as top-level append)
-        return [optimistic, ...prev];
+        // If it's a reply, find the root parent to maintain visual nesting
+        // (UI currently supports 1 level of nesting)
+        const rootParentId = replyingTo.parentId || replyingTo.id;
+        return prev.map(c => {
+          if (c.id === rootParentId) {
+            return { ...c, replies: [...c.replies, optimistic] };
+          }
+          return c;
+        });
       }
       return [optimistic, ...prev];
     });
@@ -334,12 +360,25 @@ const CommentsScreen = () => {
       const saved = await addComment(postId, optimistic.content, pId);
       if (saved) {
         setComments(prev =>
-          prev.map(c => c.id === optimistic.id ? saved : c),
+          prev.map(c => {
+            if (c.id === optimistic.id) return saved;
+            return {
+              ...c,
+              replies: c.replies.map(r => (r.id === optimistic.id ? saved : r)),
+            };
+          }),
         );
       }
     } catch {
       // Remove optimistic on failure and restore input
-      setComments(prev => prev.filter(c => c.id !== optimistic.id));
+      setComments(prev =>
+        prev
+          .filter(c => c.id !== optimistic.id)
+          .map(c => ({
+            ...c,
+            replies: c.replies.filter(r => r.id !== optimistic.id),
+          })),
+      );
       setNewComment(optimistic.content);
     } finally {
       setSending(false);
@@ -388,7 +427,9 @@ const CommentsScreen = () => {
             }
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
+                <Text style={styles.emptyText}>
+                  No comments yet. Be the first!
+                </Text>
               </View>
             }
             renderItem={({ item }) => (
@@ -417,7 +458,7 @@ const CommentsScreen = () => {
                 {replyingTo.content}
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.cancelReplyBtn}
               onPress={() => setReplyingTo(null)}
             >
@@ -486,7 +527,11 @@ const styles = StyleSheet.create({
   },
   centerLoader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyState: { alignItems: 'center', paddingTop: 60 },
-  emptyText: { fontFamily: typography.fontFamily, fontSize: 15, color: colors.text.tertiary },
+  emptyText: {
+    fontFamily: typography.fontFamily,
+    fontSize: 15,
+    color: colors.text.tertiary,
+  },
 
   // Header
   header: {
@@ -498,7 +543,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.layout.divider,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
       android: { elevation: 3 },
     }),
   },
@@ -735,7 +785,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.layout.divider,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 6 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+      },
       android: { elevation: 4 },
     }),
   },
@@ -783,7 +838,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendBtnDisabled: { backgroundColor: colors.text.tertiary },
-  
+
   // Reply Indicator
   replyIndicator: {
     flexDirection: 'row',

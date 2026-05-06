@@ -176,8 +176,8 @@ export const normalizeComment = (raw: any): FeedComment => {
     timeAgo: formatTimeAgo(raw.created_at ?? ''),
     createdAt: raw.created_at ?? '',
     content: raw.content ?? '',
-    likes: raw.likes_count ?? raw.likes ?? 0,
-    liked: raw.liked_by_user ?? raw.is_liked ?? false,
+    likes: raw.likes_count ?? raw.like_count ?? raw.likes ?? 0,
+    liked: raw.liked_by_me ?? raw.is_liked ?? false,
     parentId: raw.parent_id ? String(raw.parent_id) : null,
     replies: (raw.replies ?? []).map(normalizeComment),
   };
@@ -316,6 +316,7 @@ export const getPostComments = async (
     const data = response.data;
     const raw = data.data ?? data.comments ?? data ?? [];
     const comments = Array.isArray(raw) ? raw.map(normalizeComment) : [];
+
     return {
       comments,
       currentPage: data.current_page ?? page,

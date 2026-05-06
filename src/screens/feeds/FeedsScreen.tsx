@@ -41,6 +41,7 @@ import {
   FeedMedia,
 } from '../../services/feedService';
 import { getEcho } from '../../services/echoService';
+import { WEB_URL } from '../../config/api';
 
 const renderTextWithHashtags = (text: string) => {
   const parts = text.split(/(#\w+)/g);
@@ -516,16 +517,21 @@ const FeedsScreen = () => {
 
   const handleOpenShare = async (post: FeedPost) => {
     try {
-      const shareUrl = `https://clinicalcurator.isop.org/insight/${post.id}`;
+      const shareUrl = `${WEB_URL}`;
+      const maxLength = 120;
+      const preview =
+        post.content.length > maxLength
+          ? `${post.content.slice(0, maxLength)}...`
+          : post.content;
+
+      const shareMessage = `View this clinical insight by ${post.authorName} on ISoP:\n\n"${preview}"\n\nRead the full post here:\n${shareUrl}`;
+
       await Share.share({
-        message: `Check out this insight on ISoP: ${post.content.slice(
-          0,
-          100,
-        )}...\n\n${shareUrl}`,
+        message: shareMessage,
         url: shareUrl,
       });
     } catch (error) {
-      console.error(error);
+      console.error('[FeedsScreen] Share error:', error);
     }
   };
 
