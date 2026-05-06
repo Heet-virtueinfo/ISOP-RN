@@ -118,11 +118,13 @@ export const normalizePost = (raw: any): FeedPost => {
     raw.author?.name ??
     raw.author_name ??
     'Unknown';
-  const mediaArr: FeedMedia[] = (raw.media ?? []).map((m: any) => ({
-    url: m.url ?? m.media_url ?? '',
-    type: m.type ?? 'image',
-    order: m.order ?? 0,
-  }));
+  const mediaArr: FeedMedia[] = (raw.media ?? [])
+    .map((m: any) => ({
+      url: m.url ?? m.media_url ?? '',
+      type: m.type ?? 'image',
+      order: m.order ?? 0,
+    }))
+    .sort((a: FeedMedia, b: FeedMedia) => a.order - b.order);
 
   const firstImage = mediaArr.find(m => m.type === 'image')?.url ?? null;
 
@@ -194,14 +196,15 @@ const normalizeFollowUser = (raw: any): FollowUser => ({
 export const getFeed = async (page = 1): Promise<PaginatedFeed> => {
   try {
     const response = await apiClient.get('/api/feed', { params: { page } });
+    console.log('[feedService] getFeed success:', response.data);
     const data = response.data;
     const raw = data.data ?? data.posts ?? data ?? [];
     const posts = Array.isArray(raw) ? raw.map(normalizePost) : [];
     return {
       posts,
-      currentPage: data.current_page ?? page,
-      lastPage: data.last_page ?? 1,
-      hasMore: (data.current_page ?? page) < (data.last_page ?? 1),
+      currentPage: data.meta?.page ?? data.current_page ?? page,
+      lastPage: data.meta?.last_page ?? data.last_page ?? 1,
+      hasMore: data.meta?.has_more_pages ?? ((data.current_page ?? page) < (data.last_page ?? 1)),
     };
   } catch (error) {
     console.error('[feedService] getFeed failed:', error);
@@ -219,9 +222,9 @@ export const getTrendingFeed = async (page = 1): Promise<PaginatedFeed> => {
     const posts = Array.isArray(raw) ? raw.map(normalizePost) : [];
     return {
       posts,
-      currentPage: data.current_page ?? page,
-      lastPage: data.last_page ?? 1,
-      hasMore: (data.current_page ?? page) < (data.last_page ?? 1),
+      currentPage: data.meta?.page ?? data.current_page ?? page,
+      lastPage: data.meta?.last_page ?? data.last_page ?? 1,
+      hasMore: data.meta?.has_more_pages ?? ((data.current_page ?? page) < (data.last_page ?? 1)),
     };
   } catch (error) {
     console.error('[feedService] getTrendingFeed failed:', error);
@@ -280,9 +283,12 @@ export const repostPost = async (
   visibility?: string,
 ): Promise<FeedPost | null> => {
   try {
-    const body: Record<string, string> = {};
-    if (content) body.content = content;
-    if (visibility) body.visibility = visibility;
+    const body: Record<string, any> = {};
+    if (content) {
+      body.content = content;
+      if (visibility) body.visibility = visibility;
+      body.allow_comments = true;
+    }
 
     const response = await apiClient.post(`/api/posts/${postId}/repost`, body);
     const raw = response.data?.post ?? response.data?.data ?? response.data;
@@ -450,10 +456,10 @@ export const uploadMedia = async (
         mediaType === 'video'
           ? 'video/mp4'
           : ext === 'png'
-          ? 'image/png'
-          : ext === 'webp'
-          ? 'image/webp'
-          : 'image/jpeg';
+            ? 'image/png'
+            : ext === 'webp'
+              ? 'image/webp'
+              : 'image/jpeg';
     }
 
     // Apply the specific URI logic for iOS/Android compatibility
