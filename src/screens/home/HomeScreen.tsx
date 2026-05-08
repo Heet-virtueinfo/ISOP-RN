@@ -101,7 +101,7 @@ const HomeScreen = () => {
   }, [fetchHomeData]);
 
   const navigateToEvents = () => navigation.navigate('EventList');
-  const navigateToMyEvents = () => navigation.navigate('MyEventsTab');
+  const navigateToMyEvents = () => navigation.navigate('MyEventsList');
   const navigateToNews = () => navigation.navigate('NewsScreen');
   const navigateToLibrary = () => navigation.navigate('LibraryScreen');
 
