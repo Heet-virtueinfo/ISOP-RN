@@ -26,11 +26,18 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, typography, radius } from '../../theme';
 import { adminGetEventById, adminDeleteEvent } from '../../services/admin';
-import { AppEvent, Speaker } from '../../types';
-import { getEventImage, formatEventDateRange } from '../../utils/eventHelpers';
+import { AppEvent, Speaker, AgendaItem } from '../../types';
+import {
+  getEventImage,
+  formatEventDateRange,
+  formatEventDate,
+  formatEventTime,
+  cleanHtml,
+} from '../../utils/eventHelpers';
 import CustomLoader from '../../components/CustomLoader';
 import DeleteEventModal from '../../components/modals/DeleteEventModal';
 import SpeakerBioModal from '../../components/modals/SpeakerBioModal';
+import AgendaDetailModal from '../../components/modals/AgendaDetailModal';
 import Toast from 'react-native-toast-message';
 
 const AdminEventDetailScreen = () => {
@@ -44,6 +51,12 @@ const AdminEventDetailScreen = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker | null>(null);
   const [showSpeakerModal, setShowSpeakerModal] = useState(false);
+  const [selectedAgendaDay, setSelectedAgendaDay] = useState<string | null>(
+    null,
+  );
+  const [selectedAgendaItem, setSelectedAgendaItem] =
+    useState<AgendaItem | null>(null);
+  const [showAgendaModal, setShowAgendaModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -52,6 +65,7 @@ const AdminEventDetailScreen = () => {
       if (!eventId) return;
       try {
         const data = await adminGetEventById(eventId);
+        console.log('event', data);
         if (mounted) {
           setEvent(data);
           setLoading(false);
@@ -255,7 +269,9 @@ const AdminEventDetailScreen = () => {
               <Text style={styles.sectionTitle}>TACTICAL SPECIFICATIONS</Text>
             </View>
             <View style={styles.specBox}>
-              <Text style={styles.specText}>{event.description}</Text>
+              <Text style={styles.specText}>
+                {cleanHtml(event.description)}
+              </Text>
             </View>
           </View>
 
@@ -306,70 +322,188 @@ const AdminEventDetailScreen = () => {
           )}
 
           {/* Section 4: Operational Agenda */}
-          {event.agenda && event.agenda.length > 0 && (
-            <View style={[styles.sectionWrap, { marginBottom: spacing.md }]}>
-              <View style={styles.sectionHeader}>
-                <Clock size={18} color={colors.brand.primary} />
-                <Text style={styles.sectionTitle}>OPERATIONAL AGENDA</Text>
-              </View>
-              <View style={styles.agendaTimeline}>
-                {event.agenda
-                  .sort((a, b) => {
-                    const tA = a.startTime?.toDate?.() || new Date(a.startTime);
-                    const tB = b.startTime?.toDate?.() || new Date(b.startTime);
-                    return tA.getTime() - tB.getTime();
-                  })
-                  .map((item, index) => (
-                    <View key={item.id} style={styles.agendaItemRow}>
-                      {/* Timeline Spine Col */}
-                      <View style={styles.timelineCol}>
-                        <View style={styles.timelineNode}>
-                          <View style={styles.timelineNodeInner} />
-                        </View>
-                        {index !== (event.agenda?.length || 0) - 1 && (
-                          <View style={styles.timelineSegment} />
-                        )}
-                      </View>
+          {event.agenda &&
+            event.agenda.length > 0 &&
+            (() => {
+              // Compute unique days from agenda items
+              // Produce a stable 'YYYY-MM-DD' key from any timestamp so
+              // sorting and re-displaying the date is reliable across platforms.
+              const getDay = (t: any): string => {
+                let d: Date;
+                if (t && typeof t.toDate === 'function') {
+                  d = t.toDate();
+                } else if (t instanceof Date) {
+                  d = t;
+                } else {
+                  const s = String(t ?? '')
+                    .replace(/\.\d+Z$/, '')
+                    .replace(/Z$/, '')
+                    .replace(/[+-]\d{2}:\d{2}$/, '');
+                  d = new Date(s);
+                }
+                if (isNaN(d.getTime())) return '';
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+              };
 
-                      {/* Content Card */}
-                      <View
-                        style={[
-                          styles.agendaCard,
-                          index === (event.agenda?.length || 0) - 1 && {
-                            marginBottom: 0,
-                          },
-                        ]}
-                      >
-                        <View style={styles.agendaCardHeader}>
-                          <Text style={styles.agendaTimeText}>
-                            {new Date(
-                              item.startTime?.toDate?.() || item.startTime,
-                            ).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </Text>
-                          <View style={styles.agendaPoint} />
-                        </View>
-                        <View style={styles.agendaCardBody}>
-                          <Text style={styles.agendaItemTitle}>
-                            {item.title}
-                          </Text>
-                          {item.description && (
+              const dateFromKey = (key: string): Date =>
+                new Date(`${key}T00:00:00`);
+
+              // Generate tabs ONLY for days that actually have agenda items scheduled
+              const agendaDays = Array.from(
+                new Set(
+                  event.agenda.map(a => getDay(a.startTime)).filter(Boolean),
+                ),
+              ).sort();
+
+              // Safe fallback for activeDay
+              const activeDay =
+                selectedAgendaDay && agendaDays.includes(selectedAgendaDay)
+                  ? selectedAgendaDay
+                  : agendaDays[0];
+
+              const filteredAgenda = event.agenda
+                .filter(a => getDay(a.startTime) === activeDay)
+                .sort((a, b) => {
+                  const tA = a.startTime?.toDate?.() ?? new Date(a.startTime);
+                  const tB = b.startTime?.toDate?.() ?? new Date(b.startTime);
+                  return tA.getTime() - tB.getTime();
+                });
+
+              return (
+                <View
+                  style={[styles.sectionWrap, { marginBottom: spacing.md }]}
+                >
+                  <View style={styles.sectionHeader}>
+                    <Clock size={18} color={colors.brand.primary} />
+                    <Text style={styles.sectionTitle}>OPERATIONAL AGENDA</Text>
+                  </View>
+
+                  {/* Day Tabs */}
+                  {agendaDays.length > 1 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.dayTabsRow}
+                      style={{ marginBottom: spacing.lg }}
+                    >
+                      {agendaDays.map((day, i) => {
+                        const isActive = activeDay === day;
+                        const dayDate = dateFromKey(day);
+                        return (
+                          <TouchableOpacity
+                            key={day}
+                            style={[
+                              styles.dayTab,
+                              isActive && styles.dayTabActive,
+                            ]}
+                            onPress={() => setSelectedAgendaDay(day)}
+                            activeOpacity={0.7}
+                          >
                             <Text
-                              style={styles.agendaItemDesc}
-                              numberOfLines={2}
+                              style={[
+                                styles.dayTabLabel,
+                                isActive && styles.dayTabLabelActive,
+                              ]}
                             >
-                              {item.description}
+                              Day {i + 1}
                             </Text>
+                            <Text
+                              style={[
+                                styles.dayTabDate,
+                                isActive && styles.dayTabDateActive,
+                              ]}
+                            >
+                              {dayDate.toLocaleDateString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+
+                  {/* Single-day date badge + session count */}
+                  {agendaDays.length === 1 && (
+                    <View style={styles.singleDayBadge}>
+                      <Calendar size={12} color={colors.brand.primary} />
+                      <Text style={styles.singleDayText}>
+                        {dateFromKey(agendaDays[0]).toLocaleDateString(
+                          'en-IN',
+                          {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                          },
+                        )}
+                      </Text>
+                      <Text style={styles.agendaSessionCountInline}>
+                        • {filteredAgenda.length} session
+                        {filteredAgenda.length !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.agendaTimeline}>
+                    {filteredAgenda.map((item, index) => (
+                      <View key={item.id} style={styles.agendaItemRow}>
+                        {/* Timeline Spine Col */}
+                        <View style={styles.timelineCol}>
+                          <View style={styles.timelineNode}>
+                            <View style={styles.timelineNodeInner} />
+                          </View>
+                          {index !== filteredAgenda.length - 1 && (
+                            <View style={styles.timelineSegment} />
                           )}
                         </View>
+
+                        {/* Content Card */}
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            setSelectedAgendaItem(item);
+                            setShowAgendaModal(true);
+                          }}
+                          style={[
+                            styles.agendaCard,
+                            index === filteredAgenda.length - 1 && {
+                              marginBottom: 0,
+                            },
+                          ]}
+                        >
+                          <View style={styles.agendaCardHeader}>
+                            <Text style={styles.agendaTimeText}>
+                              {formatEventTime(item.startTime)}
+                              {item.endTime
+                                ? ` – ${formatEventTime(item.endTime)}`
+                                : ''}
+                            </Text>
+                            <View style={styles.agendaPoint} />
+                          </View>
+                          <View style={styles.agendaCardBody}>
+                            <Text style={styles.agendaItemTitle}>
+                              {item.title}
+                            </Text>
+                            {item.description && (
+                              <Text
+                                style={styles.agendaItemDesc}
+                                numberOfLines={2}
+                              >
+                                {cleanHtml(item.description)}
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
                       </View>
-                    </View>
-                  ))}
-              </View>
-            </View>
-          )}
+                    ))}
+                  </View>
+                </View>
+              );
+            })()}
 
           {/* Section 5: Tactical Command Actions */}
           <View style={[styles.actionSection, { marginTop: spacing.xs }]}>
@@ -400,6 +534,11 @@ const AdminEventDetailScreen = () => {
         visible={showSpeakerModal}
         onClose={() => setShowSpeakerModal(false)}
         speaker={selectedSpeaker}
+      />
+      <AgendaDetailModal
+        visible={showAgendaModal}
+        onClose={() => setShowAgendaModal(false)}
+        agendaItem={selectedAgendaItem}
       />
     </View>
   );
@@ -648,6 +787,58 @@ const styles = StyleSheet.create({
   agendaTimeline: {
     paddingLeft: spacing.xs,
   },
+  dayTabsRow: {
+    paddingBottom: 4,
+    gap: spacing.sm,
+  },
+  dayTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: radius.xl,
+    backgroundColor: colors.layout.surface,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+    alignItems: 'center',
+    minWidth: 72,
+  },
+  dayTabActive: {
+    backgroundColor: colors.brand.primary,
+    borderColor: colors.brand.primary,
+  },
+  dayTabLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.text.tertiary,
+    letterSpacing: 0.5,
+  },
+  dayTabLabelActive: {
+    color: 'white',
+  },
+  dayTabDate: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  dayTabDateActive: {
+    color: 'rgba(255,255,255,0.75)',
+  },
+  singleDayBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.palette.indigo.bg,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.lg,
+    alignSelf: 'flex-start',
+  },
+  singleDayText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.brand.primary,
+  },
   agendaItemRow: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -783,6 +974,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily,
     fontSize: 16,
     color: colors.text.secondary,
+  },
+  agendaSessionCountInline: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+    marginLeft: 4,
   },
 });
 

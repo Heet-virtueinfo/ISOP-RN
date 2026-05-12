@@ -35,11 +35,12 @@ import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import EventTypePicker from '../../components/EventTypePicker';
 import ImagePickerGrid from '../../components/ImagePickerGrid';
-import { adminCreateEvent, adminUploadSpeakerImage } from '../../services/admin';
+import {
+  adminCreateEvent,
+  adminUploadSpeakerImage,
+} from '../../services/admin';
 import { formatEventDate } from '../../utils/eventHelpers';
 import BentoFormTile from '../../components/BentoFormTile';
-
-import AppToast from '../../components/AppToast';
 
 const TimeNode = ({ label, value, onPress, isEnd = false, error }: any) => (
   <TouchableOpacity
@@ -105,6 +106,58 @@ const CreateEventScreen = () => {
   const [agendaEndTime, setAgendaEndTime] = useState(new Date());
   const [showItemStartPicker, setShowItemStartPicker] = useState(false);
   const [showItemEndPicker, setShowItemEndPicker] = useState(false);
+
+  const handleDateChange = (newDate: Date) => {
+    setDate(newDate);
+    // If end date is not set or is before new start date, set it to 2 hours later
+    if (!endDate || endDate.getTime() <= newDate.getTime()) {
+      setEndDate(new Date(newDate.getTime() + 2 * 60 * 60 * 1000));
+    }
+
+    // Sync with first agenda item if it exists (user request)
+    if (agenda.length > 0) {
+      setAgenda(prev => {
+        // Sort to find the "first" agenda item by time
+        const sorted = [...prev].sort(
+          (a, b) =>
+            new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+        );
+        const firstItem = sorted[0];
+
+        return prev.map(item => {
+          if (item.id === firstItem.id) {
+            const oldStart = new Date(item.startTime).getTime();
+            const oldEnd = new Date(item.endTime).getTime();
+            const duration = oldEnd - oldStart;
+
+            return {
+              ...item,
+              startTime: newDate,
+              // Maintain duration if possible, otherwise at least keep it valid
+              endTime: new Date(
+                newDate.getTime() + (duration > 0 ? duration : 1800000),
+              ),
+            };
+          }
+          return item;
+        });
+      });
+    }
+  };
+
+  const handleEventEndDateChange = (newDate: Date) => {
+    if (newDate.getTime() <= date.getTime()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Timeline',
+        text2: 'End time must be after start time.',
+      });
+      // Adjust to at least 30 mins after start if they picked something invalid
+      setEndDate(new Date(date.getTime() + 30 * 60 * 1000));
+    } else {
+      setEndDate(newDate);
+    }
+  };
 
   const resetForm = () => {
     setTitle('');
@@ -263,6 +316,15 @@ const CreateEventScreen = () => {
     if (!tempAgenda.title?.trim()) newModalErrors.title = 'Title is required';
     if (!tempAgenda.description?.trim())
       newModalErrors.description = 'Description is required';
+
+    if (agendaEndTime.getTime() <= agendaStartTime.getTime()) {
+      newModalErrors.endTime = 'Session end must be after start';
+      Toast.show({
+        type: 'error',
+        text1: 'Time Confusion',
+        text2: 'Session end must be after start time.',
+      });
+    }
 
     if (Object.keys(newModalErrors).length > 0) {
       setModalErrors(newModalErrors);
@@ -565,6 +627,7 @@ const CreateEventScreen = () => {
                             setEditingAgenda(a);
                             setTempAgenda(a);
                             setAgendaStartTime(new Date(a.startTime));
+                            setAgendaEndTime(new Date(a.endTime));
                             setAgendaModalVisible(true);
                           }}
                         >
@@ -585,7 +648,27 @@ const CreateEventScreen = () => {
                   onPress={() => {
                     setEditingAgenda(null);
                     setTempAgenda({ title: '', description: '' });
-                    setAgendaStartTime(new Date(date));
+
+                    // Default start = end time of the last agenda item (by end time),
+                    // so sessions chain together naturally. Fall back to event start date.
+                    let newStart = new Date(date);
+                    if (agenda.length > 0) {
+                      const lastEndTime = agenda.reduce((latest, item) => {
+                        const t = item.endTime
+                          ? new Date(item.endTime).getTime()
+                          : new Date(item.startTime).getTime();
+                        return t > latest ? t : latest;
+                      }, 0);
+                      if (lastEndTime > 0) {
+                        newStart = new Date(lastEndTime);
+                      }
+                    }
+
+                    setAgendaStartTime(newStart);
+                    // Default end = 1 hour after the computed start
+                    setAgendaEndTime(
+                      new Date(newStart.getTime() + 60 * 60 * 1000),
+                    );
                     setAgendaModalVisible(true);
                   }}
                 >
@@ -641,19 +724,19 @@ const CreateEventScreen = () => {
                       minimumDate={new Date()}
                       onChange={(e, d) => {
                         if (d) {
-                          if (openDatePicker) setDate(d);
-                          else setEndDate(d);
+                          if (openDatePicker) handleDateChange(d);
+                          else handleEventEndDateChange(d);
                         }
                       }}
                     />
                   </View>
                 </View>
-                <AppToast />
-</Modal>
+              </Modal>
             ) : (
               <DateTimePicker
                 value={openDatePicker ? date : endDate || new Date()}
                 mode={pickerMode}
+                minimumDate={openDatePicker ? new Date() : date}
                 onChange={(e, d) => {
                   if (e?.type === 'dismissed') {
                     setOpenDatePicker(false);
@@ -663,7 +746,7 @@ const CreateEventScreen = () => {
                   }
                   if (d) {
                     if (openDatePicker) {
-                      setDate(d);
+                      handleDateChange(d);
                       if (Platform.OS === 'android' && pickerMode === 'date') {
                         setPickerMode('time');
                       } else {
@@ -671,7 +754,7 @@ const CreateEventScreen = () => {
                         setPickerMode('date');
                       }
                     } else {
-                      setEndDate(d);
+                      handleEventEndDateChange(d);
                       if (Platform.OS === 'android' && pickerMode === 'date') {
                         setPickerMode('time');
                       } else {
@@ -697,7 +780,7 @@ const CreateEventScreen = () => {
                 <View style={{ flex: 1 }} />
               </TouchableWithoutFeedback>
               <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.modalContent}
               >
                 <View style={styles.modalHeader}>
@@ -714,7 +797,6 @@ const CreateEventScreen = () => {
                   style={{ padding: 20 }}
                   contentContainerStyle={{ paddingBottom: 60 }}
                   showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
                 >
                   <View style={styles.innerMedia}>
                     <Text style={styles.inputLabel}>Speaker Photo</Text>
@@ -766,8 +848,7 @@ const CreateEventScreen = () => {
                 </ScrollView>
               </KeyboardAvoidingView>
             </View>
-            <AppToast />
-</Modal>
+          </Modal>
 
           {/* Agenda Modal */}
           <Modal visible={agendaModalVisible} transparent animationType="slide">
@@ -778,7 +859,7 @@ const CreateEventScreen = () => {
                 <View style={{ flex: 1 }} />
               </TouchableWithoutFeedback>
               <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.modalContent}
               >
                 <View style={styles.modalHeader}>
@@ -795,7 +876,6 @@ const CreateEventScreen = () => {
                   style={{ padding: 20 }}
                   contentContainerStyle={{ paddingBottom: 60 }}
                   showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
                 >
                   <InputField
                     label="Session Title"
@@ -860,14 +940,14 @@ const CreateEventScreen = () => {
                             value={agendaStartTime}
                             mode="datetime"
                             display="spinner"
+                            minimumDate={date}
                             onChange={(e, d) => {
                               if (d) setAgendaStartTime(d);
                             }}
                           />
                         </View>
                       </View>
-                      <AppToast />
-</Modal>
+                    </Modal>
                   )}
 
                   {/* iOS Session End Picker Modal */}
@@ -892,14 +972,14 @@ const CreateEventScreen = () => {
                             value={agendaEndTime}
                             mode="datetime"
                             display="spinner"
+                            minimumDate={agendaStartTime}
                             onChange={(e, d) => {
                               if (d) setAgendaEndTime(d);
                             }}
                           />
                         </View>
                       </View>
-                      <AppToast />
-</Modal>
+                    </Modal>
                   )}
 
                   {/* Android Native Pickers */}
@@ -907,6 +987,7 @@ const CreateEventScreen = () => {
                     <DateTimePicker
                       value={agendaStartTime}
                       mode={pickerMode}
+                      minimumDate={date}
                       onChange={(e, d) => {
                         if (e?.type === 'dismissed') {
                           setShowItemStartPicker(false);
@@ -929,6 +1010,7 @@ const CreateEventScreen = () => {
                     <DateTimePicker
                       value={agendaEndTime}
                       mode={pickerMode}
+                      minimumDate={agendaStartTime}
                       onChange={(e, d) => {
                         if (e?.type === 'dismissed') {
                           setShowItemEndPicker(false);
@@ -950,8 +1032,7 @@ const CreateEventScreen = () => {
                 </ScrollView>
               </KeyboardAvoidingView>
             </View>
-            <AppToast />
-</Modal>
+          </Modal>
         </View>
       </KeyboardAvoidingView>
     </View>

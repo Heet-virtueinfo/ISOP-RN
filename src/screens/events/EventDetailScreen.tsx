@@ -39,8 +39,13 @@ import {
   unenrollFromEvent,
   checkEnrollment,
 } from '../../services/enrollmentService';
-import { AppEvent, Enrollment, Feedback } from '../../types';
-import { getEventImage, formatEventDateRange } from '../../utils/eventHelpers';
+import { AppEvent, Enrollment, Feedback, AgendaItem } from '../../types';
+import {
+  getEventImage,
+  cleanHtml,
+  formatEventDateRange,
+  formatEventTime,
+} from '../../utils/eventHelpers';
 import {
   submitFeedback,
   checkUserFeedback,
@@ -52,6 +57,7 @@ import EnrollConfirmModal from '../../components/modals/EnrollConfirmModal';
 import UnenrollConfirmModal from '../../components/modals/UnenrollConfirmModal';
 import SpeakerBioModal from '../../components/modals/SpeakerBioModal';
 import LeaveFeedbackModal from '../../components/modals/LeaveFeedbackModal';
+import AgendaDetailModal from '../../components/modals/AgendaDetailModal';
 import StarRating from '../../components/StarRating';
 import { Speaker } from '../../types';
 
@@ -74,6 +80,12 @@ const EventDetailScreen = () => {
   const [userFeedback, setUserFeedback] = useState<Feedback | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [selectedAgendaDay, setSelectedAgendaDay] = useState<string | null>(
+    null,
+  );
+  const [selectedAgendaItem, setSelectedAgendaItem] =
+    useState<AgendaItem | null>(null);
+  const [showAgendaModal, setShowAgendaModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -88,6 +100,7 @@ const EventDetailScreen = () => {
               ? checkEnrollment(eventId, userProfile.uid)
               : Promise.resolve(null),
           ]);
+          console.log('event Data:', eventData);
           if (isMounted) {
             setEvent(eventData);
             setEnrollment(enrollmentData);
@@ -267,17 +280,8 @@ const EventDetailScreen = () => {
     }
   };
 
-  const formatTime = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date =
-      typeof timestamp.toDate === 'function'
-        ? timestamp.toDate()
-        : new Date(timestamp);
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
+  // Use timezone-safe helper from eventHelpers instead of local toLocaleTimeString
+  const formatTime = (timestamp: any) => formatEventTime(timestamp);
 
   if (loading)
     return (
@@ -462,7 +466,9 @@ const EventDetailScreen = () => {
               <Info size={16} color={colors.brand.primary} />
               <Text style={styles.sectionTitle}>ABOUT THIS EVENT</Text>
             </View>
-            <Text style={styles.description}>{event.description}</Text>
+            <Text style={styles.description}>
+              {cleanHtml(event.description)}
+            </Text>
           </View>
 
           {/* Speakers Section */}
@@ -514,64 +520,189 @@ const EventDetailScreen = () => {
           )}
 
           {/* Agenda Section */}
-          {event.agenda && event.agenda.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionTitleRow}>
-                <Clock size={16} color={colors.brand.primary} />
-                <Text style={styles.sectionTitle}>EVENT AGENDA</Text>
-              </View>
-              <View style={styles.agendaContainer}>
-                {event.agenda
-                  .sort((a, b) => {
-                    const timeA =
-                      a.startTime?.toDate?.() || new Date(a.startTime);
-                    const timeB =
-                      b.startTime?.toDate?.() || new Date(b.startTime);
-                    return timeA.getTime() - timeB.getTime();
-                  })
-                  .map((item, index) => {
-                    const duration = calculateDuration(
-                      item.startTime,
-                      item.endTime,
-                    );
-                    return (
-                      <View key={item.id} style={styles.agendaItem}>
-                        <View style={styles.agendaTimeColumn}>
-                          <Text style={styles.agendaTime}>
-                            {formatTime(item.startTime)}
-                          </Text>
-                        </View>
+          {event.agenda &&
+            event.agenda.length > 0 &&
+            (() => {
+              // Produce a stable 'YYYY-MM-DD' key from any timestamp so
+              // sorting and re-displaying the date is reliable across platforms.
+              const getDay = (t: any): string => {
+                let d: Date;
+                if (t && typeof t.toDate === 'function') {
+                  d = t.toDate();
+                } else if (t instanceof Date) {
+                  d = t;
+                } else {
+                  const s = String(t ?? '')
+                    .replace(/\.\d+Z$/, '')
+                    .replace(/Z$/, '')
+                    .replace(/[+-]\d{2}:\d{2}$/, '');
+                  d = new Date(s);
+                }
+                if (isNaN(d.getTime())) return '';
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+              };
 
-                        <View style={styles.timelineColumn}>
-                          <View style={styles.agendaDot} />
-                          {index !== (event.agenda?.length || 0) - 1 && (
-                            <View style={styles.agendaLine} />
-                          )}
-                        </View>
+              const dateFromKey = (key: string): Date =>
+                new Date(`${key}T00:00:00`);
 
-                        <View style={styles.agendaContent}>
-                          <View style={styles.agendaTitleRow}>
-                            <Text style={styles.agendaTitle}>{item.title}</Text>
-                            {duration && (
-                              <View style={styles.durationBadge}>
-                                <Text style={styles.durationText}>
-                                  {duration}
-                                </Text>
-                              </View>
+              // Generate tabs ONLY for days that actually have agenda items scheduled
+              const agendaDays = Array.from(
+                new Set(
+                  event.agenda.map(a => getDay(a.startTime)).filter(Boolean),
+                ),
+              ).sort();
+
+              // Safe fallback for activeDay
+              const activeDay =
+                selectedAgendaDay && agendaDays.includes(selectedAgendaDay)
+                  ? selectedAgendaDay
+                  : agendaDays[0];
+
+              const filteredAgenda = event.agenda
+                .filter(a => getDay(a.startTime) === activeDay)
+                .sort((a, b) => {
+                  const tA = a.startTime?.toDate?.() ?? new Date(a.startTime);
+                  const tB = b.startTime?.toDate?.() ?? new Date(b.startTime);
+                  return tA.getTime() - tB.getTime();
+                });
+
+              return (
+                <View style={styles.section}>
+                  <View style={styles.sectionTitleRow}>
+                    <Clock size={16} color={colors.brand.primary} />
+                    <Text style={styles.sectionTitle}>EVENT AGENDA</Text>
+                  </View>
+
+                  {/* Multi-day tabs: only when agenda genuinely spans multiple days */}
+                  {agendaDays.length > 1 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.dayTabsRow}
+                      style={{ marginBottom: spacing.lg }}
+                    >
+                      {agendaDays.map((day, i) => {
+                        const isActive = activeDay === day;
+                        const dayDate = dateFromKey(day);
+                        return (
+                          <TouchableOpacity
+                            key={day}
+                            style={[
+                              styles.dayTab,
+                              isActive && styles.dayTabActive,
+                            ]}
+                            onPress={() => setSelectedAgendaDay(day)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.dayTabLabel,
+                                isActive && styles.dayTabLabelActive,
+                              ]}
+                            >
+                              Day {i + 1}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.dayTabDate,
+                                isActive && styles.dayTabDateActive,
+                              ]}
+                            >
+                              {dayDate.toLocaleDateString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+
+                  {/* Single-day date badge + session count */}
+                  {agendaDays.length === 1 && (
+                    <View style={styles.singleDayBadge}>
+                      <Calendar size={12} color={colors.brand.primary} />
+                      <Text style={styles.singleDayText}>
+                        {dateFromKey(agendaDays[0]).toLocaleDateString(
+                          'en-IN',
+                          {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                          },
+                        )}
+                      </Text>
+                      <Text style={styles.agendaSessionCountInline}>
+                        • {filteredAgenda.length} session
+                        {filteredAgenda.length !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.agendaContainer}>
+                    {filteredAgenda.map((item, index) => {
+                      const duration = calculateDuration(
+                        item.startTime,
+                        item.endTime,
+                      );
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={styles.agendaItem}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            setSelectedAgendaItem(item);
+                            setShowAgendaModal(true);
+                          }}
+                        >
+                          <View style={styles.agendaTimeColumn}>
+                            <Text style={styles.agendaTime}>
+                              {formatTime(item.startTime)}
+                            </Text>
+                            {item.endTime ? (
+                              <Text style={styles.agendaEndTime}>
+                                {formatTime(item.endTime)}
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          <View style={styles.timelineColumn}>
+                            <View style={styles.agendaDot} />
+                            {index !== filteredAgenda.length - 1 && (
+                              <View style={styles.agendaLine} />
                             )}
                           </View>
-                          {item.description && (
-                            <Text style={styles.agendaDesc}>
-                              {item.description}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })}
-              </View>
-            </View>
-          )}
+
+                          <View style={styles.agendaContent}>
+                            <View style={styles.agendaTitleRow}>
+                              <Text style={styles.agendaTitle}>
+                                {item.title}
+                              </Text>
+                              {duration && (
+                                <View style={styles.durationBadge}>
+                                  <Text style={styles.durationText}>
+                                    {duration}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            {item.description && (
+                              <Text style={styles.agendaDesc} numberOfLines={2}>
+                                {cleanHtml(item.description)}
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
 
           {/* Action Buttons */}
           <View style={styles.actions}>
@@ -640,7 +771,8 @@ const EventDetailScreen = () => {
                     }
                   >
                     <Text style={styles.participantsBtnText}>
-                      View Other Participants ({Math.max(0, (event.enrolledCount || 0) - 1)})
+                      View Other Participants (
+                      {Math.max(0, (event.enrolledCount || 0) - 1)})
                     </Text>
                     <Users size={18} color={colors.brand.primary} />
                   </TouchableOpacity>
@@ -674,7 +806,8 @@ const EventDetailScreen = () => {
                     }
                   >
                     <Text style={styles.participantsBtnText}>
-                      View Other Participants ({Math.max(0, (event.enrolledCount || 0) - 1)})
+                      View Other Participants (
+                      {Math.max(0, (event.enrolledCount || 0) - 1)})
                     </Text>
                     <Users size={18} color={colors.brand.primary} />
                   </TouchableOpacity>
@@ -710,7 +843,11 @@ const EventDetailScreen = () => {
         onClose={() => setShowSpeakerModal(false)}
         speaker={selectedSpeaker}
       />
-
+      <AgendaDetailModal
+        visible={showAgendaModal}
+        onClose={() => setShowAgendaModal(false)}
+        agendaItem={selectedAgendaItem}
+      />
       <LeaveFeedbackModal
         visible={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
@@ -1085,7 +1222,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     backgroundColor: '#F8FAFC', // Slightly different background to separate from infoArea
     paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
+    paddingRight: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.layout.divider,
@@ -1158,6 +1295,78 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     lineHeight: 20,
     fontFamily: typography.fontFamily,
+  },
+  agendaEndTime: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+    textAlign: 'right',
+    marginTop: 2,
+  },
+  dayTabsRow: {
+    paddingBottom: 4,
+    gap: spacing.sm,
+  },
+  dayTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: radius.xl,
+    backgroundColor: colors.layout.surface,
+    borderWidth: 1,
+    borderColor: colors.layout.divider,
+    alignItems: 'center',
+    minWidth: 72,
+  },
+  dayTabActive: {
+    backgroundColor: colors.brand.primary,
+    borderColor: colors.brand.primary,
+  },
+  dayTabLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.text.tertiary,
+    letterSpacing: 0.5,
+  },
+  dayTabLabelActive: {
+    color: 'white',
+  },
+  dayTabDate: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  dayTabDateActive: {
+    color: 'rgba(255,255,255,0.75)',
+  },
+  agendaSessionCountInline: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.tertiary,
+    marginLeft: 4,
+  },
+  singleDayBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.md,
+    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.lg,
+    alignSelf: 'flex-start',
+  },
+  singleDayText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.brand.primary,
+  },
+  emptyAgendaText: {
+    fontSize: 13,
+    color: colors.text.tertiary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
   },
 });
 

@@ -24,40 +24,155 @@ export const getEventImage = (event: AppEvent) => {
   return getEventPlaceholder(event.type);
 };
 
-export const formatEventDate = (timestamp: any) => {
+/**
+* Parses a date/time value from the backend without timezone conversion.
+*
+* Problem: The API returns dates like "2026-05-04T04:30:00.000000Z" (UTC),
+* but when the admin entered "4:30 AM" they meant local time. JavaScript's
+* `new Date("...Z")` automatically shifts by the device timezone (+5:30 IST),
+* turning 4:30 AM into 10:00 AM — wrong!
+*
+* Fix: Strip the trailing Z (and any offset) so JS parses the bare datetime
+* as local wall-clock time, preserving the original entered value.
+*
+* Also handles Firestore Timestamps and legacy "09:00 AM" time-only strings.
+*/
+const parseEventDate = (timestamp: any): Date | null => {
+  if (!timestamp) return null;
+
+  // Firestore Timestamp object
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+
+  // Already a Date object
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+
+  const str = String(timestamp).trim();
+
+  // Legacy time-only strings like "09:00 AM" or "09:00" — return null, not renderable as a full date
+  if (/^[0-9]{1,2}:[0-9]{2}(\s?(AM|PM))?$/i.test(str)) {
+    return null;
+  }
+
+  // ISO string with Z or offset — strip timezone part so JS reads it as local time
+  // e.g. "2026-05-04T04:30:00.000000Z" -> "2026-05-04T04:30:00"
+  const stripped = str
+    .replace(/\.\d+Z$/, '')     // remove fractional seconds + Z
+    .replace(/Z$/, '')           // remove bare Z
+    .replace(/[+-]\d{2}:\d{2}$/, ''); // remove +05:30 style offset
+
+  const parsed = new Date(stripped);
+  return isNaN(parsed.getTime()) ? null : parsed;
+};
+
+/**
+* Format a date for display. Uses the as-stored time (no timezone shift).
+* For legacy time-only strings like "09:00 AM", returns the string as-is.
+*/
+export const formatEventDate = (timestamp: any): string => {
   if (!timestamp) return '';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString('en-US', {
+
+  const str = String(timestamp).trim();
+
+  // Legacy time-only string — show as-is
+  if (/^[0-9]{1,2}:[0-9]{2}(\s?(AM|PM))?$/i.test(str)) {
+    return str;
+  }
+
+  const date = parseEventDate(timestamp);
+  if (!date) return '';
+
+  return date.toLocaleDateString('en-IN', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   });
 };
 
-export const formatEventDateRange = (start: any, end?: any) => {
-  if (!start) return '';
-  const startDateStr = formatEventDate(start);
-  if (!end) return startDateStr;
+/**
+* Cleans HTML strings (e.g., from rich text editors) into plain text suitable for React Native <Text>
+* Handles paragraphs, lists, and basic HTML entities before stripping the rest of the tags.
+*/
+export const cleanHtml = (htmlStr: string | undefined | null): string => {
+  if (!htmlStr) return '';
 
-  const startDateObj = start.toDate ? start.toDate() : new Date(start);
-  const endDateObj = end.toDate ? end.toDate() : new Date(end);
+  let text = htmlStr;
 
-  // Same day check
-  if (
-    startDateObj.getDate() === endDateObj.getDate() &&
-    startDateObj.getMonth() === endDateObj.getMonth() &&
-    startDateObj.getFullYear() === endDateObj.getFullYear()
-  ) {
-    return `${startDateStr} - ${endDateObj.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    })}`;
+  // Replace specific blocks with newlines
+  text = text.replace(/<\/?(p|div|br)[^>]*>/gi, '\n');
+
+  // Replace list items with bullets
+  text = text.replace(/<li[^>]*>/gi, '\n• ');
+
+  // Decode common HTML entities
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<');
+  text = text.replace(/&gt;/g, '>');
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+
+  // Strip all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, '');
+
+  // Clean up excess whitespace/newlines
+  text = text.replace(/\n\s*\n\s*\n+/g, '\n\n');
+
+  return text.trim();
+};
+
+/**
+* Formats just the time portion (no date). Returns empty string for invalid/missing values.
+*/
+export const formatEventTime = (timestamp: any): string => {
+  if (!timestamp) return '';
+
+  const str = String(timestamp).trim();
+
+  // Legacy time-only string — show as-is
+  if (/^[0-9]{1,2}:[0-9]{2}(\s?(AM|PM))?$/i.test(str)) {
+    return str;
   }
 
-  return `${startDateStr} - ${formatEventDate(end)}`;
+  const date = parseEventDate(timestamp);
+  if (!date) return '';
+
+  return date.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 };
+
+export const formatEventDateRange = (start: any, end?: any): string => {
+  if (!start) return '';
+
+  const startStr = formatEventDate(start);
+  if (!end) return startStr;
+
+  const startDate = parseEventDate(start);
+  const endDate = parseEventDate(end);
+
+  if (!startDate || !endDate) return startStr;
+
+  // Same calendar day → show "date – end time" only
+  if (
+    startDate.getDate() === endDate.getDate() &&
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getFullYear() === endDate.getFullYear()
+  ) {
+    return `${startStr} – ${formatEventTime(end)}`;
+  }
+
+  return `${startStr} – ${formatEventDate(end)}`;
+};
+
 
 export const getEventTypeLabel = (type: EventType) => {
   const labels: Record<EventType, string> = {
@@ -81,10 +196,10 @@ export const getEventTypeColor = (type: EventType, themeColors: any) => {
 
 export const getEventStatus = (event: AppEvent): 'UPCOMING' | 'ONGOING' | 'COMPLETED' => {
   if (!event || !event.date) return 'UPCOMING';
-  
+
   const now = new Date();
   const start = event.date?.toDate ? event.date.toDate() : new Date(event.date);
-  
+
   // If endDate is missing, assume a 3-hour duration for the "Ongoing" window
   const end = event.endDate
     ? (event.endDate.toDate ? event.endDate.toDate() : new Date(event.endDate))
